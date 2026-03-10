@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type EventStatus = "Scheduled" | "Cancelled" | "Rescheduled" | "Postponed";
 type EventType = "Game" | "Practice" | "Scrimmage" | "Tournament";
 
@@ -110,9 +112,12 @@ export default function SchedulePage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button className="rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-300">
+            <Link
+              href="/schedule/new"
+              className="rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-300"
+            >
               Add Event
-            </button>
+            </Link>
             <button className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
               Import Schedule
             </button>
