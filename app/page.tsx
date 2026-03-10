@@ -1,65 +1,92 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-slate-950 text-white">
+      <div className="border-b border-white/10 bg-slate-900/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-sky-400">
+              SidelineOps
+            </h1>
+            <p className="text-sm text-slate-300">
+              Beta dashboard foundation
+            </p>
+          </div>
+
+          <nav className="hidden gap-6 text-sm text-slate-300 md:flex">
+            <span>Dashboard</span>
+            <span>Schedule</span>
+            <span>Volunteers</span>
+            <span>Messages</span>
+            <span>Contacts</span>
+          </nav>
+        </div>
+      </div>
+
+      <section className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mb-8 rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-sky-400">
+            Team
+          </p>
+          <h2 className="text-3xl font-bold">James Clemens Softball</h2>
+          <p className="mt-2 text-slate-300">
+            This is the initial SidelineOps dashboard shell. Next, you’ll build
+            schedule management, notifications, and volunteer coordination.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
+              Next Event
+            </p>
+            <h3 className="mt-3 text-xl font-semibold">Game vs Huntsville</h3>
+            <p className="mt-2 text-slate-300">Feb 15 • 5:00 PM</p>
+            <p className="text-slate-400">Arrival: 4:00 PM</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
+              Quick Action
+            </p>
+            <h3 className="mt-3 text-xl font-semibold">Import Schedule</h3>
+            <p className="mt-2 text-slate-300">
+              Upload a DragonFly export and create events automatically.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
+              Volunteer Status
+            </p>
+            <h3 className="mt-3 text-xl font-semibold">3 Open Roles</h3>
+            <p className="mt-2 text-slate-300">
+              Concessions, Gate, and Scoreboard still need coverage.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
+              Public Schedule
+            </p>
+            <h3 className="mt-3 text-xl font-semibold">Team Page Ready</h3>
+            <p className="mt-2 text-slate-300">
+              Shareable public-facing schedule page coming next.
+            </p>
+          </div>
         </div>
-      </main>
-    </div>
+
+        <div className="mt-8 rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+          <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
+            Upcoming Work
+          </p>
+          <ul className="mt-4 space-y-3 text-slate-300">
+            <li>• Build schedule management page</li>
+            <li>• Add DragonFly import workflow</li>
+            <li>• Add contact groups and messaging</li>
+            <li>• Add volunteer signup tracking</li>
+          </ul>
+        </div>
+      </section>
+    </main>
   );
 }
