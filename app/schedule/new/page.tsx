@@ -229,7 +229,7 @@ export default function NewEventPage() {
               Uniform
             </label>
             <textarea
-              name="notes"
+              name="uniformNotes"
               value={formData.uniformNotes}
               onChange={handleChange}
               rows={2}
