@@ -15,6 +15,8 @@ type ScheduleEvent = {
   status: EventStatus;
 };
 
+
+
 const mockEvents: ScheduleEvent[] = [
   {
     id: 1,
