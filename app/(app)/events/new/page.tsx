@@ -123,16 +123,12 @@ export default function NewEventPage() {
   const labelClass = "block text-sm font-semibold text-slate-300 mb-2"
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <div className="text-white">
 
-      {/* Nav */}
-      <div className="border-b border-white/10 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <img
-            src="/sidelineops-logo-cropped.png"
-            alt="SidelineOps"
-            style={{ height: '36px', width: 'auto' }}
-          />
+      <div className="mx-auto max-w-7xl px-6 py-8">
+
+        {/* Back button */}
+        <div className="mb-6">
           <button
             onClick={() => router.back()}
             className="text-sm text-slate-400 hover:text-white transition-colors"
@@ -140,9 +136,6 @@ export default function NewEventPage() {
             ← Back
           </button>
         </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-6 py-8">
 
         {/* Page header */}
         <div className="mb-8">
@@ -440,6 +433,6 @@ export default function NewEventPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }
