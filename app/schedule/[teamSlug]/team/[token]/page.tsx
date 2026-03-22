@@ -53,15 +53,14 @@ export default async function TeamSchedulePage({
   const { teamSlug, token } = await params
   const supabase = await createClient()
 
-  // Validate both slug AND token must match
   const { data: team } = await supabase
     .from('teams')
     .select('id, name, slug, program_id, team_schedule_token')
     .eq('slug', teamSlug)
-    .eq('team_schedule_token', token)  // ← token must match
+    .eq('team_schedule_token', token)
     .single()
 
-  if (!team) notFound()  // wrong slug OR wrong token → 404
+  if (!team) notFound()
 
   const { data: program } = await supabase
     .from('programs')
@@ -117,6 +116,20 @@ export default async function TeamSchedulePage({
     event_team_details: undefined,
   }))
 
+  // Fetch child games for tournaments
+  const tournamentIds = events.filter(e => e.is_tournament).map(e => e.id)
+  let childGames: any[] = []
+  if (tournamentIds.length > 0) {
+    const { data: childRows } = await supabase
+      .from('events')
+      .select('id, parent_event_id, opponent, location_name, event_date, default_start_time')
+      .in('parent_event_id', tournamentIds)
+      .eq('status', 'scheduled')
+      .order('event_date', { ascending: true })
+      .order('default_start_time', { ascending: true, nullsFirst: false })
+    childGames = childRows ?? []
+  }
+
   const calendarUrl = `/schedule/${teamSlug}/calendar.ics`
 
   return (
@@ -144,14 +157,12 @@ export default async function TeamSchedulePage({
                   {school.name} · {school.city}, {school.state}
                 </p>
               )}
-              {/* Team-only indicator */}
               <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-1.5">
                 <span className="text-xs text-sky-300 font-semibold">
                   🔒 Team Schedule — Players & Parents Only
                 </span>
               </div>
             </div>
-
             <a
               href={calendarUrl}
               className="shrink-0 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 text-sm font-semibold text-center transition-colors"
@@ -162,7 +173,6 @@ export default async function TeamSchedulePage({
         </div>
       </div>
 
-      {/* Schedule */}
       <div className="mx-auto max-w-4xl px-6 py-8">
 
         <div className="flex items-center justify-between mb-6">
@@ -179,100 +189,118 @@ export default async function TeamSchedulePage({
           </div>
         ) : (
           <div className="space-y-3">
-            {events.map(event => (
-              <div
-                key={event.id}
-                className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 hover:border-white/20 transition-colors"
-              >
-                {/* Date + type badge */}
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold text-slate-400">
-                    {formatDate(event.event_date)}
-                  </span>
-                  {eventTypeBadge(event.event_type)}
-                  {event.event_type !== 'tournament' && event.is_home !== null && (
-                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                      event.is_home
-                        ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                    }`}>
-                      {event.is_home ? 'Home' : 'Away'}
+            {events.map(event => {
+              const games = childGames.filter(g => g.parent_event_id === event.id)
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 hover:border-white/20 transition-colors"
+                >
+                  {/* Date + type badge */}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="text-xs font-semibold text-slate-400">
+                      {formatDate(event.event_date)}
                     </span>
+                    {eventTypeBadge(event.event_type)}
+                    {event.event_type !== 'tournament' && event.is_home !== null && (
+                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                        event.is_home
+                          ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                          : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                      }`}>
+                        {event.is_home ? 'Home' : 'Away'}
+                      </span>
+                    )}
+                    {event.meal_required && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-400">
+                        🍽 Meal
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-base font-bold text-white mb-2">
+                    {eventLabel(event)}
+                  </h3>
+
+                  {/* Time / location details */}
+                  <div className="flex flex-wrap items-center mb-2 text-sm text-slate-400">
+                    {event.display_time && (
+                      <span className="flex items-center gap-1.5 mr-4">
+                        <span>🕐</span>
+                        <span>{formatTime(event.display_time)}</span>
+                      </span>
+                    )}
+                    {event.display_arrival && (
+                      <span className="flex items-center gap-1.5 mr-4">
+                        <span>📍</span>
+                        <span>Arrive {formatTime(event.display_arrival)}</span>
+                      </span>
+                    )}
+                    {event.location_name && (
+                      <span className="flex items-center gap-1.5 mr-4">
+                        <span>📌</span>
+                        <span>{event.location_name}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {event.location_address && (
+                    <a
+                      href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-sky-400 hover:text-sky-300 transition-colors block mb-2"
+                    >
+                      {event.location_address} →
+                    </a>
                   )}
-                  {event.meal_required && (
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-400">
-                      🍽 Meal
-                    </span>
+
+                  {event.uniform_notes && (
+                    <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5">
+                      <span>👕</span>
+                      <span>{event.uniform_notes}</span>
+                    </div>
+                  )}
+
+                  {event.meal_required && (event.meal_time || event.meal_notes) && (
+                    <div className="flex items-center gap-1.5 text-sm text-amber-400 mb-1.5">
+                      <span>🍽</span>
+                      <span>
+                        {event.meal_time && `${formatTime(event.meal_time)}`}
+                        {event.meal_time && event.meal_notes && ' · '}
+                        {event.meal_notes}
+                      </span>
+                    </div>
+                  )}
+
+                  {event.notes && (
+                    <p className="text-xs text-slate-500 mt-1.5 border-t border-white/5 pt-1.5">
+                      {event.notes}
+                    </p>
+                  )}
+
+                  {/* Tournament child games */}
+                  {event.is_tournament && games.length > 0 && (
+                    <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-500/30 pl-4">
+                      {games.map(game => (
+                        <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-300">
+                          <span className="font-medium">
+                            {game.opponent ? `vs ${game.opponent}` : 'TBD'}
+                          </span>
+                          {game.default_start_time && (
+                            <span className="text-slate-400">{formatTime(game.default_start_time)}</span>
+                          )}
+                          {game.location_name && (
+                            <span className="text-slate-500">· {game.location_name}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                {/* Title */}
-                <h3 className="text-base font-bold text-white mb-2">
-                  {eventLabel(event)}
-                </h3>
-
-                {/* Time / location details */}
-                <div className="flex flex-wrap items-center mb-2 text-sm text-slate-400">
-                  {event.display_time && (
-                    <span className="flex items-center gap-1.5 mr-4">
-                      <span>🕐</span>
-                      <span>{formatTime(event.display_time)}</span>
-                    </span>
-                  )}
-                  {event.display_arrival && (
-                    <span className="flex items-center gap-1.5 mr-4">
-                      <span>📍</span>
-                      <span>Arrive {formatTime(event.display_arrival)}</span>
-                    </span>
-                  )}
-                  {event.location_name && (
-                    <span className="flex items-center gap-1.5 mr-4">
-                      <span>📌</span>
-                      <span>{event.location_name}</span>
-                    </span>
-                  )}
-                </div>
-
-                {/* Address link */}
-                {event.location_address && (
-                  <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-sky-400 hover:text-sky-300 transition-colors block mb-2"
-                  >
-                    {event.location_address} →
-                  </a>
-                )}
-
-                {/* Uniform notes */}
-                {event.uniform_notes && (
-                  <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5">
-                    <span>👕</span>
-                    <span>{event.uniform_notes}</span>
-                  </div>
-                )}
-
-                {/* Meal details */}
-                {event.meal_required && (event.meal_time || event.meal_notes) && (
-                  <div className="flex items-center gap-1.5 text-sm text-amber-400 mb-1.5">
-                    <span>🍽</span>
-                    <span>
-                      {event.meal_time && `${formatTime(event.meal_time)}`}
-                      {event.meal_time && event.meal_notes && ' · '}
-                      {event.meal_notes}
-                    </span>
-                  </div>
-                )}
-
-                {/* Notes */}
-                {event.notes && (
-                  <p className="text-xs text-slate-500 mt-1.5 border-t border-white/5 pt-1.5">
-                    {event.notes}
-                  </p>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

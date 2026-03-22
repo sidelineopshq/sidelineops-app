@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cancelEvent } from './actions'
+import { addTournamentGame, deleteTournamentGame } from './tournament-actions'
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -28,9 +29,7 @@ function eventLabel(event: any): string {
   if (event.event_type === 'practice')   return 'Practice'
   if (event.event_type === 'meeting')    return 'Team Meeting'
   if (event.event_type === 'tournament') return event.title ?? 'Tournament'
-  if (event.opponent) {
-    return `${event.is_home ? 'vs' : '@'} ${event.opponent}`
-  }
+  if (event.opponent) return `${event.is_home ? 'vs' : '@'} ${event.opponent}`
   return event.title ?? 'Event'
 }
 
@@ -80,17 +79,6 @@ function eventTypeColor(type: string): string {
   return map[type] ?? 'bg-slate-700 text-slate-300 border-white/10'
 }
 
-// ── Detail Item ───────────────────────────────────────────────
-
-function DetailItem({ icon, text }: { icon: string; text: string }) {
-  return (
-    <span className="flex items-center gap-2">
-      <span className="text-base leading-none">{icon}</span>
-      <span className="text-sm text-slate-400">{text}</span>
-    </span>
-  )
-}
-
 // ── Confirm Dialog ────────────────────────────────────────────
 
 function ConfirmDialog({ message, onConfirm, onCancel }: {
@@ -103,16 +91,12 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <p className="text-sm text-slate-300">{message}</p>
         <div className="mt-5 flex gap-3">
-          <button
-            onClick={onConfirm}
-            className="flex-1 rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2.5 text-sm font-semibold transition-colors"
-          >
+          <button onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2.5 text-sm font-semibold transition-colors">
             Yes, Cancel Event
           </button>
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-xl border border-white/10 hover:bg-slate-800 px-4 py-2.5 text-sm font-semibold transition-colors"
-          >
+          <button onClick={onCancel}
+            className="flex-1 rounded-xl border border-white/10 hover:bg-slate-800 px-4 py-2.5 text-sm font-semibold transition-colors">
             Go Back
           </button>
         </div>
@@ -121,113 +105,335 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
   )
 }
 
-// ── Event Row (List View) ─────────────────────────────────────
+// ── Add Tournament Game Modal ─────────────────────────────────
 
-function EventRow({ event, canManageEvents, canSendNotifications, onCancelRequest }: {
-  event: any
-  canManageEvents: boolean
-  canSendNotifications: boolean
-  onCancelRequest: (event: any) => void
+function AddTournamentGameModal({ tournament, teamId, programId, onClose, onAdded }: {
+  tournament: any
+  teamId: string
+  programId: string
+  onClose: () => void
+  onAdded: (game: any) => void
 }) {
-  const router = useRouter()
+  const [opponent, setOpponent]       = useState('')
+  const [startTime, setStartTime]     = useState('')
+  const [locationName, setLocationName] = useState('')
+  const [gameDate, setGameDate]       = useState(tournament.event_date)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+
+  async function handleAdd() {
+    setLoading(true)
+    setError(null)
+    const result = await addTournamentGame({
+      parent_event_id: tournament.id,
+      opponent:        opponent || undefined,
+      start_time:      startTime || undefined,
+      location_name:   locationName || undefined,
+      event_date:      gameDate,
+      team_id:         teamId,
+    })
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+    } else {
+      onAdded({
+        id:               result.eventId,
+        parent_event_id:  tournament.id,
+        event_type:       'game',
+        opponent:         opponent || null,
+        location_name:    locationName || null,
+        event_date:       gameDate,
+        team_start_time:  startTime || null,
+        status:           'scheduled',
+      })
+      onClose()
+    }
+  }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 transition-colors hover:border-white/20">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold">Add Tournament Game</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">×</button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          Adding game to: <span className="text-slate-300">{tournament.title ?? 'Tournament'}</span>
+        </p>
 
-      {/* Row 1: date + badges */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span className="text-xs font-semibold text-slate-400 mr-1">
-          {formatDate(event.event_date)}
-        </span>
-        {eventTypeBadge(event.event_type)}
-        {statusBadge(event.status)}
-        {!event.is_public && (
-          <span className="rounded-full border border-white/10 bg-slate-800 px-3 py-1 text-xs text-slate-500">
-            Private
-          </span>
-        )}
-        {event.meal_required && (
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
-            🍽 Meal
-          </span>
-        )}
-      </div>
-
-      {/* Row 2: title */}
-      <h3 className="text-base font-semibold text-white leading-snug mb-2">
-        {eventLabel(event)}
-      </h3>
-
-      {/* Row 3: details */}
-        <div className="flex flex-wrap items-center mb-2 text-sm text-slate-400">
-        {event.team_start_time && (
-            <span className="flex items-center gap-1.5 mr-4">
-            <span>🕐</span>
-            <span>{formatTime(event.team_start_time)}</span>
-            </span>
-        )}
-        {event.team_arrival_time && (
-            <span className="flex items-center gap-1.5 mr-4">
-            <span>📍</span>
-            <span>Arrive {formatTime(event.team_arrival_time)}</span>
-            </span>
-        )}
-        {event.location_name && (
-            <span className="flex items-center gap-1.5 mr-4">
-            <span>📌</span>
-            <span>{event.location_name}</span>
-            </span>
-        )}
-        {event.uniform_notes && (
-            <span className="flex items-center gap-1.5 mr-4">
-            <span>👕</span>
-            <span>{event.uniform_notes}</span>
-            </span>
-        )}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Opponent</label>
+            <input
+              type="text"
+              value={opponent}
+              onChange={e => setOpponent(e.target.value)}
+              placeholder="e.g. Sparkman"
+              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Date</label>
+            <input
+              type="date"
+              value={gameDate}
+              onChange={e => setGameDate(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Start Time</label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={e => setStartTime(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">
+              Location / Field <span className="text-slate-500 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={locationName}
+              onChange={e => setLocationName(e.target.value)}
+              placeholder="e.g. Field 2, Diamond A"
+              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
+            />
+          </div>
         </div>
 
-      {/* Row 4: notes */}
-      {event.notes && (
-        <p className="text-xs text-slate-500 line-clamp-1 mb-2">{event.notes}</p>
-      )}
+        {error && (
+          <p className="mt-3 text-xs text-red-400">{error}</p>
+        )}
 
-      {/* Row 5: actions */}
-      <div className="flex justify-end gap-2 pt-2 border-t border-white/5 mt-2">
-        {canManageEvents && (
+        <div className="flex gap-3 mt-5">
           <button
-            onClick={() => router.push(`/events/${event.id}/edit`)}
-            style={{ padding: '10px 10px' }}
-            className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+            onClick={handleAdd}
+            disabled={loading}
+            className="flex-1 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
           >
-            Edit
+            {loading ? 'Adding...' : 'Add Game'}
           </button>
-        )}
-        {canSendNotifications && (
           <button
-            onClick={() => router.push(`/events/${event.id}/notify`)}
-            style={{ padding: '10px 10px' }}
-            className="rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition-colors"
-          >
-            Notify
-          </button>
-        )}
-        {canManageEvents && (
-          <button
-            onClick={() => onCancelRequest(event)}
-            style={{ padding: '10px 10px' }}
-            className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors"
+            onClick={onClose}
+            disabled={loading}
+            className="rounded-xl border border-white/10 hover:bg-slate-800 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
           >
             Cancel
           </button>
-        )}
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Calendar List View (mobile fallback) ─────────────────────
-// Renders when calendar toggle is active on small screens.
-// Groups events by month, shows them as a compact list.
+// ── Tournament Child Games ────────────────────────────────────
+
+function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
+  games: any[]
+  canManageEvents: boolean
+  teamId: string
+  onDelete: (gameId: string) => void
+}) {
+  const router = useRouter()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleDelete(gameId: string) {
+    setDeletingId(gameId)
+    const result = await deleteTournamentGame(gameId, teamId)
+    if (!result?.error) {
+      onDelete(gameId)
+    }
+    setDeletingId(null)
+  }
+
+  if (games.length === 0) return null
+
+  return (
+    <div className="mt-3 ml-4 space-y-1.5 border-l-2 border-amber-500/30 pl-4">
+      {games.map(game => (
+        <div key={game.id} className="flex items-center justify-between gap-2 text-sm">
+          <div className="min-w-0">
+            <span className="text-slate-200 font-medium">
+              {game.opponent ? `vs ${game.opponent}` : 'TBD'}
+            </span>
+            {game.team_start_time && (
+              <span className="text-slate-400 ml-2">{formatTime(game.team_start_time)}</span>
+            )}
+            {game.location_name && (
+              <span className="text-slate-500 ml-2">· {game.location_name}</span>
+            )}
+          </div>
+          {canManageEvents && (
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                onClick={() => router.push(`/events/${game.id}/edit`)}
+                style={{ padding: '1px 8px' }}
+                className="rounded border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDelete(game.id)}
+                disabled={deletingId === game.id}
+                style={{ padding: '1px 8px' }}
+                className="rounded border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {deletingId === game.id ? '...' : '×'}
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Event Row (List View) ─────────────────────────────────────
+
+function EventRow({ event, childGames, canManageEvents, canSendNotifications,
+  teamId, programId, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  event: any
+  childGames: any[]
+  canManageEvents: boolean
+  canSendNotifications: boolean
+  teamId: string
+  programId: string
+  onCancelRequest: (event: any) => void
+  onTournamentGameAdded: (game: any) => void
+  onTournamentGameDeleted: (gameId: string) => void
+}) {
+  const router = useRouter()
+  const [showAddGame, setShowAddGame] = useState(false)
+
+  return (
+    <>
+      {showAddGame && (
+        <AddTournamentGameModal
+          tournament={event}
+          teamId={teamId}
+          programId={programId}
+          onClose={() => setShowAddGame(false)}
+          onAdded={onTournamentGameAdded}
+        />
+      )}
+
+      <div className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 transition-colors hover:border-white/20">
+
+        {/* Row 1: date + badges */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="text-xs font-semibold text-slate-400 mr-1">
+            {formatDate(event.event_date)}
+          </span>
+          {eventTypeBadge(event.event_type)}
+          {statusBadge(event.status)}
+          {!event.is_public && (
+            <span className="rounded-full border border-white/10 bg-slate-800 px-3 py-1 text-xs text-slate-500">
+              Private
+            </span>
+          )}
+          {event.meal_required && (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
+              🍽 Meal
+            </span>
+          )}
+        </div>
+
+        {/* Row 2: title */}
+        <h3 className="text-base font-semibold text-white leading-snug mb-2">
+          {eventLabel(event)}
+        </h3>
+
+        {/* Row 3: details */}
+        <div className="flex flex-wrap items-center mb-2 text-sm text-slate-400">
+          {event.team_start_time && (
+            <span className="flex items-center gap-1.5 mr-4">
+              <span>🕐</span>
+              <span>{formatTime(event.team_start_time)}</span>
+            </span>
+          )}
+          {event.team_arrival_time && (
+            <span className="flex items-center gap-1.5 mr-4">
+              <span>📍</span>
+              <span>Arrive {formatTime(event.team_arrival_time)}</span>
+            </span>
+          )}
+          {event.location_name && (
+            <span className="flex items-center gap-1.5 mr-4">
+              <span>📌</span>
+              <span>{event.location_name}</span>
+            </span>
+          )}
+          {event.uniform_notes && (
+            <span className="flex items-center gap-1.5 mr-4">
+              <span>👕</span>
+              <span>{event.uniform_notes}</span>
+            </span>
+          )}
+        </div>
+
+        {event.notes && (
+          <p className="text-xs text-slate-500 line-clamp-1 mb-2">{event.notes}</p>
+        )}
+
+        {/* Tournament child games */}
+        {event.is_tournament && (
+          <TournamentGames
+            games={childGames}
+            canManageEvents={canManageEvents}
+            teamId={teamId}
+            onDelete={onTournamentGameDeleted}
+          />
+        )}
+
+        {/* Row 5: actions */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-white/5 mt-3">
+          {/* Add game button for tournaments */}
+          {event.is_tournament && canManageEvents && (
+            <button
+              onClick={() => setShowAddGame(true)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition-colors"
+            >
+              + Game
+            </button>
+          )}
+          {canManageEvents && (
+            <button
+              onClick={() => router.push(`/events/${event.id}/edit`)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+            >
+              Edit
+            </button>
+          )}
+          {canSendNotifications && (
+            <button
+              onClick={() => router.push(`/events/${event.id}/notify`)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition-colors"
+            >
+              Notify
+            </button>
+          )}
+          {canManageEvents && (
+            <button
+              onClick={() => onCancelRequest(event)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Calendar List View (mobile) ───────────────────────────────
 
 function CalendarListView({ events }: { events: any[] }) {
   const router = useRouter()
@@ -239,29 +445,19 @@ function CalendarListView({ events }: { events: any[] }) {
   const year  = viewDate.getFullYear()
   const month = viewDate.getMonth()
   const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-
-  // Filter events to current viewed month
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
   const monthEvents = events.filter(e => e.event_date.startsWith(monthStr))
 
-  function prevMonth() { setViewDate(new Date(year, month - 1, 1)) }
-  function nextMonth() { setViewDate(new Date(year, month + 1, 1)) }
-
   return (
     <div>
-      {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={prevMonth}
-          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
-        >
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors">
           ← Prev
         </button>
         <h2 className="text-base font-bold">{monthName}</h2>
-        <button
-          onClick={nextMonth}
-          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
-        >
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors">
           Next →
         </button>
       </div>
@@ -319,7 +515,7 @@ function CalendarListView({ events }: { events: any[] }) {
   )
 }
 
-// ── Calendar View ─────────────────────────────────────────────
+// ── Calendar View (desktop) ───────────────────────────────────
 
 function CalendarView({ events }: { events: any[] }) {
   const router = useRouter()
@@ -330,16 +526,10 @@ function CalendarView({ events }: { events: any[] }) {
 
   const year  = viewDate.getFullYear()
   const month = viewDate.getMonth()
-
   const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-
-  // Days in month
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  // What weekday does the 1st fall on (0=Sun)
   const firstDayOfWeek = new Date(year, month, 1).getDay()
 
-  // Build event map: "YYYY-MM-DD" -> events[]
   const eventMap: Record<string, any[]> = {}
   events.forEach(event => {
     const key = event.event_date
@@ -347,61 +537,40 @@ function CalendarView({ events }: { events: any[] }) {
     eventMap[key].push(event)
   })
 
-  function prevMonth() {
-    setViewDate(new Date(year, month - 1, 1))
-  }
-  function nextMonth() {
-    setViewDate(new Date(year, month + 1, 1))
-  }
-
-  // Build grid cells: nulls for leading empty days, then 1..daysInMonth
   const cells: (number | null)[] = [
     ...Array(firstDayOfWeek).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-
-  // Pad to complete last row
   while (cells.length % 7 !== 0) cells.push(null)
 
   const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
     <div>
-      {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={prevMonth}
-          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
-        >
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors">
           ← Prev
         </button>
         <h2 className="text-lg font-bold">{monthName}</h2>
-        <button
-          onClick={nextMonth}
-          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
-        >
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors">
           Next →
         </button>
       </div>
 
-      {/* Day headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }} className="mb-1">
         {DAY_LABELS.map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-slate-500 py-2">
-            {d}
-          </div>
+          <div key={d} className="text-center text-xs font-semibold text-slate-500 py-2">{d}</div>
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }} className="bg-white/5 rounded-2xl overflow-hidden border border-white/10">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }}
+        className="bg-white/5 rounded-2xl overflow-hidden border border-white/10">
         {cells.map((day, idx) => {
           if (day === null) {
-            return (
-              <div key={`empty-${idx}`} className="bg-slate-950 p-1" style={{ height: '110px' }} />
-            )
+            return <div key={`empty-${idx}`} className="bg-slate-950 p-1" style={{ height: '110px' }} />
           }
-
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const cellDate = new Date(dateStr + 'T00:00:00')
           const isPast   = cellDate < today
@@ -409,21 +578,14 @@ function CalendarView({ events }: { events: any[] }) {
           const dayEvents = eventMap[dateStr] ?? []
 
           return (
-            <div
-              key={dateStr}
+            <div key={dateStr}
               className={`bg-slate-900 overflow-y-auto p-1.5 ${isPast ? 'opacity-40' : ''}`}
-              style={{ height: '110px' }}
-            >
-              {/* Day number */}
+              style={{ height: '110px' }}>
               <div className={`text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${
-                isToday
-                  ? 'bg-sky-500 text-white'
-                  : 'text-slate-400'
+                isToday ? 'bg-sky-500 text-white' : 'text-slate-400'
               }`}>
                 {day}
               </div>
-
-              {/* Events on this day */}
               <div className="space-y-1">
                 {dayEvents.map(event => (
                   <button
@@ -454,31 +616,35 @@ function CalendarView({ events }: { events: any[] }) {
 
 export default function ScheduleClient({
   events = [],
+  childGames = [],
   teamId,
+  programId,
   programName,
   teamName,
   canManageEvents,
   canSendNotifications,
 }: {
   events?: any[]
+  childGames?: any[]
   teamId: string
+  programId: string
   programName: string
   teamName: string
   canManageEvents: boolean
   canSendNotifications: boolean
 }) {
   const router = useRouter()
-  const [eventList, setEventList]       = useState(events)
-  const [cancelTarget, setCancelTarget] = useState<any>(null)
-  const [cancelling, setCancelling]     = useState(false)
-  const [view, setView]                 = useState<'list' | 'calendar'>('list')
-  const [isMobile, setIsMobile]         = useState(false)
+  const [eventList, setEventList]         = useState(events)
+  const [childGameList, setChildGameList] = useState(childGames)
+  const [cancelTarget, setCancelTarget]   = useState<any>(null)
+  const [cancelling, setCancelling]       = useState(false)
+  const [view, setView]                   = useState<'list' | 'calendar'>('list')
+  const [isMobile, setIsMobile]           = useState(false)
+  const [mounted, setMounted]             = useState(false)
 
-  // Detect mobile screen width
   useEffect(() => {
-    function checkMobile() {
-      setIsMobile(window.innerWidth < 768)
-    }
+    setMounted(true)
+    function checkMobile() { setIsMobile(window.innerWidth < 768) }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -495,10 +661,23 @@ export default function ScheduleClient({
     setCancelling(false)
   }
 
+  function handleTournamentGameAdded(game: any) {
+    setChildGameList(prev => [...prev, game])
+  }
+
+  function handleTournamentGameDeleted(gameId: string) {
+    setChildGameList(prev => prev.filter(g => g.id !== gameId))
+  }
+
+  // All events including child games for calendar view
+  const allEventsForCalendar = [
+    ...eventList,
+    ...childGameList,
+  ]
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
 
-      {/* Confirm dialog */}
       {cancelTarget && (
         <ConfirmDialog
           message={`Cancel "${eventLabel(cancelTarget)}" on ${formatDate(cancelTarget.event_date)}? This will mark the event as cancelled.`}
@@ -506,9 +685,6 @@ export default function ScheduleClient({
           onCancel={() => setCancelTarget(null)}
         />
       )}
-
-      {/* Nav */}
-      
 
       <div className="mx-auto max-w-7xl px-6 py-8">
 
@@ -523,14 +699,11 @@ export default function ScheduleClient({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* View toggle */}
             <div className="flex rounded-xl border border-white/10 overflow-hidden">
               <button
                 onClick={() => setView('list')}
                 className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                  view === 'list'
-                    ? 'bg-sky-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:text-white'
+                  view === 'list' ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
                 }`}
               >
                 ☰ List
@@ -538,9 +711,7 @@ export default function ScheduleClient({
               <button
                 onClick={() => setView('calendar')}
                 className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                  view === 'calendar'
-                    ? 'bg-sky-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:text-white'
+                  view === 'calendar' ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
                 }`}
               >
                 📅 Calendar
@@ -580,9 +751,14 @@ export default function ScheduleClient({
                   <EventRow
                     key={event.id}
                     event={event}
+                    childGames={childGameList.filter(g => g.parent_event_id === event.id)}
                     canManageEvents={canManageEvents}
                     canSendNotifications={canSendNotifications}
+                    teamId={teamId}
+                    programId={programId}
                     onCancelRequest={setCancelTarget}
+                    onTournamentGameAdded={handleTournamentGameAdded}
+                    onTournamentGameDeleted={handleTournamentGameDeleted}
                   />
                 ))}
               </div>
@@ -590,11 +766,14 @@ export default function ScheduleClient({
           </>
         )}
 
-        {/* Calendar View — grid on desktop, list on mobile */}
-        {view === 'calendar' && (
+        {/* Calendar View */}
+        {view === 'calendar' && mounted && (
           isMobile
-            ? <CalendarListView events={eventList} />
-            : <CalendarView events={eventList} />
+            ? <CalendarListView events={allEventsForCalendar} />
+            : <CalendarView events={allEventsForCalendar} />
+        )}
+        {view === 'calendar' && !mounted && (
+          <CalendarView events={allEventsForCalendar} />
         )}
 
       </div>

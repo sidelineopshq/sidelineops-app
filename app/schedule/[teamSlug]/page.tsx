@@ -27,7 +27,6 @@ export default async function PublicSchedulePage({
   const { teamSlug } = await params
   const supabase = await createClient()
 
-  // Look up the team by slug
   const { data: team } = await supabase
     .from('teams')
     .select('id, name, slug, program_id')
@@ -48,7 +47,7 @@ export default async function PublicSchedulePage({
     .eq('id', program?.school_id)
     .single()
 
-  // Fetch ALL public games and tournaments — no date filter
+  // Fetch ALL public games and tournaments
   const { data: eventRows } = await supabase
     .from('events')
     .select(`
@@ -83,9 +82,23 @@ export default async function PublicSchedulePage({
     event_team_details: undefined,
   }))
 
+  // Fetch child games for tournaments
+  const tournamentIds = events.filter(e => e.is_tournament).map(e => e.id)
+  let childGames: any[] = []
+  if (tournamentIds.length > 0) {
+    const { data: childRows } = await supabase
+      .from('events')
+      .select('id, parent_event_id, opponent, location_name, event_date, default_start_time')
+      .in('parent_event_id', tournamentIds)
+      .eq('status', 'scheduled')
+      .eq('is_public', true)
+      .order('event_date', { ascending: true })
+      .order('default_start_time', { ascending: true, nullsFirst: false })
+    childGames = childRows ?? []
+  }
+
   const upcomingCount = events.filter(e => !e.is_past).length
   const nextGame = events.find(e => !e.is_past) ?? null
-  const publicUrl = `https://sidelineopshq.com/schedule/${teamSlug}`
   const calendarUrl = `/schedule/${teamSlug}/calendar.ics`
 
   return (
@@ -114,8 +127,6 @@ export default async function PublicSchedulePage({
                 </p>
               )}
             </div>
-
-            {/* Calendar subscribe only — no team page link */}
             <a
               href={calendarUrl}
               className="shrink-0 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 text-sm font-semibold text-center transition-colors"
@@ -126,7 +137,6 @@ export default async function PublicSchedulePage({
         </div>
       </div>
 
-      {/* Schedule */}
       <div className="mx-auto max-w-4xl px-6 py-8">
 
         {/* Next Game card */}
@@ -201,86 +211,104 @@ export default async function PublicSchedulePage({
           </div>
         ) : (
           <div className="space-y-3">
-            {events.map(event => (
-              <div
-                key={event.id}
-                className={`rounded-2xl border px-5 py-4 transition-colors ${
-                  event.is_past
-                    ? 'border-white/5 bg-slate-900/50 opacity-50'
-                    : 'border-white/10 bg-slate-900 hover:border-white/20'
-                }`}
-              >
-                {/* Date row */}
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <p className="text-xs font-semibold text-slate-400">
-                    {formatDate(event.event_date)}
-                  </p>
-                  {event.is_past && (
-                    <span className="rounded-full border border-white/10 bg-slate-800 px-2 py-0.5 text-xs text-slate-500">
-                      Final
-                    </span>
-                  )}
-                  {event.is_tournament && (
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-                      Tournament
-                    </span>
-                  )}
-                </div>
-
-                {/* Title + details */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <h3 className={`text-base font-bold ${event.is_past ? 'text-slate-400' : 'text-white'}`}>
-                      {event.event_type === 'tournament'
-                        ? event.title ?? 'Tournament'
-                        : event.opponent
-                          ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
-                          : 'TBD'
-                      }
-                    </h3>
-
-                    <div className="flex flex-wrap items-center mt-1.5 text-sm text-slate-400">
-                      {event.display_time && (
-                        <span className="flex items-center gap-1.5 mr-4">
-                          <span>🕐</span>
-                          <span>{formatTime(event.display_time)}</span>
-                        </span>
-                      )}
-                      {event.location_name && (
-                        <span className="flex items-center gap-1.5 mr-4">
-                          <span>📍</span>
-                          <span>{event.location_name}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {event.location_address && !event.is_past && (
-                      <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 text-xs text-sky-400 hover:text-sky-300 transition-colors block"
-                      >
-                        {event.location_address} →
-                      </a>
+            {events.map(event => {
+              const games = childGames.filter(g => g.parent_event_id === event.id)
+              return (
+                <div
+                  key={event.id}
+                  className={`rounded-2xl border px-5 py-4 transition-colors ${
+                    event.is_past
+                      ? 'border-white/5 bg-slate-900/50 opacity-50'
+                      : 'border-white/10 bg-slate-900 hover:border-white/20'
+                  }`}
+                >
+                  {/* Date row */}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <p className="text-xs font-semibold text-slate-400">
+                      {formatDate(event.event_date)}
+                    </p>
+                    {event.is_past && (
+                      <span className="rounded-full border border-white/10 bg-slate-800 px-2 py-0.5 text-xs text-slate-500">
+                        Final
+                      </span>
+                    )}
+                    {event.is_tournament && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+                        Tournament
+                      </span>
                     )}
                   </div>
 
-                  {/* Home/Away badge */}
-                  {event.event_type !== 'tournament' && event.is_home !== null && (
-                    <span className={`shrink-0 rounded-xl border px-3 py-1 text-xs font-semibold ${
-                      event.is_past
-                        ? 'border-white/10 bg-slate-800 text-slate-500'
-                        : event.is_home
-                          ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                          : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                    }`}>
-                      {event.is_home ? 'Home' : 'Away'}
-                    </span>
+                  {/* Title + details */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className={`text-base font-bold ${event.is_past ? 'text-slate-400' : 'text-white'}`}>
+                        {event.event_type === 'tournament'
+                          ? event.title ?? 'Tournament'
+                          : event.opponent
+                            ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
+                            : 'TBD'
+                        }
+                      </h3>
+                      <div className="flex flex-wrap items-center mt-1.5 text-sm text-slate-400">
+                        {event.display_time && (
+                          <span className="flex items-center gap-1.5 mr-4">
+                            <span>🕐</span>
+                            <span>{formatTime(event.display_time)}</span>
+                          </span>
+                        )}
+                        {event.location_name && (
+                          <span className="flex items-center gap-1.5 mr-4">
+                            <span>📍</span>
+                            <span>{event.location_name}</span>
+                          </span>
+                        )}
+                      </div>
+                      {event.location_address && !event.is_past && (
+                        <a
+                          href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 text-xs text-sky-400 hover:text-sky-300 transition-colors block"
+                        >
+                          {event.location_address} →
+                        </a>
+                      )}
+                    </div>
+                    {event.event_type !== 'tournament' && event.is_home !== null && (
+                      <span className={`shrink-0 rounded-xl border px-3 py-1 text-xs font-semibold ${
+                        event.is_past
+                          ? 'border-white/10 bg-slate-800 text-slate-500'
+                          : event.is_home
+                            ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                            : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                      }`}>
+                        {event.is_home ? 'Home' : 'Away'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tournament child games */}
+                  {event.is_tournament && games.length > 0 && (
+                    <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-500/30 pl-4">
+                      {games.map(game => (
+                        <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-300">
+                          <span className="font-medium">
+                            {game.opponent ? `vs ${game.opponent}` : 'TBD'}
+                          </span>
+                          {game.default_start_time && (
+                            <span className="text-slate-400">{formatTime(game.default_start_time)}</span>
+                          )}
+                          {game.location_name && (
+                            <span className="text-slate-500">· {game.location_name}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -288,10 +316,7 @@ export default async function PublicSchedulePage({
         <div className="mt-10 pt-6 border-t border-white/5 text-center">
           <p className="text-xs text-slate-600">
             Powered by{' '}
-            <a
-              href="https://sidelineopshq.com"
-              className="text-slate-500 hover:text-slate-400 transition-colors"
-            >
+            <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-400 transition-colors">
               SidelineOps
             </a>
           </p>

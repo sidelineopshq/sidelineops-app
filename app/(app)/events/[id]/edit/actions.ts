@@ -1,7 +1,15 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+
+function createServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function updateEvent(eventId: string, formData: {
   event_type: string
@@ -23,13 +31,13 @@ export async function updateEvent(eventId: string, formData: {
   meal_time?: string
   is_public: boolean
 }, teamId: string) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
+  // Step 1: Auth check
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect('/login')
 
-  // Verify permission
-  const { data: teamUser } = await supabase
+  // Step 2: Permission check
+  const { data: teamUser } = await authClient
     .from('team_users')
     .select('can_manage_events')
     .eq('user_id', user.id)
@@ -42,11 +50,13 @@ export async function updateEvent(eventId: string, formData: {
 
   // Build title for non-game types
   let title = formData.title || null
-  if (formData.event_type === 'practice') title = 'Practice'
-  if (formData.event_type === 'meeting')  title = 'Team Meeting'
-  if (formData.event_type === 'tournament' && !title) title = 'Tournament'
+  if (formData.event_type === 'practice')                  title = 'Practice'
+  if (formData.event_type === 'meeting')                   title = 'Team Meeting'
+  if (formData.event_type === 'tournament' && !title)      title = 'Tournament'
 
-  // Update the event
+  // Step 3: Write with service role
+  const supabase = createServiceClient()
+
   const { error: eventError } = await supabase
     .from('events')
     .update({
@@ -76,7 +86,7 @@ export async function updateEvent(eventId: string, formData: {
     return { error: 'Failed to update event. Please try again.' }
   }
 
-  // Update event_team_details
+  // Step 4: Update event_team_details
   const { error: detailsError } = await supabase
     .from('event_team_details')
     .update({
@@ -95,13 +105,13 @@ export async function updateEvent(eventId: string, formData: {
 }
 
 export async function deleteEvent(eventId: string, teamId: string) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
+  // Step 1: Auth check
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect('/login')
 
-  // Verify permission
-  const { data: teamUser } = await supabase
+  // Step 2: Permission check
+  const { data: teamUser } = await authClient
     .from('team_users')
     .select('can_manage_events')
     .eq('user_id', user.id)
@@ -111,6 +121,9 @@ export async function deleteEvent(eventId: string, teamId: string) {
   if (!teamUser?.can_manage_events) {
     return { error: 'You do not have permission to delete events.' }
   }
+
+  // Step 3: Delete with service role
+  const supabase = createServiceClient()
 
   const { error } = await supabase
     .from('events')

@@ -8,7 +8,6 @@ export default async function SchedulePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Step 1: Get the user's team_users record
   const { data: teamUser } = await supabase
     .from('team_users')
     .select('team_id, role, can_manage_events, can_send_notifications')
@@ -23,23 +22,23 @@ export default async function SchedulePage() {
     )
   }
 
-  // Step 2: Get the team record
   const { data: team } = await supabase
     .from('teams')
     .select('id, name, level, program_id')
     .eq('id', teamUser.team_id)
     .single()
 
-  // Step 3: Get the program record
   const { data: program } = await supabase
     .from('programs')
     .select('id, name, sport')
-    .eq('id', team?.program_id)
+    .eq('id', team?.program_id ?? '')
     .single()
 
-  // Step 4: Fetch upcoming events ordered by date
   const today = new Date().toISOString().split('T')[0]
 
+  
+
+  // Fetch upcoming events
   const { data: eventRows } = await supabase
     .from('events')
     .select(`
@@ -49,6 +48,7 @@ export default async function SchedulePage() {
       opponent,
       is_home,
       is_tournament,
+      parent_event_id,
       location_name,
       location_address,
       event_date,
@@ -70,20 +70,53 @@ export default async function SchedulePage() {
     .neq('status', 'cancelled')
     .order('event_date', { ascending: true })
 
-  // Flatten team-specific times into the event object
-  const events = (eventRows ?? [])
+  const allEvents = (eventRows ?? [])
     .map((row: any) => ({
       ...row,
-      team_start_time:    row.event_team_details?.[0]?.start_time || row.default_start_time,
+      team_start_time:    row.event_team_details?.[0]?.start_time   || row.default_start_time,
       team_arrival_time:  row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
       event_team_details: undefined,
     }))
     .filter((e: any) => e?.id)
 
+  // Fetch child games for any tournaments in the list
+  const tournamentIds = allEvents
+    .filter((e: any) => e.is_tournament)
+    .map((e: any) => e.id)
+
+  let childGames: any[] = []
+  if (tournamentIds.length > 0) {
+    const { data: childRows } = await supabase
+      .from('events')
+      .select(`
+        id,
+        parent_event_id,
+        event_type,
+        opponent,
+        location_name,
+        event_date,
+        default_start_time,
+        status,
+        event_team_details(team_id, start_time)
+      `)
+      .in('parent_event_id', tournamentIds)
+      .eq('status', 'scheduled')
+      .order('event_date', { ascending: true })
+      .order('default_start_time', { ascending: true, nullsFirst: false })
+
+    childGames = (childRows ?? []).map((row: any) => ({
+      ...row,
+      team_start_time: row.event_team_details?.[0]?.start_time || row.default_start_time,
+      event_team_details: undefined,
+    }))
+  }
+
   return (
     <ScheduleClient
-      events={events ?? []}
+      events={allEvents ?? []}
+      childGames={childGames}
       teamId={teamUser.team_id ?? ''}
+      programId={program?.id ?? ''}
       programName={program?.name ?? ''}
       teamName={team?.name ?? ''}
       canManageEvents={teamUser.can_manage_events ?? false}
