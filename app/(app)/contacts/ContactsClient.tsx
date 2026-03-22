@@ -282,6 +282,15 @@ function ContactRow({ contact, players, canManage, teamId, onEdit, onDelete }: {
         {/* Right: actions */}
         {canManage && (
           <div className="flex shrink-0 gap-2">
+            {contact.phone && contact.sms_consent && (
+      
+                <a href={`sms:${contact.phone}`}
+                style={{ padding: '2px 10px' }}
+                className="rounded-lg border border-green-500/20 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-semibold transition-colors"
+            >
+                💬 Text
+            </a>
+            )}
             <button
               onClick={() => onEdit(contact)}
               style={{ padding: '2px 10px' }}
