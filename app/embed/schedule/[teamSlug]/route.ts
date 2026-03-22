@@ -75,6 +75,7 @@ export async function GET(
     `)
     .eq('event_team_details.team_id', team.id)
     .in('event_type', ['game', 'tournament'])
+    .is('parent_event_id', null)
     .eq('status', 'scheduled')
     .eq('is_public', true)
     .gte('event_date', today)

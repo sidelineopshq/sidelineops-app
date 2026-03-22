@@ -77,7 +77,7 @@ export default async function SchedulePage() {
       team_arrival_time:  row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
       event_team_details: undefined,
     }))
-    .filter((e: any) => e?.id)
+    .filter((e: any) => e?.id && !e.parent_event_id)
 
   // Fetch child games for any tournaments in the list
   const tournamentIds = allEvents
