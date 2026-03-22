@@ -196,7 +196,7 @@ function EventRow({ event, canManageEvents, canSendNotifications, onCancelReques
         {canManageEvents && (
           <button
             onClick={() => router.push(`/events/${event.id}/edit`)}
-            style={{ padding: '2px 10px' }}
+            style={{ padding: '10px 10px' }}
             className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
           >
             Edit
@@ -205,7 +205,7 @@ function EventRow({ event, canManageEvents, canSendNotifications, onCancelReques
         {canSendNotifications && (
           <button
             onClick={() => router.push(`/events/${event.id}/notify`)}
-            style={{ padding: '2px 10px' }}
+            style={{ padding: '10px 10px' }}
             className="rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition-colors"
           >
             Notify
@@ -214,7 +214,7 @@ function EventRow({ event, canManageEvents, canSendNotifications, onCancelReques
         {canManageEvents && (
           <button
             onClick={() => onCancelRequest(event)}
-            style={{ padding: '2px 10px' }}
+            style={{ padding: '10px 10px' }}
             className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors"
           >
             Cancel
