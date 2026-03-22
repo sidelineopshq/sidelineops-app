@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import CopyLinkButton from '../CopyLinkButton'
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -31,7 +32,7 @@ export default async function DashboardPage() {
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, level, slug, program_id')
+    .select('id, name, level, slug, program_id, team_schedule_token')
     .eq('id', teamUser?.team_id ?? '')
     .single()
 
@@ -99,6 +100,13 @@ export default async function DashboardPage() {
       : nextEvent.opponent
         ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
         : nextEvent.title ?? 'Event'
+    : null
+
+  const publicUrl  = team?.slug
+    ? `https://sidelineopshq.com/schedule/${team.slug}`
+    : null
+  const teamUrl = team?.slug && (team as any)?.team_schedule_token
+    ? `https://sidelineopshq.com/schedule/${team.slug}/team/${(team as any).team_schedule_token}`
     : null
 
   return (
@@ -232,21 +240,49 @@ export default async function DashboardPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
             Public Schedule
           </p>
-          <h3 className="mt-3 text-xl font-semibold">Team Page</h3>
-          <p className="mt-2 text-slate-300">
-            Share your public schedule with parents and fans.
+          <p className="mt-3 text-sm text-slate-300">
+            Share your schedule with parents, fans, and your team.
           </p>
-          {team?.slug && (
-            <p className="mt-3 text-xs text-slate-500 font-mono break-all">
-              /schedule/{team.slug}
+
+          {/* Public page */}
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+              Public Page (Games Only)
             </p>
-          )}
-          <a
-            href={`/public/schedule/${team?.slug}`}
-            className="mt-4 block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-sm font-semibold text-center transition-colors"
-          >
-            View Page
-          </a>
+            {publicUrl && (
+              <>
+                <a
+                  href={`/schedule/${team?.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-xs font-semibold text-center text-slate-300 transition-colors"
+                >
+                  View Public Page ↗
+                </a>
+                <CopyLinkButton url={publicUrl} label="Public" />
+              </>
+            )}
+          </div>
+
+          {/* Team page */}
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+              Team Page (Players & Parents)
+            </p>
+            {teamUrl && (
+              <>
+                <a
+                  href={teamUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-lg border border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2 text-xs font-semibold text-center text-sky-300 transition-colors"
+                >
+                  View Team Page ↗
+                </a>
+                <CopyLinkButton url={teamUrl} label="Team" />
+              </>
+            )}
+          </div>
         </div>
 
       </div>
