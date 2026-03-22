@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { cancelEvent } from './actions'
 
@@ -225,6 +225,100 @@ function EventRow({ event, canManageEvents, canSendNotifications, onCancelReques
   )
 }
 
+// ── Calendar List View (mobile fallback) ─────────────────────
+// Renders when calendar toggle is active on small screens.
+// Groups events by month, shows them as a compact list.
+
+function CalendarListView({ events }: { events: any[] }) {
+  const router = useRouter()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+
+  const year  = viewDate.getFullYear()
+  const month = viewDate.getMonth()
+  const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  // Filter events to current viewed month
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthEvents = events.filter(e => e.event_date.startsWith(monthStr))
+
+  function prevMonth() { setViewDate(new Date(year, month - 1, 1)) }
+  function nextMonth() { setViewDate(new Date(year, month + 1, 1)) }
+
+  return (
+    <div>
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={prevMonth}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
+        >
+          ← Prev
+        </button>
+        <h2 className="text-base font-bold">{monthName}</h2>
+        <button
+          onClick={nextMonth}
+          className="rounded-lg border border-white/10 bg-slate-900 hover:bg-slate-800 px-3 py-1.5 text-sm font-semibold transition-colors"
+        >
+          Next →
+        </button>
+      </div>
+
+      {monthEvents.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-slate-900 p-8 text-center">
+          <p className="text-slate-400 text-sm">No events this month</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {monthEvents.map(event => {
+            const cellDate = new Date(event.event_date + 'T00:00:00')
+            const isPast = cellDate < today
+            const dayLabel = cellDate.toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric'
+            })
+            return (
+              <button
+                key={event.id}
+                onClick={() => router.push(`/events/${event.id}/edit`)}
+                className={`w-full text-left rounded-2xl border px-4 py-3 transition-colors ${
+                  isPast
+                    ? 'border-white/5 bg-slate-900/50 opacity-50'
+                    : 'border-white/10 bg-slate-900 hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-400 mb-0.5">{dayLabel}</p>
+                    <p className="text-sm font-semibold text-white truncate">
+                      {eventLabel(event)}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-3 mt-1 text-xs text-slate-400">
+                      {event.team_start_time && (
+                        <span>🕐 {formatTime(event.team_start_time)}</span>
+                      )}
+                      {event.location_name && (
+                        <span>📌 {event.location_name}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${eventTypeColor(event.event_type)}`}>
+                    {event.event_type === 'game' ? 'Game'
+                      : event.event_type === 'practice' ? 'Practice'
+                      : event.event_type === 'tournament' ? 'Tourn.'
+                      : event.event_type}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Calendar View ─────────────────────────────────────────────
 
 function CalendarView({ events }: { events: any[] }) {
@@ -378,6 +472,17 @@ export default function ScheduleClient({
   const [cancelTarget, setCancelTarget] = useState<any>(null)
   const [cancelling, setCancelling]     = useState(false)
   const [view, setView]                 = useState<'list' | 'calendar'>('list')
+  const [isMobile, setIsMobile]         = useState(false)
+
+  // Detect mobile screen width
+  useEffect(() => {
+    function checkMobile() {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   async function handleCancel() {
     if (!cancelTarget) return
@@ -485,9 +590,11 @@ export default function ScheduleClient({
           </>
         )}
 
-        {/* Calendar View */}
+        {/* Calendar View — grid on desktop, list on mobile */}
         {view === 'calendar' && (
-          <CalendarView events={eventList} />
+          isMobile
+            ? <CalendarListView events={eventList} />
+            : <CalendarView events={eventList} />
         )}
 
       </div>
