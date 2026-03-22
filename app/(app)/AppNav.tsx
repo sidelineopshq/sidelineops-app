@@ -7,6 +7,7 @@ import { signOut } from './actions'
 const NAV_ITEMS = [
   { label: 'Dashboard',  href: '/dashboard',  icon: '⚡' },
   { label: 'Schedule',   href: '/schedule',   icon: '📅' },
+  { label: 'Roster',     href: '/roster',     icon: '👥' },
   { label: 'Volunteers', href: '/volunteers', icon: '🙋' },
   { label: 'Messages',   href: '/messages',   icon: '💬' },
   { label: 'Contacts',   href: '/contacts',   icon: '👥' },
