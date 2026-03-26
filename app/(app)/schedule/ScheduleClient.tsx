@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { cancelEvent } from './actions'
+import { cancelEvent, cancelEventForTeam } from './actions'
 import { addTournamentGame, deleteTournamentGame } from './tournament-actions'
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -107,19 +107,20 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
 
 // ── Add Tournament Game Modal ─────────────────────────────────
 
-function AddTournamentGameModal({ tournament, teamId, programId, onClose, onAdded }: {
+function AddTournamentGameModal({ tournament, defaultTeamId, teams, onClose, onAdded }: {
   tournament: any
-  teamId: string
-  programId: string
+  defaultTeamId: string
+  teams: { id: string; name: string }[]
   onClose: () => void
   onAdded: (game: any) => void
 }) {
-  const [opponent, setOpponent]       = useState('')
-  const [startTime, setStartTime]     = useState('')
-  const [locationName, setLocationName] = useState('')
-  const [gameDate, setGameDate]       = useState(tournament.event_date)
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+  const [selectedTeamId, setSelectedTeamId] = useState(defaultTeamId)
+  const [opponent, setOpponent]             = useState('')
+  const [startTime, setStartTime]           = useState('')
+  const [locationName, setLocationName]     = useState('')
+  const [gameDate, setGameDate]             = useState(tournament.event_date)
+  const [loading, setLoading]               = useState(false)
+  const [error, setError]                   = useState<string | null>(null)
 
   async function handleAdd() {
     setLoading(true)
@@ -130,7 +131,7 @@ function AddTournamentGameModal({ tournament, teamId, programId, onClose, onAdde
       start_time:      startTime || undefined,
       location_name:   locationName || undefined,
       event_date:      gameDate,
-      team_id:         teamId,
+      team_id:         selectedTeamId,
     })
     if (result?.error) {
       setError(result.error)
@@ -143,6 +144,7 @@ function AddTournamentGameModal({ tournament, teamId, programId, onClose, onAdde
         opponent:         opponent || null,
         location_name:    locationName || null,
         event_date:       gameDate,
+        team_details:     [{ team_id: selectedTeamId, start_time: startTime || null }],
         team_start_time:  startTime || null,
         status:           'scheduled',
       })
@@ -162,6 +164,22 @@ function AddTournamentGameModal({ tournament, teamId, programId, onClose, onAdde
         </p>
 
         <div className="space-y-3">
+          {/* Team selector — only shown when coach manages multiple teams */}
+          {teams.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Team</label>
+              <select
+                value={selectedTeamId}
+                onChange={e => setSelectedTeamId(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+                style={{ appearance: 'auto' }}
+              >
+                {teams.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1">Opponent</label>
             <input
@@ -294,13 +312,13 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
 // ── Event Row (List View) ─────────────────────────────────────
 
 function EventRow({ event, childGames, canManageEvents, canSendNotifications,
-  teamId, programId, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  teamId, teams, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
   event: any
   childGames: any[]
   canManageEvents: boolean
   canSendNotifications: boolean
   teamId: string
-  programId: string
+  teams: { id: string; name: string }[]
   onCancelRequest: (event: any) => void
   onTournamentGameAdded: (game: any) => void
   onTournamentGameDeleted: (gameId: string) => void
@@ -308,13 +326,16 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
   const router = useRouter()
   const [showAddGame, setShowAddGame] = useState(false)
 
+  // Team badges: show which teams this event belongs to (only when showing all teams)
+  const teamCount = event.team_details?.length ?? 0
+
   return (
     <>
       {showAddGame && (
         <AddTournamentGameModal
           tournament={event}
-          teamId={teamId}
-          programId={programId}
+          defaultTeamId={teamId}
+          teams={teams}
           onClose={() => setShowAddGame(false)}
           onAdded={onTournamentGameAdded}
         />
@@ -329,6 +350,21 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           </span>
           {eventTypeBadge(event.event_type)}
           {statusBadge(event.status)}
+          {/* Team badges — show which teams have this event, red if cancelled for that team */}
+          {teams.length > 1 && teamCount > 0 && event.team_details.map((d: any) => {
+            const team = teams.find(t => t.id === d.team_id)
+            if (!team) return null
+            const isCancelled = d.status === 'cancelled'
+            return (
+              <span key={d.team_id} className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                isCancelled
+                  ? 'border-red-500/30 bg-red-500/10 text-red-400 line-through'
+                  : 'border-white/10 bg-slate-800 text-slate-400'
+              }`}>
+                {team.name}
+              </span>
+            )
+          })}
           {!event.is_public && (
             <span className="rounded-full border border-white/10 bg-slate-800 px-3 py-1 text-xs text-slate-500">
               Private
@@ -390,7 +426,6 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
 
         {/* Row 5: actions */}
         <div className="flex justify-end gap-2 pt-2 border-t border-white/5 mt-3">
-          {/* Add game button for tournaments */}
           {event.is_tournament && canManageEvents && (
             <button
               onClick={() => setShowAddGame(true)}
@@ -617,19 +652,15 @@ function CalendarView({ events }: { events: any[] }) {
 export default function ScheduleClient({
   events = [],
   childGames = [],
-  teamId,
-  programId,
+  teams = [],
   programName,
-  teamName,
   canManageEvents,
   canSendNotifications,
 }: {
   events?: any[]
   childGames?: any[]
-  teamId: string
-  programId: string
+  teams?: { id: string; name: string }[]
   programName: string
-  teamName: string
   canManageEvents: boolean
   canSendNotifications: boolean
 }) {
@@ -637,10 +668,11 @@ export default function ScheduleClient({
   const [eventList, setEventList]         = useState(events)
   const [childGameList, setChildGameList] = useState(childGames)
   const [cancelTarget, setCancelTarget]   = useState<any>(null)
-  const [cancelling, setCancelling]       = useState(false)
   const [view, setView]                   = useState<'list' | 'calendar'>('list')
   const [isMobile, setIsMobile]           = useState(false)
   const [mounted, setMounted]             = useState(false)
+  // null = show all teams
+  const [activeTeamId, setActiveTeamId]   = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -652,13 +684,30 @@ export default function ScheduleClient({
 
   async function handleCancel() {
     if (!cancelTarget) return
-    setCancelling(true)
-    const result = await cancelEvent(cancelTarget.id)
-    if (!result?.error) {
-      setEventList(prev => prev.filter(e => e.id !== cancelTarget.id))
+    if (activeTeamId) {
+      // Per-team cancel: hide only from this team's view
+      const result = await cancelEventForTeam(cancelTarget.id, activeTeamId)
+      if (!result?.error) {
+        // Mark the team detail as cancelled in local state so filtered view hides it
+        setEventList(prev => prev.map(e =>
+          e.id === cancelTarget.id
+            ? {
+                ...e,
+                team_details: (e.team_details ?? []).map((d: any) =>
+                  d.team_id === activeTeamId ? { ...d, status: 'cancelled' } : d
+                ),
+              }
+            : e
+        ))
+      }
+    } else {
+      // Global cancel: remove from all views
+      const result = await cancelEvent(cancelTarget.id)
+      if (!result?.error) {
+        setEventList(prev => prev.filter(e => e.id !== cancelTarget.id))
+      }
     }
     setCancelTarget(null)
-    setCancelling(false)
   }
 
   function handleTournamentGameAdded(game: any) {
@@ -669,18 +718,45 @@ export default function ScheduleClient({
     setChildGameList(prev => prev.filter(g => g.id !== gameId))
   }
 
+  // Resolve per-team times and filter events based on active team filter
+  const displayEvents = useMemo(() => {
+    if (!activeTeamId) return eventList
+    return eventList
+      .filter(e => e.team_details?.some((d: any) => d.team_id === activeTeamId && d.status !== 'cancelled'))
+      .map(e => {
+        const detail = e.team_details?.find((d: any) => d.team_id === activeTeamId)
+        return {
+          ...e,
+          team_start_time:   detail?.start_time   || e.default_start_time,
+          team_arrival_time: detail?.arrival_time  || e.default_arrival_time,
+        }
+      })
+  }, [eventList, activeTeamId])
+
+  // Filter child games by active team
+  const displayChildGames = useMemo(() => {
+    if (!activeTeamId) return childGameList
+    return childGameList.filter(g =>
+      g.team_details?.some((d: any) => d.team_id === activeTeamId)
+    )
+  }, [childGameList, activeTeamId])
+
+  // teamId used for tournament game actions — active filter or first team
+  const actionTeamId = activeTeamId ?? teams[0]?.id ?? ''
+
   // All events including child games for calendar view
-  const allEventsForCalendar = [
-    ...eventList,
-    ...childGameList,
-  ]
+  const allEventsForCalendar = [...displayEvents, ...displayChildGames]
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
 
       {cancelTarget && (
         <ConfirmDialog
-          message={`Cancel "${eventLabel(cancelTarget)}" on ${formatDate(cancelTarget.event_date)}? This will mark the event as cancelled.`}
+          message={
+            activeTeamId
+              ? `Cancel "${eventLabel(cancelTarget)}" on ${formatDate(cancelTarget.event_date)} for ${teams.find(t => t.id === activeTeamId)?.name ?? 'this team'} only? Other teams will not be affected.`
+              : `Cancel "${eventLabel(cancelTarget)}" on ${formatDate(cancelTarget.event_date)} for all teams? This cannot be undone from the schedule view.`
+          }
           onConfirm={handleCancel}
           onCancel={() => setCancelTarget(null)}
         />
@@ -689,12 +765,13 @@ export default function ScheduleClient({
       <div className="mx-auto max-w-7xl px-6 py-8">
 
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-slate-400">{programName}</p>
-            <h1 className="text-2xl font-bold">{teamName} — Schedule</h1>
+            <h1 className="text-2xl font-bold">Schedule</h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {eventList.length} upcoming event{eventList.length !== 1 ? 's' : ''}
+              {displayEvents.length} upcoming event{displayEvents.length !== 1 ? 's' : ''}
+              {activeTeamId && teams.length > 1 && ` · ${teams.find(t => t.id === activeTeamId)?.name}`}
             </p>
           </div>
 
@@ -729,10 +806,39 @@ export default function ScheduleClient({
           </div>
         </div>
 
+        {/* Team filter tabs — only shown when coaching multiple teams */}
+        {teams.length > 1 && (
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTeamId(null)}
+              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                activeTeamId === null
+                  ? 'border-sky-500 bg-sky-500/20 text-sky-300'
+                  : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
+              }`}
+            >
+              All Teams
+            </button>
+            {teams.map(team => (
+              <button
+                key={team.id}
+                onClick={() => setActiveTeamId(team.id)}
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                  activeTeamId === team.id
+                    ? 'border-sky-500 bg-sky-500/20 text-sky-300'
+                    : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {team.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* List View */}
         {view === 'list' && (
           <>
-            {eventList.length === 0 ? (
+            {displayEvents.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-900 p-12 text-center">
                 <p className="text-slate-400 text-lg font-semibold">No upcoming events</p>
                 <p className="text-slate-500 text-sm mt-2">Add your first event to get started.</p>
@@ -747,15 +853,15 @@ export default function ScheduleClient({
               </div>
             ) : (
               <div className="space-y-3">
-                {eventList.map(event => (
+                {displayEvents.map(event => (
                   <EventRow
                     key={event.id}
                     event={event}
-                    childGames={childGameList.filter(g => g.parent_event_id === event.id)}
+                    childGames={displayChildGames.filter(g => g.parent_event_id === event.id)}
                     canManageEvents={canManageEvents}
                     canSendNotifications={canSendNotifications}
-                    teamId={teamId}
-                    programId={programId}
+                    teamId={actionTeamId}
+                    teams={teams}
                     onCancelRequest={setCancelTarget}
                     onTournamentGameAdded={handleTournamentGameAdded}
                     onTournamentGameDeleted={handleTournamentGameDeleted}

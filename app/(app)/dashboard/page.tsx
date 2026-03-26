@@ -23,13 +23,16 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Get team membership (flat queries — more reliable with RLS)
-  const { data: teamUser } = await supabase
+  // Get all team memberships
+  const { data: teamUsersRaw } = await supabase
     .from('team_users')
     .select('role, team_id, can_manage_events, can_send_notifications')
     .eq('user_id', user.id)
-    .single()
 
+  const teamUser = teamUsersRaw?.[0]
+  const teamIds  = (teamUsersRaw ?? []).map(t => t.team_id)
+
+  // For dashboard display, use the first team's data as context
   const { data: team } = await supabase
     .from('teams')
     .select('id, name, level, slug, program_id, team_schedule_token')
@@ -53,7 +56,7 @@ export default async function DashboardPage() {
       default_arrival_time, status, meal_required, meal_time,
       event_team_details!inner(team_id, start_time, arrival_time)
     `)
-    .eq('event_team_details.team_id', team?.id ?? '')
+    .in('event_team_details.team_id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
     .gte('event_date', today)
     .eq('status', 'scheduled')
     .order('event_date', { ascending: true })
@@ -72,7 +75,7 @@ export default async function DashboardPage() {
   const { data: upcomingEvents } = await supabase
     .from('events')
     .select('id, event_team_details!inner(team_id)')
-    .eq('event_team_details.team_id', team?.id ?? '')
+    .in('event_team_details.team_id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
     .gte('event_date', today)
     .lte('event_date', nextWeekStr)
     .neq('status', 'cancelled')

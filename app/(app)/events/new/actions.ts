@@ -18,9 +18,6 @@ export async function createEvent(formData: {
   is_home?: boolean
   location_name?: string
   location_address?: string
-  default_start_time?: string
-  default_arrival_time?: string
-  default_end_time?: string
   status: string
   notes?: string
   uniform_notes?: string
@@ -30,32 +27,45 @@ export async function createEvent(formData: {
   meal_time?: string
   is_public: boolean
   title?: string
+  team_assignments: {
+    team_id: string
+    start_time?: string
+    arrival_time?: string
+    end_time?: string
+  }[]
 }) {
   // Step 1: Auth check
   const authClient = await createServerClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect('/login')
 
-  // Step 2: Permission check + team lookup
-  const { data: teamUser, error: teamError } = await authClient
+  if (!formData.team_assignments?.length) {
+    return { error: 'At least one team must be selected.' }
+  }
+
+  // Step 2: Verify user has can_manage_events for all selected teams
+  const selectedTeamIds = formData.team_assignments.map(a => a.team_id)
+
+  const { data: teamUsers } = await authClient
     .from('team_users')
     .select('team_id, can_manage_events')
     .eq('user_id', user.id)
-    .single()
+    .in('team_id', selectedTeamIds)
 
-  if (teamError || !teamUser) {
-    return { error: 'Could not find your team assignment.' }
+  const authorizedTeamIds = (teamUsers ?? [])
+    .filter(t => t.can_manage_events)
+    .map(t => t.team_id)
+
+  const unauthorized = selectedTeamIds.filter(id => !authorizedTeamIds.includes(id))
+  if (unauthorized.length > 0) {
+    return { error: 'You do not have permission to create events for one or more selected teams.' }
   }
 
-  if (!teamUser.can_manage_events) {
-    return { error: 'You do not have permission to create events.' }
-  }
-
-  // Step 3: Look up program_id server-side
+  // Step 3: Look up program_id from the first team
   const { data: teamData } = await authClient
     .from('teams')
     .select('program_id')
-    .eq('id', teamUser.team_id)
+    .eq('id', selectedTeamIds[0])
     .single()
 
   if (!teamData?.program_id) {
@@ -68,8 +78,11 @@ export async function createEvent(formData: {
   if (formData.event_type === 'meeting')                   title = 'Team Meeting'
   if (formData.event_type === 'tournament' && !title)      title = 'Tournament'
 
-  // Step 4: Write with service role
+  // Step 4: Write event with service role
   const supabase = createServiceClient()
+
+  // Use first team's times as the event-level defaults (fallback for public/external views)
+  const firstAssignment = formData.team_assignments[0]
 
   const { data: event, error: eventError } = await supabase
     .from('events')
@@ -82,9 +95,9 @@ export async function createEvent(formData: {
       location_name:        formData.location_name || null,
       location_address:     formData.location_address || null,
       event_date:           formData.event_date,
-      default_start_time:   formData.default_start_time || null,
-      default_arrival_time: formData.default_arrival_time || null,
-      default_end_time:     formData.default_end_time || null,
+      default_start_time:   firstAssignment.start_time   || null,
+      default_arrival_time: firstAssignment.arrival_time || null,
+      default_end_time:     firstAssignment.end_time     || null,
       status:               formData.status,
       notes:                formData.notes || null,
       uniform_notes:        formData.uniform_notes || null,
@@ -103,17 +116,19 @@ export async function createEvent(formData: {
     return { error: 'Failed to save event. Please try again.' }
   }
 
-  // Step 5: Link event to team
+  // Step 5: Link event to each selected team with per-team times
+  const detailRows = formData.team_assignments.map(a => ({
+    event_id:             event.id,
+    team_id:              a.team_id,
+    start_time:           a.start_time   || null,
+    arrival_time:         a.arrival_time || null,
+    end_time:             a.end_time     || null,
+    notification_enabled: true,
+  }))
+
   const { error: detailsError } = await supabase
     .from('event_team_details')
-    .insert({
-      event_id:             event.id,
-      team_id:              teamUser.team_id,
-      start_time:           formData.default_start_time || null,
-      arrival_time:         formData.default_arrival_time || null,
-      end_time:             formData.default_end_time || null,
-      notification_enabled: true,
-    })
+    .insert(detailRows)
 
   if (detailsError) {
     console.error('Event team details error:', detailsError)

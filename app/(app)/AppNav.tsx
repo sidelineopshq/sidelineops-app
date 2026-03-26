@@ -25,7 +25,7 @@ export default function AppNav({
   displayName,
   initials,
   email,
-  teamName,
+  teams,
   programName,
   sport,
   role,
@@ -36,7 +36,7 @@ export default function AppNav({
   displayName: string
   initials: string
   email: string
-  teamName: string
+  teams: { id: string; name: string }[]
   programName: string
   sport: string
   role: string
@@ -119,7 +119,7 @@ export default function AppNav({
           <div className="hidden lg:block text-right">
             <p className="text-xs font-semibold text-white leading-tight">{programName}</p>
             <p className="text-xs text-slate-500 leading-tight">
-              {teamName} · {role.replace('_', ' ')}
+              {teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}
             </p>
           </div>
 
@@ -142,7 +142,7 @@ export default function AppNav({
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Team</p>
                   <p className="text-sm text-slate-300">{programName}</p>
-                  <p className="text-xs text-slate-500">{teamName} · {role.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-500">{teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}</p>
                 </div>
                 <div className="py-1">
                   <a
@@ -205,7 +205,7 @@ export default function AppNav({
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{sport}</p>
                   <p className="text-sm font-semibold text-white mt-0.5">{programName}</p>
-                  <p className="text-xs text-slate-400">{teamName} · {role.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-400">{teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}</p>
                 </div>
 
                 {/* Nav links */}

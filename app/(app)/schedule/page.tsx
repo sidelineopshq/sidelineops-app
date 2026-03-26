@@ -8,13 +8,12 @@ export default async function SchedulePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: teamUser } = await supabase
+  const { data: teamUsersRaw } = await supabase
     .from('team_users')
     .select('team_id, role, can_manage_events, can_send_notifications')
     .eq('user_id', user.id)
-    .single()
 
-  if (!teamUser) {
+  if (!teamUsersRaw?.length) {
     return (
       <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <p className="text-slate-400">No team assignment found for your account.</p>
@@ -22,23 +21,24 @@ export default async function SchedulePage() {
     )
   }
 
-  const { data: team } = await supabase
+  const teamIds          = teamUsersRaw.map(t => t.team_id)
+  const canManageEvents  = teamUsersRaw.some(t => t.can_manage_events)
+  const canSendNotifications = teamUsersRaw.some(t => t.can_send_notifications)
+
+  const { data: teamsData } = await supabase
     .from('teams')
     .select('id, name, level, program_id')
-    .eq('id', teamUser.team_id)
-    .single()
+    .in('id', teamIds)
 
   const { data: program } = await supabase
     .from('programs')
     .select('id, name, sport')
-    .eq('id', team?.program_id ?? '')
+    .eq('id', teamsData?.[0]?.program_id ?? '')
     .single()
 
   const today = new Date().toISOString().split('T')[0]
 
-  
-
-  // Fetch upcoming events
+  // Fetch events for all of the user's teams
   const { data: eventRows } = await supabase
     .from('events')
     .select(`
@@ -62,10 +62,11 @@ export default async function SchedulePage() {
       event_team_details!inner(
         team_id,
         start_time,
-        arrival_time
+        arrival_time,
+        status
       )
     `)
-    .eq('event_team_details.team_id', teamUser.team_id)
+    .in('event_team_details.team_id', teamIds)
     .gte('event_date', today)
     .neq('status', 'cancelled')
     .order('event_date', { ascending: true })
@@ -73,8 +74,11 @@ export default async function SchedulePage() {
   const allEvents = (eventRows ?? [])
     .map((row: any) => ({
       ...row,
-      team_start_time:    row.event_team_details?.[0]?.start_time   || row.default_start_time,
-      team_arrival_time:  row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
+      // Keep full team_details array so the client can resolve per-team times
+      team_details: row.event_team_details ?? [],
+      // Default display times (used in "All" view)
+      team_start_time:   row.event_team_details?.[0]?.start_time   || row.default_start_time,
+      team_arrival_time: row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
       event_team_details: undefined,
     }))
     .filter((e: any) => e?.id && !e.parent_event_id)
@@ -106,21 +110,22 @@ export default async function SchedulePage() {
 
     childGames = (childRows ?? []).map((row: any) => ({
       ...row,
+      team_details: row.event_team_details ?? [],
       team_start_time: row.event_team_details?.[0]?.start_time || row.default_start_time,
       event_team_details: undefined,
     }))
   }
 
+  const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
+
   return (
     <ScheduleClient
-      events={allEvents ?? []}
+      events={allEvents}
       childGames={childGames}
-      teamId={teamUser.team_id ?? ''}
-      programId={program?.id ?? ''}
+      teams={teams}
       programName={program?.name ?? ''}
-      teamName={team?.name ?? ''}
-      canManageEvents={teamUser.can_manage_events ?? false}
-      canSendNotifications={teamUser.can_send_notifications ?? false}
+      canManageEvents={canManageEvents}
+      canSendNotifications={canSendNotifications}
     />
   )
 }

@@ -9,12 +9,12 @@ export default async function RosterPage() {
   if (!user) redirect('/login')
 
   // Get team membership
-  const { data: teamUser } = await supabase
+  const { data: teamUsersRaw } = await supabase
     .from('team_users')
     .select('team_id, can_manage_contacts')
     .eq('user_id', user.id)
-    .single()
 
+  const teamUser = teamUsersRaw?.[0]
   if (!teamUser) redirect('/dashboard')
 
   const { data: team } = await supabase
