@@ -1,0 +1,418 @@
+/**
+ * Central notification dispatcher for outbound notifications.
+ *
+ * Exports:
+ *  - sendChangeAlert   — change alerts for existing events
+ *  - sendNewEventAlert — alerts when a new near-term event is added
+ *
+ * Channels dispatched (in order) for each function:
+ *  1. Email  — via Resend, per-contact unsubscribe links
+ *  2. GroupMe — via GroupMe Bots API (plain text)
+ *  3. SMS/Twilio — reserved for a future block
+ *
+ * All sends are non-blocking. Errors per channel are caught and logged
+ * so one failure never prevents the next channel from firing.
+ */
+
+import { createClient }             from '@supabase/supabase-js'
+import { Resend }                    from 'resend'
+import { buildEventNotificationEmail } from '@/lib/email/eventNotification'
+import { generateUnsubscribeToken }   from './unsubscribe-token'
+import { sendGroupMeMessage }         from './groupme'
+
+function createServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  })
+}
+
+function formatTime(time: string | null): string | null {
+  if (!time) return null
+  const [h, m] = time.split(':')
+  const hour   = parseInt(h, 10)
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+/** Returns 'today' | 'tomorrow' | null for a YYYY-MM-DD date in local time. */
+function dayLabel(eventDate: string): 'Today' | 'Tomorrow' | null {
+  const today    = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const [y, mo, d] = eventDate.split('-').map(Number)
+  const target = new Date(y, mo - 1, d)
+
+  if (target.getTime() === today.getTime())    return 'Today'
+  if (target.getTime() === tomorrow.getTime()) return 'Tomorrow'
+  return null
+}
+
+export interface ChangeRecord {
+  field: string
+  label: string
+  from:  string
+  to:    string
+}
+
+export interface AlertContact {
+  id:                string
+  email:             string | null
+  first_name:        string | null
+  email_unsubscribed: boolean | null
+}
+
+export interface AlertTeam {
+  id:               string
+  name:             string
+  slug:             string | null
+  notify_on_change: boolean | null
+  groupme_enabled:  boolean | null
+  groupme_bot_id:   string | null
+}
+
+export interface AlertEvent {
+  title:               string   // display title already formatted
+  event_date:          string   // YYYY-MM-DD
+  default_start_time:  string | null
+  location_name:       string | null
+}
+
+/**
+ * Sends change-alert notifications across all enabled channels for a single team.
+ * Call with `void` — never awaited from a server action that also calls redirect().
+ */
+export async function sendChangeAlert({
+  team,
+  programName,
+  event,
+  changes,
+  contacts,
+}: {
+  team:        AlertTeam
+  programName: string
+  event:       AlertEvent
+  changes:     ChangeRecord[]
+  contacts:    AlertContact[]
+}): Promise<void> {
+  // ── 1. Guard: notification preference ────────────────────────────────────────
+  if (!team.notify_on_change) return
+  if (!changes.length)        return
+
+  const appUrl      = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const supabase    = createServiceClient()
+  const formattedDate = formatDate(event.event_date)
+  const subject       = `Schedule Update: ${event.title} — ${formattedDate}`
+
+  const changeLines   = changes.map(c => `${c.label}: ${c.from} → ${c.to}`).join('\n')
+  const customMessage = `The following updates have been made to this event:\n\n${changeLines}`
+
+  // ── 2. Email channel ──────────────────────────────────────────────────────────
+  try {
+    const withEmail = contacts.filter(
+      (c): c is AlertContact & { email: string } =>
+        typeof c.email === 'string' &&
+        c.email.length > 0 &&
+        !c.email_unsubscribed,
+    )
+
+    if (withEmail.length > 0) {
+      const resend      = new Resend(process.env.RESEND_API_KEY)
+      const senderLabel = programName || 'SidelineOps'
+      const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+
+      const emailBase = {
+        type:  'Schedule Change' as const,
+        event: {
+          title:       event.title,
+          date:        formattedDate,
+          time:        formatTime(event.default_start_time),
+          location:    event.location_name,
+          teamName:    team.name,
+          programName,
+          teamSlug:    team.slug,
+        },
+        customMessage,
+        appUrl,
+      }
+
+      let sent   = 0
+      let failed = 0
+      const BATCH = 10
+
+      for (let i = 0; i < withEmail.length; i += BATCH) {
+        const results = await Promise.all(
+          withEmail.slice(i, i + BATCH).map(async c => {
+            const token          = generateUnsubscribeToken(c.id)
+            const unsubscribeUrl = `${appUrl}/api/unsubscribe?token=${token}`
+            const html           = buildEventNotificationEmail({ ...emailBase, unsubscribeUrl })
+            return resend.emails.send({ from, to: c.email, subject, html })
+              .catch(() => ({ error: true }))
+          })
+        )
+        results.forEach(r => ('error' in r && r.error) ? failed++ : sent++)
+      }
+
+      await supabase.from('notification_log').insert({
+        team_id:           team.id,
+        sent_count:        sent,
+        failed_count:      failed,
+        notification_type: 'event_change',
+        recipient_group:   'all_contacts',
+        channel:           'email',
+        subject,
+        message:           customMessage,
+      })
+    }
+  } catch (err) {
+    console.error(`[channel-router] email channel for team ${team.id}:`, err)
+  }
+
+  // ── 3. GroupMe channel ────────────────────────────────────────────────────────
+  if (team.groupme_enabled && team.groupme_bot_id) {
+    try {
+      const scheduleUrl = team.slug ? `${appUrl}/schedule/${team.slug}` : appUrl
+      const bulletLines = changes.map(c => `• ${c.label}: ${c.from} → ${c.to}`).join('\n')
+
+      const text = [
+        `📅 Schedule Update: ${event.title} — ${formattedDate}`,
+        '',
+        bulletLines,
+        '',
+        `View schedule: ${scheduleUrl}`,
+      ].join('\n')
+
+      const ok = await sendGroupMeMessage(team.groupme_bot_id, text)
+
+      await supabase.from('notification_log').insert({
+        team_id:           team.id,
+        sent_count:        ok ? 1 : 0,
+        failed_count:      ok ? 0 : 1,
+        notification_type: 'event_change',
+        recipient_group:   'all_contacts',
+        channel:           'groupme',
+        subject,
+        message:           customMessage,
+      })
+    } catch (err) {
+      console.error(`[channel-router] groupme channel for team ${team.id}:`, err)
+    }
+  }
+
+  // ── 4. SMS/Twilio ─────────────────────────────────────────────────────────────
+  // Reserved for a future block.
+}
+
+// =============================================================================
+// sendNewEventAlert
+// =============================================================================
+
+export interface NewEventTeam {
+  id:               string
+  name:             string
+  level:            string | null
+  slug:             string | null
+  notify_on_change: boolean | null
+  groupme_enabled:  boolean | null
+  groupme_bot_id:   string | null
+}
+
+export interface NewEventInput {
+  title:           string | null
+  event_type:      string
+  event_date:      string   // YYYY-MM-DD
+  opponent:        string | null
+  is_home:         boolean | null
+  location_name:   string | null
+  is_tournament:   boolean
+  parent_event_id: string | null
+}
+
+export interface AssignedTeam {
+  name:       string
+  level:      string | null
+  start_time: string | null
+}
+
+export interface NewEventContact {
+  id:                 string
+  email:              string | null
+  first_name:         string | null
+  email_unsubscribed: boolean | null
+}
+
+function buildNewEventLabel(event: NewEventInput): string {
+  if (event.is_tournament || event.event_type === 'tournament') return event.title ?? 'Tournament'
+  // Child games inside a tournament get a clearer label
+  if (event.parent_event_id) {
+    return event.opponent ? `Tournament Game vs ${event.opponent}` : 'Tournament Game'
+  }
+  if (event.event_type === 'practice') return 'Practice'
+  if (event.event_type === 'meeting')  return 'Team Meeting'
+  if (event.opponent) return `${event.is_home ? 'vs' : '@'} ${event.opponent}`
+  return event.title ?? 'Event'
+}
+
+function buildLocationLine(event: NewEventInput): string | null {
+  if (!event.location_name) return null
+  if (event.is_home === true)  return `Home — ${event.location_name}`
+  if (event.is_home === false) return `Away — ${event.location_name}`
+  return event.location_name
+}
+
+/**
+ * Sends new-event notifications when an event falls today or tomorrow.
+ * Call with `void` — never awaited from a server action that also calls redirect().
+ */
+export async function sendNewEventAlert({
+  team,
+  programName,
+  event,
+  assignedTeams,
+  contacts,
+}: {
+  team:          NewEventTeam
+  programName:   string
+  event:         NewEventInput
+  assignedTeams: AssignedTeam[]
+  contacts:      NewEventContact[]
+}): Promise<void> {
+  // ── 1. Urgency guard ──────────────────────────────────────────────────────────
+  const day = dayLabel(event.event_date)
+  if (!day) return
+
+  const appUrl        = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const supabase      = createServiceClient()
+  const formattedDate = formatDate(event.event_date)
+  const eventLabel    = buildNewEventLabel(event)
+  const locationLine  = buildLocationLine(event)
+  const subject       = `${programName || team.name} — New Event Added`
+
+  // Team time lines: "Varsity: 4:00 PM", "JV: 3:00 PM"
+  const teamTimeLines = assignedTeams
+    .map(t => {
+      const time = formatTime(t.start_time)
+      return time ? `${t.name}: ${time}` : t.name
+    })
+    .join('\n')
+
+  // Build custom message body
+  const bodyParts: string[] = [
+    `${day} · ${formattedDate} · ${eventLabel}`,
+  ]
+  if (locationLine)  bodyParts.push(`📍 ${locationLine}`)
+  if (teamTimeLines) bodyParts.push(`\n${teamTimeLines}`)
+
+  const customMessage = bodyParts.join('\n')
+
+  // Primary time shown in the email detail grid (receiving team's start time)
+  const receivingTeam  = assignedTeams.find(t => t.name === team.name) ?? assignedTeams[0]
+  const primaryTime    = formatTime(receivingTeam?.start_time ?? null)
+
+  // ── 2. Email channel ──────────────────────────────────────────────────────────
+  try {
+    const withEmail = contacts.filter(
+      (c): c is NewEventContact & { email: string } =>
+        typeof c.email === 'string' &&
+        c.email.length > 0 &&
+        !c.email_unsubscribed,
+    )
+
+    if (withEmail.length > 0) {
+      const resend      = new Resend(process.env.RESEND_API_KEY)
+      const senderLabel = programName || 'SidelineOps'
+      const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+
+      const emailBase = {
+        type:  'General Update' as const,
+        event: {
+          title:       eventLabel,
+          date:        formattedDate,
+          time:        primaryTime,
+          location:    locationLine,
+          teamName:    team.name,
+          programName,
+          teamSlug:    team.slug,
+        },
+        customMessage,
+        appUrl,
+      }
+
+      let sent   = 0
+      let failed = 0
+      const BATCH = 10
+
+      for (let i = 0; i < withEmail.length; i += BATCH) {
+        const results = await Promise.all(
+          withEmail.slice(i, i + BATCH).map(async c => {
+            const token          = generateUnsubscribeToken(c.id)
+            const unsubscribeUrl = `${appUrl}/api/unsubscribe?token=${token}`
+            const html           = buildEventNotificationEmail({ ...emailBase, unsubscribeUrl })
+            return resend.emails.send({ from, to: c.email, subject, html })
+              .catch(() => ({ error: true }))
+          })
+        )
+        results.forEach(r => ('error' in r && r.error) ? failed++ : sent++)
+      }
+
+      await supabase.from('notification_log').insert({
+        team_id:           team.id,
+        sent_count:        sent,
+        failed_count:      failed,
+        notification_type: 'new_event',
+        recipient_group:   'all_contacts',
+        channel:           'email',
+        subject,
+        message:           customMessage,
+      })
+    }
+  } catch (err) {
+    console.error(`[channel-router] new-event email for team ${team.id}:`, err)
+  }
+
+  // ── 3. GroupMe channel ────────────────────────────────────────────────────────
+  if (team.groupme_enabled && team.groupme_bot_id) {
+    try {
+      const timePart = assignedTeams
+        .map(t => {
+          const time = formatTime(t.start_time)
+          return time ? `${t.name}: ${time}` : t.name
+        })
+        .join(' | ')
+
+      const textParts: string[] = [
+        `📅 ${team.name} — New Event Added`,
+        '',
+        `${day} ${formattedDate} · ${eventLabel}`,
+      ]
+      if (locationLine) textParts.push(`📍 ${locationLine}`)
+      if (timePart)     textParts.push(`⏰ ${timePart}`)
+      
+      const text = textParts.join('\n')
+      const ok   = await sendGroupMeMessage(team.groupme_bot_id, text)
+
+      await supabase.from('notification_log').insert({
+        team_id:           team.id,
+        sent_count:        ok ? 1 : 0,
+        failed_count:      ok ? 0 : 1,
+        notification_type: 'new_event',
+        recipient_group:   'all_contacts',
+        channel:           'groupme',
+        subject,
+        message:           customMessage,
+      })
+    } catch (err) {
+      console.error(`[channel-router] new-event groupme for team ${team.id}:`, err)
+    }
+  }
+
+  // ── 4. SMS/Twilio ─────────────────────────────────────────────────────────────
+  // Reserved for a future block.
+}

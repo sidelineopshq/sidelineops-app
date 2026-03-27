@@ -21,7 +21,7 @@ export default async function TeamSettingsPage() {
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled')
+    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -102,6 +102,8 @@ export default async function TeamSettingsPage() {
           name:                  t.name,
           notify_on_change:      t.notify_on_change      ?? null,
           notify_digest_enabled: t.notify_digest_enabled ?? null,
+          groupme_enabled:       t.groupme_enabled       ?? null,
+          groupme_bot_id:        t.groupme_bot_id        ?? null,
         }))}
         canManage={canManage}
       />

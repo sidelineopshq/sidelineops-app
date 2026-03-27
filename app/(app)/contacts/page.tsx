@@ -41,7 +41,8 @@ export default async function ContactsPage() {
       sms_consent,
       player_id,
       created_at,
-      notes
+      notes,
+      email_unsubscribed
     `)
     .eq('team_id', teamUser.team_id)
     .is('deleted_at', null)

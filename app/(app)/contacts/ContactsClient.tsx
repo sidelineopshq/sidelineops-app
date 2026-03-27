@@ -16,6 +16,7 @@ type Contact = {
   player_id: string | null
   created_at: string
   notes: string | null
+  email_unsubscribed: boolean | null
 }
 
 type Player = {
@@ -251,6 +252,11 @@ function ContactRow({ contact, players, canManage, teamId, onEdit, onDelete }: {
             ) : (
               <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-500">
                 No consent
+              </span>
+            )}
+            {contact.email_unsubscribed && (
+              <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-xs text-red-400">
+                Unsubscribed
               </span>
             )}
             {!contact.player_id && contact.contact_type === 'parent' && (

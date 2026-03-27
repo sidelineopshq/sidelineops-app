@@ -72,10 +72,10 @@ export async function updateEvent(
   const supabase = createServiceClient()
 
   // ── Snapshot old values before writing ──────────────────────────────────
-  const [{ data: oldEventData }, { data: oldTeamDetails }] = await Promise.all([
+  const [{ data: oldEventData }, { data: oldTeamDetails }, { data: teamNames }] = await Promise.all([
     supabase
       .from('events')
-      .select('default_start_time, default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
+      .select('default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
       .eq('id', eventId)
       .single(),
     supabase
@@ -83,6 +83,10 @@ export async function updateEvent(
       .select('team_id, start_time, end_time, status')
       .eq('event_id', eventId)
       .in('team_id', teamAssignments.map(a => a.team_id)),
+    supabase
+      .from('teams')
+      .select('id, name')
+      .in('id', teamAssignments.map(a => a.team_id)),
   ])
 
   // Use first assignment's times as the event-level defaults (for public/external views)
@@ -140,26 +144,26 @@ export async function updateEvent(
   // ── Fire change notifications (non-blocking) ─────────────────────────────
   if (oldEventData) {
     const oldEventSnap = {
-      default_start_time: oldEventData.default_start_time,
-      default_end_time:   oldEventData.default_end_time,
-      location_name:      oldEventData.location_name,
-      location_address:   oldEventData.location_address,
-      status:             oldEventData.status,
+      default_end_time: oldEventData.default_end_time,
+      location_name:    oldEventData.location_name,
+      location_address: oldEventData.location_address,
+      status:           oldEventData.status,
     }
     const newEventSnap = {
-      default_start_time: first.start_time    || null,
-      default_end_time:   first.end_time      || null,
-      location_name:      formData.location_name   || null,
-      location_address:   formData.location_address || null,
-      status:             formData.status,
+      default_end_time: first.end_time      || null,
+      location_name:    formData.location_name   || null,
+      location_address: formData.location_address || null,
+      status:           formData.status,
     }
 
     const teamNotifications = teamAssignments
       .map(a => {
-        const old = oldTeamDetails?.find(d => d.team_id === a.team_id)
+        const old  = oldTeamDetails?.find(d => d.team_id === a.team_id)
         if (!old) return null  // new team assignment — no prior state to diff
+        const name = teamNames?.find(t => t.id === a.team_id)?.name ?? ''
         return {
           teamId:        a.team_id,
+          teamName:      name,
           oldEvent:      oldEventSnap,
           newEvent:      newEventSnap,
           oldTeamDetail: { start_time: old.start_time, end_time: old.end_time, status: old.status },
@@ -169,7 +173,6 @@ export async function updateEvent(
       .filter(Boolean) as TeamNotificationInput[]
 
     void fireChangeNotifications({
-      eventId,
       eventDate:    formData.event_date,
       displayTitle: buildDisplayTitle({
         event_type: formData.event_type,

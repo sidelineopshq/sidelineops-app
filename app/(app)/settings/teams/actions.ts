@@ -56,9 +56,35 @@ export async function setPrimaryTeam(teamId: string) {
   return { success: true }
 }
 
+export async function saveGroupMeBotId(teamId: string, botId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: teamUser } = await authClient
+    .from('team_users')
+    .select('can_manage_events')
+    .eq('user_id', user.id)
+    .eq('team_id', teamId)
+    .single()
+
+  if (!teamUser?.can_manage_events) return { error: 'Not authorized' }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('teams')
+    .update({ groupme_bot_id: botId || null })
+    .eq('id', teamId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/settings/teams')
+  return { success: true }
+}
+
 export async function updateNotificationSetting(
   teamId: string,
-  field: 'notify_on_change' | 'notify_digest_enabled',
+  field: 'notify_on_change' | 'notify_digest_enabled' | 'groupme_enabled',
   value: boolean,
 ) {
   const authClient = await createServerClient()

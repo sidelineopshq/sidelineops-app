@@ -10,10 +10,11 @@
  *
  * const diff = detectEventChanges({
  *   eventDate: '2026-03-28',
- *   oldEvent: { default_start_time: '16:00:00', status: 'scheduled', ... },
- *   newEvent: { default_start_time: '17:30:00', status: 'scheduled', ... },
+ *   oldEvent: { default_end_time: null, status: 'scheduled', ... },
+ *   newEvent: { default_end_time: null, status: 'cancelled', ... },
  *   oldTeamDetail: { start_time: null, end_time: null, status: 'scheduled' },
  *   newTeamDetail: { start_time: '17:30:00', end_time: null, status: 'scheduled' },
+ *   teamName: 'Varsity',
  * })
  *
  * if (diff.hasChanges) {
@@ -24,7 +25,6 @@
  */
 
 export interface EventSnapshot {
-  default_start_time: string | null
   default_end_time:   string | null
   location_name:      string | null
   location_address:   string | null
@@ -125,6 +125,7 @@ function isUrgentDate(eventDate: string): boolean {
  * @param newEvent       - Updated state of the event row fields.
  * @param oldTeamDetail  - Previous state of the event_team_details row.
  * @param newTeamDetail  - Updated state of the event_team_details row.
+ * @param teamName       - Team display name (e.g. "Varsity") used in change labels.
  */
 export function detectEventChanges({
   eventDate,
@@ -132,25 +133,18 @@ export function detectEventChanges({
   newEvent,
   oldTeamDetail,
   newTeamDetail,
+  teamName,
 }: {
   eventDate:     string
   oldEvent:      EventSnapshot
   newEvent:      EventSnapshot
   oldTeamDetail: TeamDetailSnapshot
   newTeamDetail: TeamDetailSnapshot
+  teamName:      string
 }): EventChangeDiff {
   const changes: ChangeRecord[] = []
 
   // -- event fields ----------------------------------------------------------
-
-  if (oldEvent.default_start_time !== newEvent.default_start_time) {
-    changes.push({
-      field: 'default_start_time',
-      label: 'Default Start Time',
-      from:  formatTime(oldEvent.default_start_time),
-      to:    formatTime(newEvent.default_start_time),
-    })
-  }
 
   if (oldEvent.default_end_time !== newEvent.default_end_time) {
     changes.push({
@@ -193,7 +187,7 @@ export function detectEventChanges({
   if (oldTeamDetail.start_time !== newTeamDetail.start_time) {
     changes.push({
       field: 'team_start_time',
-      label: 'Team Start Time',
+      label: `${teamName} Start Time`,
       from:  formatTime(oldTeamDetail.start_time),
       to:    formatTime(newTeamDetail.start_time),
     })
@@ -202,7 +196,7 @@ export function detectEventChanges({
   if (oldTeamDetail.end_time !== newTeamDetail.end_time) {
     changes.push({
       field: 'team_end_time',
-      label: 'Team End Time',
+      label: `${teamName} End Time`,
       from:  formatTime(oldTeamDetail.end_time),
       to:    formatTime(newTeamDetail.end_time),
     })

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient }             from '@supabase/supabase-js'
-import { Resend }                   from 'resend'
-import { buildWeeklyDigestEmail, type DigestEvent } from '@/lib/email/weeklyDigest'
+import { NextRequest, NextResponse }                 from 'next/server'
+import { createClient }                              from '@supabase/supabase-js'
+import { Resend }                                    from 'resend'
+import { buildWeeklyDigestEmail, type DigestEvent }  from '@/lib/email/weeklyDigest'
+import { generateUnsubscribeToken }                  from '@/lib/notifications/unsubscribe-token'
 
 // ── Supabase service client (bypasses RLS — safe here, server-only route) ──
 function createServiceClient() {
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
       // ── Fetch program name ─────────────────────────────────────────────────
       const { data: program } = await supabase
         .from('programs')
-        .select('name')
+        .select('name, sport')
         .eq('id', team.program_id)
         .single()
 
@@ -137,6 +138,7 @@ export async function GET(req: NextRequest) {
         .select('id, email')
         .eq('team_id', team.id)
         .is('deleted_at', null)
+        .eq('email_unsubscribed', false)
         .not('email', 'is', null)
 
       const withEmail = (contacts ?? []).filter(
@@ -145,19 +147,19 @@ export async function GET(req: NextRequest) {
 
       if (!withEmail.length) continue
 
-      // ── Build email ────────────────────────────────────────────────────────
-      const html = buildWeeklyDigestEmail({
+      const senderLabel = program?.name ?? ''
+      const fromName    = senderLabel ? `${senderLabel} via SidelineOps` : 'SidelineOps'
+      const from        = `${fromName} <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+      const subject     = `Your Week Ahead — ${weekLabel}`
+
+      const digestBase = {
         teamName:    team.name ?? '',
         programName: program?.name ?? '',
         teamSlug:    team.slug ?? null,
         weekLabel,
         events:      weekEvents,
         appUrl,
-      })
-
-      const fromName = team.name ? `${team.name} via SidelineOps` : 'SidelineOps'
-      const from     = `${fromName} <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
-      const subject  = `Your Week Ahead — ${weekLabel}`
+      }
 
       // ── Send in batches of 10 ─────────────────────────────────────────────
       let teamSent   = 0
@@ -166,10 +168,13 @@ export async function GET(req: NextRequest) {
 
       for (let i = 0; i < withEmail.length; i += BATCH) {
         const results = await Promise.all(
-          withEmail.slice(i, i + BATCH).map(c =>
-            resend.emails.send({ from, to: c.email, subject, html })
+          withEmail.slice(i, i + BATCH).map(async c => {
+            const token          = generateUnsubscribeToken(c.id)
+            const unsubscribeUrl = `${appUrl}/api/unsubscribe?token=${token}`
+            const html           = buildWeeklyDigestEmail({ ...digestBase, unsubscribeUrl })
+            return resend.emails.send({ from, to: c.email, subject, html })
               .catch(() => ({ error: true }))
-          )
+          })
         )
         results.forEach(r => ('error' in r && r.error) ? teamFailed++ : teamSent++)
       }

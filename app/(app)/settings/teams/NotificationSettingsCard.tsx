@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { updateNotificationSetting } from './actions'
+import { useState, useRef } from 'react'
+import { updateNotificationSetting, saveGroupMeBotId } from './actions'
 
 type TeamSetting = {
   id:                    string
   name:                  string
   notify_on_change:      boolean | null
   notify_digest_enabled: boolean | null
+  groupme_enabled:       boolean | null
+  groupme_bot_id:        string | null
 }
 
 // ── Toggle switch ────────────────────────────────────────────────────────────
@@ -48,22 +50,33 @@ function Toggle({
   )
 }
 
+// ── Per-team state ────────────────────────────────────────────────────────────
+
+type TeamState = {
+  notify_on_change:      boolean
+  notify_digest_enabled: boolean
+  groupme_enabled:       boolean
+  groupme_bot_id:        string
+}
+
 // ── Main card ────────────────────────────────────────────────────────────────
 
 export function NotificationSettingsCard({
   teams,
   canManage,
 }: {
-  teams:      TeamSetting[]
-  canManage:  boolean
+  teams:     TeamSetting[]
+  canManage: boolean
 }) {
-  const [settings, setSettings] = useState(() =>
+  const [settings, setSettings] = useState<Record<string, TeamState>>(() =>
     Object.fromEntries(
       teams.map(t => [
         t.id,
         {
           notify_on_change:      t.notify_on_change      ?? true,
           notify_digest_enabled: t.notify_digest_enabled ?? false,
+          groupme_enabled:       t.groupme_enabled       ?? false,
+          groupme_bot_id:        t.groupme_bot_id        ?? '',
         },
       ])
     )
@@ -71,13 +84,21 @@ export function NotificationSettingsCard({
 
   // tracks which field just saved per team: teamId → field key | null
   const [saved, setSaved] = useState<Record<string, string | null>>({})
+  const [botIdSaving, setBotIdSaving] = useState<Record<string, boolean>>({})
+
+  // refs for bot ID inputs (one per team)
+  const botIdRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  function flashSaved(teamId: string, field: string) {
+    setSaved(prev => ({ ...prev, [teamId]: field }))
+    setTimeout(() => setSaved(prev => ({ ...prev, [teamId]: null })), 2000)
+  }
 
   async function handleToggle(
     teamId: string,
-    field:  'notify_on_change' | 'notify_digest_enabled',
+    field:  'notify_on_change' | 'notify_digest_enabled' | 'groupme_enabled',
     value:  boolean,
   ) {
-    // Optimistic update
     setSettings(prev => ({
       ...prev,
       [teamId]: { ...prev[teamId], [field]: value },
@@ -86,18 +107,21 @@ export function NotificationSettingsCard({
     const result = await updateNotificationSetting(teamId, field, value)
 
     if (result?.error) {
-      // Revert on failure
       setSettings(prev => ({
         ...prev,
         [teamId]: { ...prev[teamId], [field]: !value },
       }))
     } else {
-      setSaved(prev => ({ ...prev, [teamId]: field }))
-      setTimeout(
-        () => setSaved(prev => ({ ...prev, [teamId]: null })),
-        2000,
-      )
+      flashSaved(teamId, field)
     }
+  }
+
+  async function handleBotIdSave(teamId: string) {
+    const botId = settings[teamId].groupme_bot_id.trim()
+    setBotIdSaving(prev => ({ ...prev, [teamId]: true }))
+    const result = await saveGroupMeBotId(teamId, botId)
+    setBotIdSaving(prev => ({ ...prev, [teamId]: false }))
+    if (!result?.error) flashSaved(teamId, 'groupme_bot_id')
   }
 
   return (
@@ -163,6 +187,106 @@ export function NotificationSettingsCard({
                       onChange={v => handleToggle(team.id, 'notify_digest_enabled', v)}
                     />
                   </div>
+                </div>
+
+                {/* ── GroupMe Integration ──────────────────────────────────── */}
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">
+                    GroupMe Integration
+                  </p>
+
+                  {/* Enable toggle */}
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white">Enable GroupMe notifications</p>
+                      <p className="text-xs text-slate-400 mt-0.5 max-w-sm leading-relaxed">
+                        Post change alerts to a GroupMe group via a bot
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                      {saving === 'groupme_enabled' && (
+                        <span className="text-xs text-green-400 font-medium">Saved</span>
+                      )}
+                      <Toggle
+                        checked={s.groupme_enabled}
+                        disabled={!canManage}
+                        onChange={v => handleToggle(team.id, 'groupme_enabled', v)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bot ID input — only shown when enabled */}
+                  {s.groupme_enabled && (
+                    <div className="mt-4 space-y-2">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Bot ID
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          ref={el => { botIdRefs.current[team.id] = el }}
+                          type="text"
+                          disabled={!canManage}
+                          value={s.groupme_bot_id}
+                          placeholder="Paste your GroupMe bot ID here"
+                          onChange={e =>
+                            setSettings(prev => ({
+                              ...prev,
+                              [team.id]: { ...prev[team.id], groupme_bot_id: e.target.value },
+                            }))
+                          }
+                          onBlur={() => handleBotIdSave(team.id)}
+                          className={[
+                            'flex-1 rounded-lg border bg-slate-800 px-3 py-2 text-sm text-white',
+                            'placeholder:text-slate-600',
+                            'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 focus:ring-offset-slate-900',
+                            'disabled:opacity-40 disabled:cursor-not-allowed',
+                            'border-white/10',
+                          ].join(' ')}
+                        />
+                        {canManage && (
+                          <button
+                            type="button"
+                            disabled={botIdSaving[team.id]}
+                            onClick={() => handleBotIdSave(team.id)}
+                            className={[
+                              'shrink-0 rounded-lg border border-white/10 bg-slate-800',
+                              'hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-300',
+                              'hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+                            ].join(' ')}
+                          >
+                            {botIdSaving[team.id] ? 'Saving…' : 'Save'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Helper text */}
+                      <p className="text-xs text-slate-500">
+                        Create a bot at{' '}
+                        <a
+                          href="https://dev.groupme.com/bots"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sky-500 hover:text-sky-400 underline"
+                        >
+                          dev.groupme.com
+                        </a>{' '}
+                        and paste the bot_id here
+                      </p>
+
+                      {/* Warning: enabled but no bot ID */}
+                      {!s.groupme_bot_id.trim() && (
+                        <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                          <span aria-hidden>⚠</span>
+                          Enter a Bot ID to enable GroupMe notifications
+                        </p>
+                      )}
+
+                      {/* Save confirmation */}
+                      {saving === 'groupme_bot_id' && (
+                        <p className="text-xs text-green-400 font-medium">Saved</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </div>

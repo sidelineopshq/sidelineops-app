@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { sendNewEventAlert } from '@/lib/notifications/channel-router'
 
 function createServiceClient() {
   return createClient(
@@ -133,6 +134,86 @@ export async function createEvent(formData: {
   if (detailsError) {
     console.error('Event team details error:', detailsError)
   }
+
+  // ── Step 6: Fire new-event notifications (non-blocking) ──────────────────
+  void (async () => {
+    try {
+      // Date check — skip all fetches if event is not today or tomorrow
+      const _today    = new Date(); _today.setHours(0, 0, 0, 0)
+      const _tomorrow = new Date(_today); _tomorrow.setDate(_tomorrow.getDate() + 1)
+      const [_y, _mo, _d] = formData.event_date.split('-').map(Number)
+      const _eventDay = new Date(_y, _mo - 1, _d)
+      const isUrgent  = _eventDay.getTime() === _today.getTime() || _eventDay.getTime() === _tomorrow.getTime()
+      if (!isUrgent) return
+
+      // Fetch program (shared) + all team records + all contacts in parallel
+      const [{ data: program }, { data: teamRecords }, { data: allContacts }] = await Promise.all([
+        supabase
+          .from('programs')
+          .select('name')
+          .eq('id', teamData.program_id)
+          .single(),
+        supabase
+          .from('teams')
+          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id')
+          .in('id', selectedTeamIds),
+        supabase
+          .from('contacts')
+          .select('id, first_name, email, email_unsubscribed, team_id')
+          .in('team_id', selectedTeamIds)
+          .is('deleted_at', null)
+          .not('email', 'is', null),
+      ])
+
+      if (!teamRecords?.length) return
+
+      // Build the full assigned-teams list (all teams, shown in every notification)
+      const assignedTeams = teamRecords.map(tr => {
+        const assignment = formData.team_assignments.find(a => a.team_id === tr.id)
+        return {
+          name:       tr.name ?? '',
+          level:      tr.level ?? null,
+          start_time: assignment?.start_time || null,
+        }
+      })
+
+      // Fire once per team — each team gets its own contacts + channel config
+      for (const tr of teamRecords) {
+        const teamContacts = (allContacts ?? []).filter(c => c.team_id === tr.id)
+        await sendNewEventAlert({
+          team: {
+            id:               tr.id,
+            name:             tr.name ?? '',
+            level:            tr.level ?? null,
+            slug:             tr.slug ?? null,
+            notify_on_change: tr.notify_on_change,
+            groupme_enabled:  tr.groupme_enabled,
+            groupme_bot_id:   tr.groupme_bot_id,
+          },
+          programName: program?.name ?? '',
+          event: {
+            title:           title,
+            event_type:      formData.event_type,
+            event_date:      formData.event_date,
+            opponent:        formData.opponent || null,
+            is_home:         formData.is_home ?? null,
+            location_name:   formData.location_name || null,
+            is_tournament:   formData.is_tournament,
+            parent_event_id: null,
+          },
+          assignedTeams,
+          contacts: teamContacts.map(c => ({
+            id:                 c.id,
+            first_name:         c.first_name,
+            email:              c.email,
+            email_unsubscribed: c.email_unsubscribed,
+          })),
+        })
+      }
+    } catch (err) {
+      console.error('[createEvent] notification fire failed:', err)
+    }
+  })()
 
   redirect('/schedule')
 }

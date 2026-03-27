@@ -85,7 +85,7 @@ export async function sendNotification(payload: {
 
   const { data: program } = await service
     .from('programs')
-    .select('name')
+    .select('name, sport')
     .eq('id', event.program_id)
     .single()
 
@@ -115,7 +115,8 @@ export async function sendNotification(payload: {
 
   // ── Build email ───────────────────────────────────────────────────────────
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
-  const fromName = team?.name ? `${team.name} via SidelineOps` : 'SidelineOps'
+  const senderLabel = program?.name ?? ''
+  const fromName    = senderLabel ? `${senderLabel} via SidelineOps` : 'SidelineOps'
   const from     = `${fromName} <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
   const replyTo  = user.email ?? undefined
 

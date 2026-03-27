@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { sendNewEventAlert } from '@/lib/notifications/channel-router'
 
 // Service role client — bypasses RLS for writes.
 // Safe to use here because we manually verify auth and permissions
@@ -88,6 +89,74 @@ export async function addTournamentGame(formData: {
   if (detailsError) {
     console.error('Tournament game team details error:', detailsError)
   }
+
+  // ── Step 6: Fire new-event notification (non-blocking) ───────────────────
+  void (async () => {
+    try {
+      // Replicate dayLabel() check so we can log before entering sendNewEventAlert
+      const _today    = new Date(); _today.setHours(0, 0, 0, 0)
+      const _tomorrow = new Date(_today); _tomorrow.setDate(_tomorrow.getDate() + 1)
+      const [_y, _mo, _d] = formData.event_date.split('-').map(Number)
+      const _eventDay = new Date(_y, _mo - 1, _d)
+      const isUrgent  = _eventDay.getTime() === _today.getTime() || _eventDay.getTime() === _tomorrow.getTime()
+      const [{ data: team }, { data: program }, { data: contacts }] = await Promise.all([
+        supabase
+          .from('teams')
+          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id')
+          .eq('id', formData.team_id)
+          .single(),
+        supabase
+          .from('programs')
+          .select('name')
+          .eq('id', teamData.program_id)
+          .single(),
+        supabase
+          .from('contacts')
+          .select('id, first_name, email, email_unsubscribed')
+          .eq('team_id', formData.team_id)
+          .is('deleted_at', null)
+          .not('email', 'is', null),
+      ])
+
+      if (!team) return
+
+      await sendNewEventAlert({
+        team: {
+          id:               team.id,
+          name:             team.name ?? '',
+          level:            team.level ?? null,
+          slug:             team.slug ?? null,
+          notify_on_change: team.notify_on_change,
+          groupme_enabled:  team.groupme_enabled,
+          groupme_bot_id:   team.groupme_bot_id,
+        },
+        programName: program?.name ?? '',
+        event: {
+          title:           null,
+          event_type:      'game',
+          event_date:      formData.event_date,
+          opponent:        formData.opponent || null,
+          is_home:         null,
+          location_name:   formData.location_name || null,
+          is_tournament:   false,
+          parent_event_id: formData.parent_event_id,
+        },
+        assignedTeams: [{
+          name:       team.name ?? '',
+          level:      team.level ?? null,
+          start_time: formData.start_time || null,
+        }],
+        contacts: (contacts ?? []).map(c => ({
+          id:                 c.id,
+          first_name:         c.first_name,
+          email:              c.email,
+          email_unsubscribed: c.email_unsubscribed,
+        })),
+      })
+    } catch (err) {
+      console.error('[addTournamentGame] notification fire failed:', err)
+    }
+  })()
 
   return { success: true, eventId: event.id }
 }

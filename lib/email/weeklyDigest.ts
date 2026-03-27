@@ -58,13 +58,15 @@ export function buildWeeklyDigestEmail({
   weekLabel,
   events,
   appUrl,
+  unsubscribeUrl,
 }: {
-  teamName:    string
-  programName: string
-  teamSlug:    string | null
-  weekLabel:   string   // e.g. "Apr 7 – Apr 13"
-  events:      DigestEvent[]
-  appUrl:      string
+  teamName:        string
+  programName:     string
+  teamSlug:        string | null
+  weekLabel:       string   // e.g. "Apr 7 – Apr 13"
+  events:          DigestEvent[]
+  appUrl:          string
+  unsubscribeUrl?: string
 }): string {
   const scheduleUrl = teamSlug ? `${appUrl}/schedule/${teamSlug}` : appUrl
 
@@ -179,13 +181,23 @@ export function buildWeeklyDigestEmail({
                      border-radius:0 0 12px 12px;padding:20px 32px;text-align:center;">
         <p style="margin:0;font-size:12px;color:#94a3b8;">
           This weekly digest was sent by
-          <strong style="color:#64748b;">${esc(teamName)}</strong> via SidelineOps.
+          <strong style="color:#64748b;">${esc(programName)}</strong> via SidelineOps.
         </p>
         <p style="margin:6px 0 0;font-size:11px;color:#cbd5e1;">
           You received this because you are listed as a contact for this team.
           Contact your coach to update your notification preferences.
         </p>
       </td></tr>
+
+      ${unsubscribeUrl ? `
+      <!-- Unsubscribe -->
+      <tr><td style="padding:16px 32px 8px;text-align:center;">
+        <hr style="margin:0 0 14px;border:none;border-top:1px solid #e5e7eb;" />
+        <p style="margin:0;font-size:12px;color:#9ca3af;">
+          You're receiving this because you signed up for updates from <strong style="color:#9ca3af;">${esc(programName)}</strong>.<br/>
+          <a href="${unsubscribeUrl}" style="color:#9ca3af;">Unsubscribe</a>
+        </p>
+      </td></tr>` : ''}
 
     </table>
     </td></tr>
