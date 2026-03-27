@@ -53,6 +53,19 @@ export async function GET(
     .eq('id', team.program_id)
     .single()
 
+  // All teams in the same program — primary first, then alphabetical
+  const { data: allTeamsData } = await supabase
+    .from('teams')
+    .select('id, name, slug, is_primary')
+    .eq('program_id', team.program_id)
+    .not('slug', 'is', null)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
+
+  const allTeams = (allTeamsData ?? []) as { id: string; name: string; slug: string | null; is_primary: boolean }[]
+  const allTeamIds    = allTeams.map(t => t.id)
+  const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
+
   const today = new Date().toISOString().split('T')[0]
 
   const { data: eventRows } = await supabase
@@ -73,7 +86,7 @@ export async function GET(
         start_time
       )
     `)
-    .eq('event_team_details.team_id', team.id)
+    .in('event_team_details.team_id', allTeamIds.length > 0 ? allTeamIds : ['00000000-0000-0000-0000-000000000000'])
     .in('event_type', ['game', 'tournament'])
     .is('parent_event_id', null)
     .eq('status', 'scheduled')
@@ -81,9 +94,36 @@ export async function GET(
     .gte('event_date', today)
     .order('event_date', { ascending: true })
 
+  const eventIds = (eventRows ?? []).map((row: any) => row.id as string)
+
+  // Fetch all team details for these events to build teamTimes
+  type TeamTimeRow = { event_id: string; team_id: string; start_time: string | null }
+  let teamTimeRows: TeamTimeRow[] = []
+  if (eventIds.length > 0 && allTeamIds.length > 0) {
+    const { data: rows } = await supabase
+      .from('event_team_details')
+      .select('event_id, team_id, start_time')
+      .in('event_id', eventIds)
+      .in('team_id', allTeamIds)
+    teamTimeRows = (rows ?? []) as TeamTimeRow[]
+  }
+
+  type TeamTime = { teamId: string; teamName: string; startTime: string | null }
+  const teamTimesById: Record<string, TeamTime[]> = {}
+  teamTimeRows.forEach(row => {
+    const t = allTeams.find(t => t.id === row.team_id)
+    if (!t) return
+    if (!teamTimesById[row.event_id]) teamTimesById[row.event_id] = []
+    teamTimesById[row.event_id].push({
+      teamId:    row.team_id,
+      teamName:  t.name,
+      startTime: row.start_time,
+    })
+  })
+
   const events = (eventRows ?? []).map((row: any) => ({
     ...row,
-    display_time: row.event_team_details?.[0]?.start_time || row.default_start_time,
+    teamTimes:          teamTimesById[row.id] ?? [],
     event_team_details: undefined,
   }))
 
@@ -114,15 +154,28 @@ export async function GET(
             ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
             : 'TBD'
 
-        const badgeHtml = event.is_tournament
+        const homeBadge = event.is_tournament
           ? `<span class="badge badge-tournament">Tournament</span>`
           : event.is_home !== null
             ? `<span class="badge ${event.is_home ? 'badge-home' : 'badge-away'}">${event.is_home ? 'Home' : 'Away'}</span>`
             : ''
 
+        // Primary team's time is the main displayed time; secondary teams are badges
+        const primaryTT  = (event.teamTimes as TeamTime[]).find(t => t.teamId === primaryTeamId)
+        const displayTime = primaryTT?.startTime ?? event.default_start_time
+        const secondaryBadges = (event.teamTimes as TeamTime[])
+          .filter(t => t.teamId !== primaryTeamId)
+          .map(tt =>
+            `<span class="badge badge-team">${tt.teamName}${
+              tt.startTime ? ` &middot; ${formatTime(tt.startTime)}` : ''
+            }</span>`
+          ).join('')
+
+        const badgeHtml = [homeBadge, secondaryBadges].filter(Boolean).join('')
+
         const detailsHtml = [
-          event.display_time
-            ? `<span class="detail"><span>🕐</span><span>${formatTime(event.display_time)}</span></span>`
+          displayTime
+            ? `<span class="detail"><span>🕐</span><span>${formatTime(displayTime)}</span></span>`
             : '',
           event.location_name
             ? `<span class="detail"><span>📍</span><span>${event.location_name}</span></span>`
@@ -131,7 +184,7 @@ export async function GET(
 
         const childGamesHtml = event.is_tournament && games.length > 0
           ? `<div class="tournament-games">
-              ${games.map(g => `
+              ${games.map((g: any) => `
                 <div class="tournament-game">
                   <span class="tg-name">${g.opponent ? `vs ${g.opponent}` : 'TBD'}</span>
                   ${g.default_start_time
@@ -149,7 +202,7 @@ export async function GET(
           <div class="card">
             <div class="card-top">
               <span class="date">${formatDate(event.event_date)}</span>
-              ${badgeHtml}
+              <div class="badges">${badgeHtml}</div>
             </div>
             <div class="title">${title}</div>
             ${detailsHtml ? `<div class="details">${detailsHtml}</div>` : ''}
@@ -183,6 +236,9 @@ export async function GET(
       --tourn-bg:      rgba(251,191,36,0.1);
       --tourn-text:    #fcd34d;
       --tourn-border:  rgba(251,191,36,0.3);
+      --team-bg:       rgba(139,92,246,0.1);
+      --team-text:     #c4b5fd;
+      --team-border:   rgba(139,92,246,0.3);
     }
 
     body {
@@ -217,18 +273,23 @@ export async function GET(
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6px;
       margin-bottom: 5px;
+      flex-wrap: wrap;
     }
 
     .date { font-size: 11px; font-weight: 600; color: var(--muted); }
+
+    .badges { display: flex; flex-wrap: wrap; gap: 4px; }
 
     .badge {
       font-size: 10px; font-weight: 600;
       padding: 2px 8px; border-radius: 999px; border: 1px solid;
     }
-    .badge-home      { background: var(--home-bg);  color: var(--home-text);  border-color: var(--home-border); }
-    .badge-away      { background: var(--away-bg);  color: var(--away-text);  border-color: var(--away-border); }
+    .badge-home       { background: var(--home-bg);  color: var(--home-text);  border-color: var(--home-border); }
+    .badge-away       { background: var(--away-bg);  color: var(--away-text);  border-color: var(--away-border); }
     .badge-tournament { background: var(--tourn-bg); color: var(--tourn-text); border-color: var(--tourn-border); }
+    .badge-team       { background: var(--team-bg);  color: var(--team-text);  border-color: var(--team-border); }
 
     .title   { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
     .details { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }

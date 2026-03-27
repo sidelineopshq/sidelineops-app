@@ -32,12 +32,16 @@ export default async function DashboardPage() {
   const teamUser = teamUsersRaw?.[0]
   const teamIds  = (teamUsersRaw ?? []).map(t => t.team_id)
 
-  // For dashboard display, use the first team's data as context
-  const { data: team } = await supabase
+  // Fetch all teams the coach belongs to — order descending by name so
+  // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
+  const { data: allTeamsData } = await supabase
     .from('teams')
     .select('id, name, level, slug, program_id, team_schedule_token')
-    .eq('id', teamUser?.team_id ?? '')
-    .single()
+    .in('id', teamIds)
+    .order('name', { ascending: false })
+
+  // First team used for dashboard header context
+  const team = allTeamsData?.[0]
 
   const { data: program } = await supabase
     .from('programs')
@@ -105,12 +109,20 @@ export default async function DashboardPage() {
         : nextEvent.title ?? 'Event'
     : null
 
-  const publicUrl  = team?.slug
-    ? `https://sidelineopshq.com/schedule/${team.slug}`
-    : null
-  const teamUrl = team?.slug && (team as any)?.team_schedule_token
-    ? `https://sidelineopshq.com/schedule/${team.slug}/team/${(team as any).team_schedule_token}`
-    : null
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+
+  // Build public + team schedule URLs for every team
+  const teamLinks = (allTeamsData ?? [])
+    .filter(t => t.slug)
+    .map(t => ({
+      id:        t.id,
+      name:      t.name,
+      slug:      t.slug as string,
+      publicUrl: `${appUrl}/schedule/${t.slug}`,
+      teamUrl:   (t as any).team_schedule_token
+        ? `${appUrl}/schedule/${t.slug}/team/${(t as any).team_schedule_token}`
+        : null,
+    }))
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-10">
@@ -247,45 +259,54 @@ export default async function DashboardPage() {
             Share your schedule with parents, fans, and your team.
           </p>
 
-          {/* Public page */}
-          <div className="mt-4 space-y-2">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-              Public Page (Games Only)
-            </p>
-            {publicUrl && (
-              <>
+          {teamLinks.map(t => (
+            <div key={t.id}>
+              {/* Team label — only shown when coach has multiple teams */}
+              {teamLinks.length > 1 && (
+                <p className="mt-4 text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                  {t.name}
+                </p>
+              )}
+
+              {/* Public page */}
+              <div className={`space-y-2 ${teamLinks.length > 1 ? 'mt-2' : 'mt-4'}`}>
+                {teamLinks.length === 1 && (
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                    Public Page (Games Only)
+                  </p>
+                )}
                 <a
-                  href={`/schedule/${team?.slug}`}
+                  href={`/schedule/${t.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-xs font-semibold text-center text-slate-300 transition-colors"
                 >
                   View Public Page ↗
                 </a>
-                <CopyLinkButton url={publicUrl} label="Public" />
-              </>
-            )}
-          </div>
+                <CopyLinkButton url={t.publicUrl} label={teamLinks.length > 1 ? `${t.name} Public` : 'Public'} />
+              </div>
 
-          {/* Team page */}
-          <div className="mt-4 space-y-2">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-              Team Page (Players & Parents)
-            </p>
-            {teamUrl && (
-              <>
-                <a
-                  href={teamUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full rounded-lg border border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2 text-xs font-semibold text-center text-sky-300 transition-colors"
-                >
-                  View Team Page ↗
-                </a>
-                <CopyLinkButton url={teamUrl} label="Team" />
-              </>
-            )}
-          </div>
+              {/* Team page */}
+              {t.teamUrl && (
+                <div className="mt-3 space-y-2">
+                  {teamLinks.length === 1 && (
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                      Team Page (Players & Parents)
+                    </p>
+                  )}
+                  <a
+                    href={t.teamUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-lg border border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2 text-xs font-semibold text-center text-sky-300 transition-colors"
+                  >
+                    View Team Page ↗
+                  </a>
+                  <CopyLinkButton url={t.teamUrl} label={teamLinks.length > 1 ? `${t.name} Team` : 'Team'} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
       </div>

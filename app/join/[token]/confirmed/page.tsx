@@ -36,14 +36,16 @@ export default async function ConfirmedPage({
     .eq('id', team?.program_id ?? '')
     .single()
 
-  const publicScheduleUrl = `/schedule/${
-    (await supabase
-      .from('teams')
-      .select('slug')
-      .eq('id', joinToken.team_id)
-      .single()
-    ).data?.slug ?? ''
-  }`
+  const { data: teamSlugRow } = await supabase
+    .from('teams')
+    .select('slug')
+    .eq('id', joinToken.team_id)
+    .single()
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const publicScheduleUrl = teamSlugRow?.slug
+    ? `${appUrl}/schedule/${teamSlugRow.slug}`
+    : null
 
   return (
     <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-6">
@@ -92,12 +94,14 @@ export default async function ConfirmedPage({
         </div>
 
         {/* Link to public schedule */}
-        <a
-          href={publicScheduleUrl}
-          className="block w-full rounded-xl bg-sky-600 hover:bg-sky-500 px-6 py-3 text-sm font-semibold text-center transition-colors mb-3"
-        >
-          View Team Schedule
-        </a>
+        {publicScheduleUrl && (
+          <a
+            href={publicScheduleUrl}
+            className="block w-full rounded-xl bg-sky-600 hover:bg-sky-500 px-6 py-3 text-sm font-semibold text-center transition-colors mb-3"
+          >
+            View Team Schedule
+          </a>
+        )}
 
         <p className="text-xs text-slate-600">
           Powered by{' '}

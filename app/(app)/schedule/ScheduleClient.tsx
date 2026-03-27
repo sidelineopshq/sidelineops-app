@@ -653,6 +653,7 @@ export default function ScheduleClient({
   events = [],
   childGames = [],
   teams = [],
+  primaryTeamId = null,
   programName,
   canManageEvents,
   canSendNotifications,
@@ -660,6 +661,7 @@ export default function ScheduleClient({
   events?: any[]
   childGames?: any[]
   teams?: { id: string; name: string }[]
+  primaryTeamId?: string | null
   programName: string
   canManageEvents: boolean
   canSendNotifications: boolean
@@ -720,7 +722,19 @@ export default function ScheduleClient({
 
   // Resolve per-team times and filter events based on active team filter
   const displayEvents = useMemo(() => {
-    if (!activeTeamId) return eventList
+    if (!activeTeamId) {
+      // "All" view — display primary team's times
+      return eventList.map(e => {
+        const detail = primaryTeamId
+          ? e.team_details?.find((d: any) => d.team_id === primaryTeamId)
+          : e.team_details?.[0]
+        return {
+          ...e,
+          team_start_time:   detail?.start_time   || e.default_start_time,
+          team_arrival_time: detail?.arrival_time  || e.default_arrival_time,
+        }
+      })
+    }
     return eventList
       .filter(e => e.team_details?.some((d: any) => d.team_id === activeTeamId && d.status !== 'cancelled'))
       .map(e => {
@@ -731,7 +745,7 @@ export default function ScheduleClient({
           team_arrival_time: detail?.arrival_time  || e.default_arrival_time,
         }
       })
-  }, [eventList, activeTeamId])
+  }, [eventList, activeTeamId, primaryTeamId])
 
   // Filter child games by active team
   const displayChildGames = useMemo(() => {

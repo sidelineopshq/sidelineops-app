@@ -45,6 +45,8 @@ function eventTypeBadge(type: string) {
   )
 }
 
+type TeamTime = { teamId: string; teamName: string; startTime: string | null }
+
 export default async function TeamSchedulePage({
   params,
 }: {
@@ -74,8 +76,21 @@ export default async function TeamSchedulePage({
     .eq('id', program?.school_id)
     .single()
 
+  // All teams in the same program — primary first, then alphabetical
+  const { data: allTeamsData } = await supabase
+    .from('teams')
+    .select('id, name, slug, is_primary')
+    .eq('program_id', team.program_id)
+    .not('slug', 'is', null)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
+
+  const allTeams = (allTeamsData ?? []) as { id: string; name: string; slug: string | null }[]
+  const allTeamIds = allTeams.map(t => t.id)
+
   const today = new Date().toISOString().split('T')[0]
 
+  // Fetch events for the current team only (players want their own schedule)
   const { data: eventRows } = await supabase
     .from('events')
     .select(`
@@ -110,12 +125,43 @@ export default async function TeamSchedulePage({
     .gte('event_date', today)
     .order('event_date', { ascending: true })
 
-  const events = (eventRows ?? []).map((row: any) => ({
-    ...row,
-    display_time:    row.event_team_details?.[0]?.start_time   || row.default_start_time,
-    display_arrival: row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
-    event_team_details: undefined,
-  }))
+  const eventIds = (eventRows ?? []).map((e: any) => e.id as string)
+
+  // Fetch all program teams' details for these events (for cross-team badges)
+  type TeamTimeRow = { event_id: string; team_id: string; start_time: string | null }
+  let teamTimeRows: TeamTimeRow[] = []
+  if (eventIds.length > 0 && allTeamIds.length > 0) {
+    const { data: rows } = await supabase
+      .from('event_team_details')
+      .select('event_id, team_id, start_time')
+      .in('event_id', eventIds)
+      .in('team_id', allTeamIds)
+    teamTimeRows = (rows ?? []) as TeamTimeRow[]
+  }
+
+  const teamTimesById: Record<string, TeamTime[]> = {}
+  teamTimeRows.forEach(row => {
+    const t = allTeams.find(t => t.id === row.team_id)
+    if (!t) return
+    if (!teamTimesById[row.event_id]) teamTimesById[row.event_id] = []
+    teamTimesById[row.event_id].push({
+      teamId:    row.team_id,
+      teamName:  t.name,
+      startTime: row.start_time,
+    })
+  })
+
+  const events = (eventRows ?? []).map((row: any) => {
+    const currentDetail = row.event_team_details?.[0]
+    return {
+      ...row,
+      display_time:    currentDetail?.start_time   || row.default_start_time,
+      display_arrival: currentDetail?.arrival_time || row.default_arrival_time,
+      // Team badges exclude the current team (it's implied by the page context)
+      teamTimes: (teamTimesById[row.id] ?? []).filter((t: TeamTime) => t.teamId !== team.id),
+      event_team_details: undefined,
+    }
+  })
 
   // Fetch child games for tournaments
   const tournamentIds = events.filter(e => e.is_tournament).map(e => e.id)
@@ -190,14 +236,14 @@ export default async function TeamSchedulePage({
           </div>
         ) : (
           <div className="space-y-3">
-            {events.map(event => {
+            {events.map((event: any) => {
               const games = childGames.filter(g => g.parent_event_id === event.id)
               return (
                 <div
                   key={event.id}
                   className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 hover:border-white/20 transition-colors"
                 >
-                  {/* Date + type badge */}
+                  {/* Date + type badge + home/away + sibling team badges */}
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="text-xs font-semibold text-slate-400">
                       {formatDate(event.event_date)}
@@ -217,6 +263,14 @@ export default async function TeamSchedulePage({
                         🍽 Meal
                       </span>
                     )}
+                    {event.teamTimes.map((tt: TeamTime) => (
+                      <span
+                        key={tt.teamId}
+                        className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-400"
+                      >
+                        {tt.teamName}{tt.startTime ? ` · ${formatTime(tt.startTime)}` : ''}
+                      </span>
+                    ))}
                   </div>
 
                   {/* Title */}
@@ -284,7 +338,7 @@ export default async function TeamSchedulePage({
                   {/* Tournament child games */}
                   {event.is_tournament && games.length > 0 && (
                     <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-500/30 pl-4">
-                      {games.map(game => (
+                      {games.map((game: any) => (
                         <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-300">
                           <span className="font-medium">
                             {game.opponent ? `vs ${game.opponent}` : 'TBD'}

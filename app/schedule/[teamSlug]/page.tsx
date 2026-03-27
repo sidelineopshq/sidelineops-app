@@ -1,23 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-
-function formatTime(time: string | null): string {
-  if (!time) return ''
-  const [hourStr, minuteStr] = time.split(':')
-  const hour = parseInt(hourStr)
-  const ampm = hour >= 12 ? 'PM' : 'AM'
-  const hour12 = hour % 12 || 12
-  return `${hour12}:${minuteStr} ${ampm}`
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month:   'short',
-    day:     'numeric',
-  })
-}
+import PublicScheduleClient, {
+  type PublicEvent,
+  type PublicTeam,
+  type PublicChildGame,
+} from './PublicScheduleClient'
 
 export default async function PublicSchedulePage({
   params,
@@ -25,7 +12,7 @@ export default async function PublicSchedulePage({
   params: Promise<{ teamSlug: string }>
 }) {
   const { teamSlug } = await params
-  const supabase = await createClient()
+  const supabase     = await createClient()
 
   const { data: team } = await supabase
     .from('teams')
@@ -47,7 +34,22 @@ export default async function PublicSchedulePage({
     .eq('id', program?.school_id)
     .single()
 
-  // Fetch ALL public games and tournaments
+  // All teams in the same program — primary first, then alphabetical
+  const { data: allTeamsData } = await supabase
+    .from('teams')
+    .select('id, name, slug, is_primary')
+    .eq('program_id', team.program_id)
+    .not('slug', 'is', null)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
+
+  const allTeams: PublicTeam[] = (allTeamsData ?? []) as PublicTeam[]
+  const allTeamIds   = allTeams.map(t => t.id)
+  const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // Fetch events for any team in the program
   const { data: eventRows } = await supabase
     .from('events')
     .select(`
@@ -67,25 +69,58 @@ export default async function PublicSchedulePage({
         start_time
       )
     `)
-    .eq('event_team_details.team_id', team.id)
+    .in('event_team_details.team_id', allTeamIds.length > 0 ? allTeamIds : ['00000000-0000-0000-0000-000000000000'])
     .in('event_type', ['game', 'tournament'])
     .is('parent_event_id', null)
     .eq('status', 'scheduled')
     .eq('is_public', true)
     .order('event_date', { ascending: true })
 
-  const today = new Date().toISOString().split('T')[0]
+  const eventIds = (eventRows ?? []).map((e: any) => e.id as string)
 
-  const events = (eventRows ?? []).map((row: any) => ({
-    ...row,
-    display_time: row.event_team_details?.[0]?.start_time || row.default_start_time,
-    is_past: row.event_date < today,
-    event_team_details: undefined,
+  // Fetch all team details for these events to build teamTimes
+  type TeamTimeRow = { event_id: string; team_id: string; start_time: string | null }
+  let teamTimeRows: TeamTimeRow[] = []
+  if (eventIds.length > 0 && allTeamIds.length > 0) {
+    const { data: rows } = await supabase
+      .from('event_team_details')
+      .select('event_id, team_id, start_time')
+      .in('event_id', eventIds)
+      .in('team_id', allTeamIds)
+    teamTimeRows = (rows ?? []) as TeamTimeRow[]
+  }
+
+  // Build lookup: event_id → sorted teamTimes
+  const teamTimesById: Record<string, PublicEvent['teamTimes']> = {}
+  teamTimeRows.forEach(row => {
+    const t = allTeams.find(t => t.id === row.team_id)
+    if (!t) return
+    if (!teamTimesById[row.event_id]) teamTimesById[row.event_id] = []
+    teamTimesById[row.event_id].push({
+      teamId:    row.team_id,
+      teamName:  t.name,
+      startTime: row.start_time,
+    })
+  })
+
+  const allEvents: PublicEvent[] = (eventRows ?? []).map((row: any) => ({
+    id:                 row.id,
+    event_type:         row.event_type,
+    title:              row.title,
+    opponent:           row.opponent,
+    is_home:            row.is_home,
+    is_tournament:      row.is_tournament,
+    location_name:      row.location_name,
+    location_address:   row.location_address,
+    event_date:         row.event_date,
+    default_start_time: row.default_start_time,
+    is_past:            row.event_date < today,
+    teamTimes:          teamTimesById[row.id] ?? [],
   }))
 
   // Fetch child games for tournaments
-  const tournamentIds = events.filter(e => e.is_tournament).map(e => e.id)
-  let childGames: any[] = []
+  const tournamentIds = allEvents.filter(e => e.is_tournament).map(e => e.id)
+  let childGames: PublicChildGame[] = []
   if (tournamentIds.length > 0) {
     const { data: childRows } = await supabase
       .from('events')
@@ -95,12 +130,11 @@ export default async function PublicSchedulePage({
       .eq('is_public', true)
       .order('event_date', { ascending: true })
       .order('default_start_time', { ascending: true, nullsFirst: false })
-    childGames = childRows ?? []
+    childGames = (childRows ?? []) as PublicChildGame[]
   }
 
-  const upcomingCount = events.filter(e => !e.is_past).length
-  const nextGame = events.find(e => !e.is_past) ?? null
-  const calendarUrl = `/schedule/${teamSlug}/calendar.ics`
+  const calendarUrl   = `/schedule/${teamSlug}/calendar.ics`
+  const otherTeams    = allTeams.filter(t => t.id !== team.id)
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -127,6 +161,19 @@ export default async function PublicSchedulePage({
                   {school.name} · {school.city}, {school.state}
                 </p>
               )}
+              {otherTeams.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                  {otherTeams.map(t => (
+                    <a
+                      key={t.id}
+                      href={`/schedule/${t.slug}`}
+                      className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                    >
+                      {t.name} Schedule →
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
             <a
               href={calendarUrl}
@@ -139,179 +186,12 @@ export default async function PublicSchedulePage({
       </div>
 
       <div className="mx-auto max-w-4xl px-6 py-8">
-
-        {/* Next Game card */}
-        {nextGame && (
-          <div className="mb-8 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-6 py-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-sky-400 mb-3">
-              Next Game
-            </p>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-white">
-                  {nextGame.event_type === 'tournament'
-                    ? nextGame.title ?? 'Tournament'
-                    : nextGame.opponent
-                      ? `${nextGame.is_home ? 'vs' : '@'} ${nextGame.opponent}`
-                      : 'TBD'
-                  }
-                </h2>
-                <div className="flex flex-wrap items-center mt-2 text-sm text-slate-300">
-                  <span className="flex items-center gap-1.5 mr-4">
-                    <span>📅</span>
-                    <span>{formatDate(nextGame.event_date)}</span>
-                  </span>
-                  {nextGame.display_time && (
-                    <span className="flex items-center gap-1.5 mr-4">
-                      <span>🕐</span>
-                      <span>{formatTime(nextGame.display_time)}</span>
-                    </span>
-                  )}
-                  {nextGame.location_name && (
-                    <span className="flex items-center gap-1.5 mr-4">
-                      <span>📍</span>
-                      <span>{nextGame.location_name}</span>
-                    </span>
-                  )}
-                </div>
-                {nextGame.location_address && (
-                  <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(nextGame.location_address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors block"
-                  >
-                    {nextGame.location_address} →
-                  </a>
-                )}
-              </div>
-              {nextGame.event_type !== 'tournament' && nextGame.is_home !== null && (
-                <span className={`shrink-0 rounded-xl border px-4 py-2 text-sm font-bold ${
-                  nextGame.is_home
-                    ? 'border-green-500/40 bg-green-500/15 text-green-300'
-                    : 'border-amber-500/40 bg-amber-500/15 text-amber-300'
-                }`}>
-                  {nextGame.is_home ? '🏠 Home' : '🚌 Away'}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">Game Schedule</h2>
-          <span className="text-sm text-slate-500">
-            {upcomingCount} game{upcomingCount !== 1 ? 's' : ''} remaining
-          </span>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900 p-10 text-center">
-            <p className="text-slate-400 font-semibold">No games scheduled yet</p>
-            <p className="text-slate-500 text-sm mt-1">Check back soon.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {events.map(event => {
-              const games = childGames.filter(g => g.parent_event_id === event.id)
-              return (
-                <div
-                  key={event.id}
-                  className={`rounded-2xl border px-5 py-4 transition-colors ${
-                    event.is_past
-                      ? 'border-white/5 bg-slate-900/50 opacity-50'
-                      : 'border-white/10 bg-slate-900 hover:border-white/20'
-                  }`}
-                >
-                  {/* Date row */}
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <p className="text-xs font-semibold text-slate-400">
-                      {formatDate(event.event_date)}
-                    </p>
-                    {event.is_past && (
-                      <span className="rounded-full border border-white/10 bg-slate-800 px-2 py-0.5 text-xs text-slate-500">
-                        Final
-                      </span>
-                    )}
-                    {event.is_tournament && (
-                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-                        Tournament
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title + details */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className={`text-base font-bold ${event.is_past ? 'text-slate-400' : 'text-white'}`}>
-                        {event.event_type === 'tournament'
-                          ? event.title ?? 'Tournament'
-                          : event.opponent
-                            ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
-                            : 'TBD'
-                        }
-                      </h3>
-                      <div className="flex flex-wrap items-center mt-1.5 text-sm text-slate-400">
-                        {event.display_time && (
-                          <span className="flex items-center gap-1.5 mr-4">
-                            <span>🕐</span>
-                            <span>{formatTime(event.display_time)}</span>
-                          </span>
-                        )}
-                        {event.location_name && (
-                          <span className="flex items-center gap-1.5 mr-4">
-                            <span>📍</span>
-                            <span>{event.location_name}</span>
-                          </span>
-                        )}
-                      </div>
-                      {event.location_address && !event.is_past && (
-                        <a
-                          href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-1 text-xs text-sky-400 hover:text-sky-300 transition-colors block"
-                        >
-                          {event.location_address} →
-                        </a>
-                      )}
-                    </div>
-                    {event.event_type !== 'tournament' && event.is_home !== null && (
-                      <span className={`shrink-0 rounded-xl border px-3 py-1 text-xs font-semibold ${
-                        event.is_past
-                          ? 'border-white/10 bg-slate-800 text-slate-500'
-                          : event.is_home
-                            ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                            : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                      }`}>
-                        {event.is_home ? 'Home' : 'Away'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Tournament child games */}
-                  {event.is_tournament && games.length > 0 && (
-                    <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-500/30 pl-4">
-                      {games.map(game => (
-                        <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-300">
-                          <span className="font-medium">
-                            {game.opponent ? `vs ${game.opponent}` : 'TBD'}
-                          </span>
-                          {game.default_start_time && (
-                            <span className="text-slate-400">{formatTime(game.default_start_time)}</span>
-                          )}
-                          {game.location_name && (
-                            <span className="text-slate-500">· {game.location_name}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <PublicScheduleClient
+          events={allEvents}
+          teams={allTeams}
+          childGames={childGames}
+          primaryTeamId={primaryTeamId}
+        />
 
         {/* Footer */}
         <div className="mt-10 pt-6 border-t border-white/5 text-center">

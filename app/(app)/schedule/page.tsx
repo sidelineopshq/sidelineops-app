@@ -27,8 +27,10 @@ export default async function SchedulePage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, level, program_id')
+    .select('id, name, level, program_id, is_primary')
     .in('id', teamIds)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
 
   const { data: program } = await supabase
     .from('programs')
@@ -117,12 +119,15 @@ export default async function SchedulePage() {
   }
 
   const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
+  // Primary team is first after ordering by is_primary desc
+  const primaryTeamId = teamsData?.[0]?.id ?? null
 
   return (
     <ScheduleClient
       events={allEvents}
       childGames={childGames}
       teams={teams}
+      primaryTeamId={primaryTeamId}
       programName={program?.name ?? ''}
       canManageEvents={canManageEvents}
       canSendNotifications={canSendNotifications}

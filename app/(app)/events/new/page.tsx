@@ -22,6 +22,8 @@ export default async function NewEventPage() {
     .from('teams')
     .select('id, name')
     .in('id', teamIds)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
 
   const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
 

@@ -3,7 +3,6 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 
 function createServiceClient() {
   return createClient(
@@ -43,21 +42,39 @@ export async function addPlayer(formData: {
   const { data: player, error } = await supabase
     .from('players')
     .insert({
-      team_id:        formData.team_id,
-      first_name:     formData.first_name.trim(),
-      last_name:      formData.last_name.trim(),
-      jersey_number:  formData.jersey_number?.trim() || null,
-      notes:          formData.notes?.trim() || null,
+      first_name:    formData.first_name.trim(),
+      last_name:     formData.last_name.trim(),
+      jersey_number: formData.jersey_number?.trim() || null,
+      notes:         formData.notes?.trim() || null,
     })
     .select('id, first_name, last_name, jersey_number, is_active, notes')
     .single()
 
-  if (error) {
+  if (error || !player) {
     console.error('Add player error:', error)
     return { error: 'Failed to add player. Please try again.' }
   }
 
-  return { success: true, player }
+  // Assign player to the selected team in the junction table
+  const { error: ptError } = await supabase
+    .from('player_teams')
+    .insert({ player_id: player.id, team_id: formData.team_id, is_call_up: false })
+
+  if (ptError) {
+    console.error('Add player_teams error:', ptError)
+    // Clean up the orphaned player row so the roster stays consistent
+    await supabase.from('players').delete().eq('id', player.id)
+    return { error: 'Failed to assign player to team. Please try again.' }
+  }
+
+  return {
+    success: true,
+    player: {
+      ...player,
+      primary_team_id: formData.team_id,
+      team_assignments: [{ team_id: formData.team_id, is_call_up: false }],
+    },
+  }
 }
 
 export async function updatePlayer(playerId: string, formData: {
@@ -102,6 +119,83 @@ export async function updatePlayer(playerId: string, formData: {
   return { success: true }
 }
 
+// Changes a player's primary team. Clears call-up status for the new team if present.
+export async function setPlayerPrimaryTeam(playerId: string, newTeamId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: teamUser } = await authClient
+    .from('team_users')
+    .select('can_manage_contacts')
+    .eq('user_id', user.id)
+    .eq('team_id', newTeamId)
+    .single()
+
+  if (!teamUser?.can_manage_contacts) {
+    return { error: 'You do not have permission to manage the roster.' }
+  }
+
+  const supabase = createServiceClient()
+
+  // Remove old primary row (is_call_up = false) and any existing row for new team
+  await supabase.from('player_teams').delete()
+    .eq('player_id', playerId).eq('is_call_up', false)
+  await supabase.from('player_teams').delete()
+    .eq('player_id', playerId).eq('team_id', newTeamId)
+
+  // Insert new primary row
+  await supabase.from('player_teams')
+    .insert({ player_id: playerId, team_id: newTeamId, is_call_up: false })
+
+  return { success: true }
+}
+
+// Adds or removes a call-up assignment for a player to a second team.
+export async function setCallUp(playerId: string, callUpTeamId: string, enabled: boolean) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: teamUser } = await authClient
+    .from('team_users')
+    .select('can_manage_contacts')
+    .eq('user_id', user.id)
+    .eq('team_id', callUpTeamId)
+    .single()
+
+  if (!teamUser?.can_manage_contacts) {
+    return { error: 'You do not have permission to manage this team\'s roster.' }
+  }
+
+  const supabase = createServiceClient()
+
+  if (enabled) {
+    const { error } = await supabase
+      .from('player_teams')
+      .upsert(
+        { player_id: playerId, team_id: callUpTeamId, is_call_up: true },
+        { onConflict: 'player_id,team_id' }
+      )
+    if (error) {
+      console.error('setCallUp insert error:', error)
+      return { error: 'Failed to add call-up.' }
+    }
+  } else {
+    const { error } = await supabase
+      .from('player_teams')
+      .delete()
+      .eq('player_id', playerId)
+      .eq('team_id', callUpTeamId)
+    if (error) {
+      console.error('setCallUp delete error:', error)
+      return { error: 'Failed to remove call-up.' }
+    }
+  }
+
+  return { success: true }
+}
+
 export async function deactivatePlayer(playerId: string, teamId: string) {
   const authClient = await createServerClient()
   const { data: { user } } = await authClient.auth.getUser()
@@ -128,6 +222,9 @@ export async function deactivatePlayer(playerId: string, teamId: string) {
   if (error) {
     return { error: 'Failed to remove player.' }
   }
+
+  // Clean up all team assignments
+  await supabase.from('player_teams').delete().eq('player_id', playerId)
 
   return { success: true }
 }

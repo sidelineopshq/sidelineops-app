@@ -35,11 +35,13 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
 
   if (!event) notFound()
 
-  // Fetch all teams this coach manages
+  // Fetch all teams this coach manages — primary first
   const { data: teamsData } = await supabase
     .from('teams')
     .select('id, name')
     .in('id', teamIds)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
 
   // Fetch all existing team assignments for this event (for teams this coach manages)
   const { data: allTeamDetails } = await supabase

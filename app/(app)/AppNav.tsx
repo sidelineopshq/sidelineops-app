@@ -153,13 +153,22 @@ export default function AppNav({
                     <span>Profile Settings</span>
                   </a>
                   {canManageEvents && (
-                    <a
-                      href="/team/settings"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-                    >
-                      <span>⚙️</span>
-                      <span>Team Settings</span>
-                    </a>
+                    <>
+                      <a
+                        href="/team/settings"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                      >
+                        <span>⚙️</span>
+                        <span>Team Settings</span>
+                      </a>
+                      <a
+                        href="/settings/teams"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                      >
+                        <span>🏷️</span>
+                        <span>Manage Teams</span>
+                      </a>
+                    </>
                   )}
                 </div>
                 <div className="border-t border-white/10 py-1">
