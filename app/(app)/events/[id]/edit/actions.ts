@@ -3,6 +3,11 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import {
+  fireChangeNotifications,
+  buildDisplayTitle,
+  type TeamNotificationInput,
+} from '@/lib/notifications/fire-change-notifications'
 
 function createServiceClient() {
   return createClient(
@@ -66,6 +71,20 @@ export async function updateEvent(
 
   const supabase = createServiceClient()
 
+  // ── Snapshot old values before writing ──────────────────────────────────
+  const [{ data: oldEventData }, { data: oldTeamDetails }] = await Promise.all([
+    supabase
+      .from('events')
+      .select('default_start_time, default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
+      .eq('id', eventId)
+      .single(),
+    supabase
+      .from('event_team_details')
+      .select('team_id, start_time, end_time, status')
+      .eq('event_id', eventId)
+      .in('team_id', teamAssignments.map(a => a.team_id)),
+  ])
+
   // Use first assignment's times as the event-level defaults (for public/external views)
   const first = teamAssignments[0]
 
@@ -116,6 +135,50 @@ export async function updateEvent(
 
   if (detailsError) {
     console.error('Update team details error:', detailsError)
+  }
+
+  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  if (oldEventData) {
+    const oldEventSnap = {
+      default_start_time: oldEventData.default_start_time,
+      default_end_time:   oldEventData.default_end_time,
+      location_name:      oldEventData.location_name,
+      location_address:   oldEventData.location_address,
+      status:             oldEventData.status,
+    }
+    const newEventSnap = {
+      default_start_time: first.start_time    || null,
+      default_end_time:   first.end_time      || null,
+      location_name:      formData.location_name   || null,
+      location_address:   formData.location_address || null,
+      status:             formData.status,
+    }
+
+    const teamNotifications = teamAssignments
+      .map(a => {
+        const old = oldTeamDetails?.find(d => d.team_id === a.team_id)
+        if (!old) return null  // new team assignment — no prior state to diff
+        return {
+          teamId:        a.team_id,
+          oldEvent:      oldEventSnap,
+          newEvent:      newEventSnap,
+          oldTeamDetail: { start_time: old.start_time, end_time: old.end_time, status: old.status },
+          newTeamDetail: { start_time: a.start_time || null, end_time: a.end_time || null, status: a.status },
+        } satisfies TeamNotificationInput
+      })
+      .filter(Boolean) as TeamNotificationInput[]
+
+    void fireChangeNotifications({
+      eventId,
+      eventDate:    formData.event_date,
+      displayTitle: buildDisplayTitle({
+        event_type: formData.event_type,
+        title,
+        opponent:   formData.opponent ?? null,
+        is_home:    formData.is_home  ?? null,
+      }),
+      teamNotifications,
+    })
   }
 
   redirect('/schedule')

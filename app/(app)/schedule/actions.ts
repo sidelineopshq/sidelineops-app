@@ -3,6 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import {
+  fireChangeNotifications,
+  buildDisplayTitle,
+  type TeamNotificationInput,
+} from '@/lib/notifications/fire-change-notifications'
 
 function createServiceClient() {
   return createServiceRoleClient(
@@ -27,6 +32,19 @@ export async function cancelEvent(eventId: string) {
     return { error: 'You do not have permission to cancel events.' }
   }
 
+  // ── Snapshot before update ───────────────────────────────────────────────
+  const [{ data: oldEventData }, { data: linkedTeams }] = await Promise.all([
+    supabase
+      .from('events')
+      .select('default_start_time, default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
+      .eq('id', eventId)
+      .single(),
+    supabase
+      .from('event_team_details')
+      .select('team_id, start_time, end_time, status')
+      .eq('event_id', eventId),
+  ])
+
   const { error } = await supabase
     .from('events')
     .update({ status: 'cancelled' })
@@ -35,6 +53,34 @@ export async function cancelEvent(eventId: string) {
   if (error) {
     console.error('Cancel event error:', error)
     return { error: 'Failed to cancel event. Please try again.' }
+  }
+
+  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  if (oldEventData && linkedTeams?.length) {
+    const oldEventSnap = {
+      default_start_time: oldEventData.default_start_time,
+      default_end_time:   oldEventData.default_end_time,
+      location_name:      oldEventData.location_name,
+      location_address:   oldEventData.location_address,
+      status:             oldEventData.status,
+    }
+    const newEventSnap = { ...oldEventSnap, status: 'cancelled' }
+
+    const teamNotifications: TeamNotificationInput[] = linkedTeams.map(td => ({
+      teamId:        td.team_id,
+      oldEvent:      oldEventSnap,
+      newEvent:      newEventSnap,
+      // Team detail status is unchanged — only the event-level status changed
+      oldTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
+      newTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
+    }))
+
+    void fireChangeNotifications({
+      eventId,
+      eventDate:    oldEventData.event_date,
+      displayTitle: buildDisplayTitle(oldEventData),
+      teamNotifications,
+    })
   }
 
   return { success: true }
@@ -61,6 +107,21 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
 
   const supabase = createServiceClient()
 
+  // ── Snapshot before update ───────────────────────────────────────────────
+  const [{ data: oldEventData }, { data: oldDetailData }] = await Promise.all([
+    supabase
+      .from('events')
+      .select('default_start_time, default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
+      .eq('id', eventId)
+      .single(),
+    supabase
+      .from('event_team_details')
+      .select('start_time, end_time, status')
+      .eq('event_id', eventId)
+      .eq('team_id', teamId)
+      .single(),
+  ])
+
   const { error } = await supabase
     .from('event_team_details')
     .update({ status: 'cancelled' })
@@ -70,6 +131,31 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
   if (error) {
     console.error('Cancel event for team error:', error)
     return { error: 'Failed to cancel event. Please try again.' }
+  }
+
+  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  if (oldEventData && oldDetailData) {
+    const eventSnap = {
+      default_start_time: oldEventData.default_start_time,
+      default_end_time:   oldEventData.default_end_time,
+      location_name:      oldEventData.location_name,
+      location_address:   oldEventData.location_address,
+      status:             oldEventData.status,
+    }
+
+    void fireChangeNotifications({
+      eventId,
+      eventDate:    oldEventData.event_date,
+      displayTitle: buildDisplayTitle(oldEventData),
+      teamNotifications: [{
+        teamId,
+        // Event-level fields are unchanged — only the team detail status changes
+        oldEvent:      eventSnap,
+        newEvent:      eventSnap,
+        oldTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: oldDetailData.status },
+        newTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: 'cancelled' },
+      }],
+    })
   }
 
   return { success: true }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { setPrimaryTeam } from './actions'
+import { NotificationSettingsCard } from './NotificationSettingsCard'
 
 export default async function TeamSettingsPage() {
   const supabase = await createClient()
@@ -20,7 +21,7 @@ export default async function TeamSettingsPage() {
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary, program_id')
+    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -94,6 +95,16 @@ export default async function TeamSettingsPage() {
           ))}
         </div>
       </div>
+
+      <NotificationSettingsCard
+        teams={teams.map(t => ({
+          id:                    t.id,
+          name:                  t.name,
+          notify_on_change:      t.notify_on_change      ?? null,
+          notify_digest_enabled: t.notify_digest_enabled ?? null,
+        }))}
+        canManage={canManage}
+      />
 
     </section>
   )
