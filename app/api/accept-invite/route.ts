@@ -93,9 +93,10 @@ export async function POST(req: NextRequest) {
     user_id:                  userId,
     team_id:                  teamId,
     role:                     invite.role,
-    can_manage_events:        isAdmin,
-    can_send_notifications:   isAdmin,
-    can_manage_volunteers:    isAdmin,
+    can_manage_events:        true,
+    can_manage_contacts:      true,
+    can_send_notifications:   true,
+    can_manage_volunteers:    true,
     can_manage_team_settings: isAdmin,
   }))
 
