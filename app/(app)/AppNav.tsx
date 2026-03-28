@@ -32,6 +32,9 @@ export default function AppNav({
   canManageEvents,
   canSendNotifications,
   canManageVolunteers,
+  logoUrl,
+  brandPrimary,
+  brandSecondary,
 }: {
   displayName: string
   initials: string
@@ -43,6 +46,9 @@ export default function AppNav({
   canManageEvents: boolean
   canSendNotifications: boolean
   canManageVolunteers: boolean
+  logoUrl: string | null
+  brandPrimary: string
+  brandSecondary: string
 }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -81,18 +87,29 @@ export default function AppNav({
   }
 
   return (
-    <div className="border-b border-white/10 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+    <div
+      className="bg-slate-900/90 backdrop-blur sticky top-0 z-40"
+      style={{ borderBottom: `2px solid ${brandPrimary}` }}
+    >
 
       {/* ── Main nav bar ── */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
 
-        {/* Left: logo */}
+        {/* Left: team logo (if set) or SidelineOps logo */}
         <a href="/dashboard" className="shrink-0">
-          <img
-            src="/sidelineops-logo-cropped.png"
-            alt="SidelineOps"
-            style={{ height: '36px', width: 'auto' }}
-          />
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={teams[0]?.name ?? 'Team'}
+              style={{ height: '48px', maxHeight: '48px', width: 'auto', objectFit: 'contain' }}
+            />
+          ) : (
+            <img
+              src="/sidelineops-logo-cropped.png"
+              alt="SidelineOps"
+              style={{ height: '36px', width: 'auto' }}
+            />
+          )}
         </a>
 
         {/* Center: desktop nav — hidden below md */}
@@ -103,9 +120,10 @@ export default function AppNav({
               href={item.href}
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
                 isActive(item.href)
-                  ? 'bg-sky-600 text-white'
+                  ? 'text-white'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
+              style={isActive(item.href) ? { backgroundColor: brandPrimary } : undefined}
             >
               {item.label}
             </a>
@@ -216,9 +234,10 @@ export default function AppNav({
                       href={item.href}
                       className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors ${
                         isActive(item.href)
-                          ? 'bg-sky-600 text-white'
+                          ? 'text-white'
                           : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                       }`}
+                      style={isActive(item.href) ? { backgroundColor: brandPrimary } : undefined}
                     >
                       <span>{item.icon}</span>
                       <span>{item.label}</span>

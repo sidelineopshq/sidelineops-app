@@ -28,10 +28,10 @@ export default async function AppLayout({
   const primaryTeamUser = teamUsersRaw?.[0]
   const teamIds = (teamUsersRaw ?? []).map(t => t.team_id)
 
-  // Get all teams + program info
+  // Get all teams + program info + branding
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, program_id')
+    .select('id, name, is_primary, program_id, logo_url, primary_color, secondary_color')
     .in('id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
 
   const { data: program } = await supabase
@@ -53,8 +53,17 @@ export default async function AppLayout({
   const canSendNotifications = teamUsersRaw?.some(t => t.can_send_notifications) ?? false
   const canManageVolunteers  = teamUsersRaw?.some(t => t.can_manage_volunteers)  ?? false
 
+  // Branding — prefer the primary team, fall back to first team
+  const brandTeam      = teamsData?.find(t => t.is_primary) ?? teamsData?.[0] ?? null
+  const brandPrimary   = brandTeam?.primary_color   ?? '#1a3a5c'
+  const brandSecondary = brandTeam?.secondary_color ?? '#c8a456'
+  const teamLogoUrl    = brandTeam?.logo_url        ?? null
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div
+      className="min-h-screen bg-slate-950 text-white"
+      style={{ '--color-primary': brandPrimary, '--color-secondary': brandSecondary } as React.CSSProperties}
+    >
       <AppNav
         displayName={displayName}
         initials={initials}
@@ -66,6 +75,9 @@ export default async function AppLayout({
         canManageEvents={canManageEvents}
         canSendNotifications={canSendNotifications}
         canManageVolunteers={canManageVolunteers}
+        logoUrl={teamLogoUrl}
+        brandPrimary={brandPrimary}
+        brandSecondary={brandSecondary}
       />
       <main>
         {children}
