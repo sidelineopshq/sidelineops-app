@@ -141,7 +141,8 @@ export async function GET(
     childGames = childRows ?? []
   }
 
-  const publicPageUrl = `https://sidelineopshq.com/schedule/${teamSlug}`
+  const baseUrl       = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const publicPageUrl = `${baseUrl}/schedule/${teamSlug}`
 
   // Build event cards HTML
   const eventsHtml = events.length === 0

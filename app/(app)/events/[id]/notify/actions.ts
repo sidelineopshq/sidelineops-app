@@ -114,7 +114,7 @@ export async function sendNotification(payload: {
   }
 
   // ── Build email ───────────────────────────────────────────────────────────
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const senderLabel = program?.name ?? ''
   const fromName    = senderLabel ? `${senderLabel} via SidelineOps` : 'SidelineOps'
   const from     = `${fromName} <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`

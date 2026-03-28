@@ -103,7 +103,7 @@ export async function sendChangeAlert({
   if (!team.notify_on_change) return
   if (!changes.length)        return
 
-  const appUrl      = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl      = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const supabase    = createServiceClient()
   const formattedDate = formatDate(event.event_date)
   const subject       = `Schedule Update: ${event.title} — ${formattedDate}`
@@ -285,7 +285,7 @@ export async function sendNewEventAlert({
   const day = dayLabel(event.event_date)
   if (!day) return
 
-  const appUrl        = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl        = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const supabase      = createServiceClient()
   const formattedDate = formatDate(event.event_date)
   const eventLabel    = buildNewEventLabel(event)

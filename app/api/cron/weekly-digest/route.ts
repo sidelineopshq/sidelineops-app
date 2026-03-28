@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   const supabase  = createServiceClient()
   const resend    = new Resend(process.env.RESEND_API_KEY)
-  const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl    = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const { monday, sunday, label: weekLabel } = comingWeekRange(new Date())
 
   const summary = {
