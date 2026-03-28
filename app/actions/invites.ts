@@ -226,6 +226,40 @@ export async function resendCoachInvite(inviteId: string) {
   return { success: true }
 }
 
+// ── removeCoachAccess ─────────────────────────────────────────────────────────
+
+export async function removeCoachAccess(targetUserId: string, teamIds: string[]) {
+  if (!targetUserId || teamIds.length === 0) return { error: 'Missing required fields' }
+
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Verify caller has can_manage_team_settings on at least one of the target teams
+  const { data: callerTeams } = await authClient
+    .from('team_users')
+    .select('can_manage_team_settings')
+    .eq('user_id', user.id)
+    .in('team_id', teamIds)
+
+  if (!callerTeams?.some(t => t.can_manage_team_settings)) {
+    return { error: 'Not authorized' }
+  }
+
+  const service = createServiceClient()
+
+  const { error } = await service
+    .from('team_users')
+    .delete()
+    .eq('user_id', targetUserId)
+    .in('team_id', teamIds)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
 // ── revokeCoachInvite ─────────────────────────────────────────────────────────
 
 export async function revokeCoachInvite(inviteId: string) {

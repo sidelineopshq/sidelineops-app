@@ -34,13 +34,14 @@ export default async function TeamSettingsPage({
 
   const { data: teamUsersRaw } = await supabase
     .from('team_users')
-    .select('team_id, role, can_manage_events')
+    .select('team_id, role, can_manage_events, can_manage_team_settings')
     .eq('user_id', user.id)
 
   const teamIds = (teamUsersRaw ?? []).map(t => t.team_id)
   if (teamIds.length === 0) redirect('/dashboard')
 
-  const canManage = teamUsersRaw?.some(t => t.can_manage_events) ?? false
+  const canManage             = teamUsersRaw?.some(t => t.can_manage_events)        ?? false
+  const canManageTeamSettings = teamUsersRaw?.some(t => t.can_manage_team_settings) ?? false
 
   const { data: teamsRaw } = await supabase
     .from('teams')
@@ -93,7 +94,7 @@ export default async function TeamSettingsPage({
     // Active members: team_users for all program teams, joined with user profiles
     const { data: teamUsersAll } = await svc
       .from('team_users')
-      .select('user_id, role, team_id')
+      .select('user_id, role, team_id, can_manage_team_settings')
       .in('team_id', allTeamIds)
 
     const userIds = [...new Set((teamUsersAll ?? []).map(r => r.user_id))]
@@ -122,12 +123,16 @@ export default async function TeamSettingsPage({
           email:      u?.email ?? '',
           role:       tu.role,
           team_names: [],
+          team_ids:   [],
         })
       }
       const m = memberMap.get(tu.user_id)!
       const teamName = teamNameById[tu.team_id]
       if (teamName && !m.team_names.includes(teamName)) {
         m.team_names.push(teamName)
+      }
+      if (!m.team_ids.includes(tu.team_id)) {
+        m.team_ids.push(tu.team_id)
       }
     }
 
@@ -219,6 +224,8 @@ export default async function TeamSettingsPage({
           pendingInvites={pendingInvites}
           activeMembers={activeMembers}
           canManage={canManage}
+          currentUserId={user.id}
+          canManageTeamSettings={canManageTeamSettings}
         />
       )}
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendCoachInvite, resendCoachInvite, revokeCoachInvite } from '@/app/actions/invites'
+import { sendCoachInvite, resendCoachInvite, revokeCoachInvite, removeCoachAccess } from '@/app/actions/invites'
 
 export type PendingInvite = {
   id:         string
@@ -19,6 +19,7 @@ export type ActiveMember = {
   email:      string
   role:       string
   team_names: string[]
+  team_ids:   string[]
 }
 
 export function TeamMembersTab({
@@ -26,11 +27,15 @@ export function TeamMembersTab({
   pendingInvites,
   activeMembers,
   canManage,
+  currentUserId,
+  canManageTeamSettings,
 }: {
-  teams:          { id: string; name: string }[]
-  pendingInvites: PendingInvite[]
-  activeMembers:  ActiveMember[]
-  canManage:      boolean
+  teams:                { id: string; name: string }[]
+  pendingInvites:       PendingInvite[]
+  activeMembers:        ActiveMember[]
+  canManage:            boolean
+  currentUserId:        string
+  canManageTeamSettings: boolean
 }) {
   const router = useRouter()
 
@@ -49,6 +54,11 @@ export function TeamMembersTab({
   const [revokingId,    setRevokingId]    = useState<string | null>(null)
   const [actionError,   setActionError]   = useState<string | null>(null)
   const [resendSuccess, setResendSuccess] = useState<string | null>(null)
+
+  // ── Remove Access state ────────────────────────────────────────────────────
+  const [removeTarget,  setRemoveTarget]  = useState<ActiveMember | null>(null)
+  const [removingId,    setRemovingId]    = useState<string | null>(null)
+  const [memberList,    setMemberList]    = useState<ActiveMember[]>(activeMembers)
 
   const inputClass  = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
   const labelClass  = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
@@ -101,6 +111,19 @@ export function TeamMembersTab({
     } else {
       router.refresh()
     }
+  }
+
+  async function handleRemove() {
+    if (!removeTarget) return
+    setRemovingId(removeTarget.user_id)
+    const result = await removeCoachAccess(removeTarget.user_id, removeTarget.team_ids)
+    setRemovingId(null)
+    if (result?.error) {
+      setActionError(result.error)
+    } else {
+      setMemberList(prev => prev.filter(m => m.user_id !== removeTarget.user_id))
+    }
+    setRemoveTarget(null)
   }
 
   function formatDate(iso: string) {
@@ -279,7 +302,7 @@ export function TeamMembersTab({
           <p className="text-slate-400 text-xs mt-1">Coaches and staff with access to this program.</p>
         </div>
 
-        {activeMembers.length === 0 ? (
+        {memberList.length === 0 ? (
           <div className="px-6 py-8 text-center text-slate-500 text-sm">No team members yet.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -290,15 +313,31 @@ export function TeamMembersTab({
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Role</th>
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Teams</th>
+                  {canManageTeamSettings && (
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {activeMembers.map(m => (
+                {memberList.map(m => (
                   <tr key={m.user_id}>
                     <td className="px-6 py-3 text-white font-medium">{m.name || '—'}</td>
                     <td className="px-4 py-3 text-slate-400">{m.email}</td>
                     <td className="px-4 py-3 text-slate-400">{roleLabel(m.role)}</td>
                     <td className="px-4 py-3 text-slate-400">{m.team_names.join(', ')}</td>
+                    {canManageTeamSettings && (
+                      <td className="px-4 py-3 text-right">
+                        {m.user_id !== currentUserId && (
+                          <button
+                            onClick={() => setRemoveTarget(m)}
+                            disabled={removingId === m.user_id}
+                            className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                          >
+                            {removingId === m.user_id ? 'Removing…' : 'Remove Access'}
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -306,6 +345,39 @@ export function TeamMembersTab({
           </div>
         )}
       </div>
+
+      {/* ── Confirmation dialog ───────────────────────────────────────────── */}
+      {removeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <h3 className="text-base font-semibold text-white">Remove Access</h3>
+            <p className="text-sm text-slate-400">
+              Remove <span className="text-white font-medium">{removeTarget.name || removeTarget.email}</span> from{' '}
+              <span className="text-white font-medium">{removeTarget.team_names.join(', ')}</span>?
+              They will immediately lose access to all assigned teams.
+            </p>
+            {actionError && (
+              <p className="text-sm text-red-400">{actionError}</p>
+            )}
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                onClick={() => { setRemoveTarget(null); setActionError(null) }}
+                disabled={!!removingId}
+                className="rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemove}
+                disabled={!!removingId}
+                className="rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+              >
+                {removingId ? 'Removing…' : 'Remove Access'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
