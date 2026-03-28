@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -8,23 +8,11 @@ export default function ResetPasswordPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  const [password,  setPassword]  = useState('')
-  const [confirm,   setConfirm]   = useState('')
-  const [error,     setError]     = useState<string | null>(null)
-  const [success,   setSuccess]   = useState(false)
-  const [loading,   setLoading]   = useState(false)
-  const [ready,     setReady]     = useState(false)
-
-  // Supabase exchanges the token in the URL hash and establishes a session.
-  // Listen for the PASSWORD_RECOVERY event before showing the form.
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [supabase])
+  const [password, setPassword] = useState('')
+  const [confirm,  setConfirm]  = useState('')
+  const [error,    setError]    = useState<string | null>(null)
+  const [success,  setSuccess]  = useState(false)
+  const [loading,  setLoading]  = useState(false)
 
   async function handleReset() {
     setError(null)
@@ -62,10 +50,6 @@ export default function ResetPasswordPage() {
         {success ? (
           <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-4 text-sm text-green-400">
             Password updated successfully. Redirecting…
-          </div>
-        ) : !ready ? (
-          <div className="text-gray-400 text-sm text-center py-6">
-            Verifying your reset link…
           </div>
         ) : (
           <div className="space-y-4">
