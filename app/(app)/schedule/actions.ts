@@ -65,7 +65,7 @@ export async function cancelEvent(eventId: string) {
     if (!isUrgent) return { success: true }
   }
 
-  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  // ── Fire change notifications (awaited — must complete before returning) ──
   if (oldEventData && linkedTeams?.length) {
     const oldEventSnap = {
       default_end_time: oldEventData.default_end_time,
@@ -88,7 +88,7 @@ export async function cancelEvent(eventId: string) {
       }
     })
 
-    void fireChangeNotifications({
+    await fireChangeNotifications({
       eventDate:    oldEventData.event_date,
       displayTitle: buildDisplayTitle(oldEventData),
       teamNotifications,
@@ -160,7 +160,7 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
     if (!isUrgent) return { success: true }
   }
 
-  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  // ── Fire change notifications (awaited — must complete before returning) ──
   if (oldEventData && oldDetailData) {
     const eventSnap = {
       default_end_time: oldEventData.default_end_time,
@@ -169,7 +169,7 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
       status:           oldEventData.status,
     }
 
-    void fireChangeNotifications({
+    await fireChangeNotifications({
       eventDate:    oldEventData.event_date,
       displayTitle: buildDisplayTitle(oldEventData),
       teamNotifications: [{

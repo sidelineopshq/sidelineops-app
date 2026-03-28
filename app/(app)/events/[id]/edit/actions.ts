@@ -141,7 +141,7 @@ export async function updateEvent(
     console.error('Update team details error:', detailsError)
   }
 
-  // ── Fire change notifications (non-blocking) ─────────────────────────────
+  // ── Fire change notifications (awaited — must complete before redirect) ───
   if (oldEventData) {
     const oldEventSnap = {
       default_end_time: oldEventData.default_end_time,
@@ -172,7 +172,7 @@ export async function updateEvent(
       })
       .filter(Boolean) as TeamNotificationInput[]
 
-    void fireChangeNotifications({
+    await fireChangeNotifications({
       eventDate:    formData.event_date,
       displayTitle: buildDisplayTitle({
         event_type: formData.event_type,
