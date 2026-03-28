@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { setPrimaryTeam } from '../teams/actions'
 import { NotificationSettingsCard } from '../teams/NotificationSettingsCard'
 import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
+import { ManageTeamsTab } from './ManageTeamsTab'
 
 function serviceClient() {
   return createServiceClient(
@@ -45,7 +45,7 @@ export default async function TeamSettingsPage({
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, level, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, slug, is_primary, sort_order, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -231,49 +231,18 @@ export default async function TeamSettingsPage({
 
       {/* ── Manage Teams ──────────────────────────────────────────────────────── */}
       {tab === 'manage-teams' && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">
-              Primary Team
-            </h2>
-            <p className="text-slate-400 text-xs mt-1">
-              The primary team&apos;s start time is used as the default display time on the public schedule.
-            </p>
-          </div>
-          <div className="divide-y divide-white/5">
-            {teams.map(team => (
-              <div key={team.id} className="flex items-center justify-between px-6 py-4 gap-4">
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm text-white">{team.name}</p>
-                  {team.slug && (
-                    <p className="text-xs text-slate-500 mt-0.5">/schedule/{team.slug}</p>
-                  )}
-                </div>
-                {team.is_primary ? (
-                  <span className="shrink-0 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-400">
-                    Primary Team
-                  </span>
-                ) : canManage ? (
-                  <form
-                    action={async () => {
-                      'use server'
-                      await setPrimaryTeam(team.id)
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      className="shrink-0 rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
-                    >
-                      Set as Primary
-                    </button>
-                  </form>
-                ) : (
-                  <span className="shrink-0 text-xs text-slate-600">Not primary</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <ManageTeamsTab
+          teams={teams.map(t => ({
+            id:         t.id,
+            name:       t.name,
+            slug:       t.slug        ?? null,
+            is_primary: t.is_primary  ?? false,
+            sort_order: (t as any).sort_order ?? null,
+          }))}
+          programId={teams[0]?.program_id ?? ''}
+          canManage={canManage}
+          canManageTeamSettings={canManageTeamSettings}
+        />
       )}
 
     </section>
