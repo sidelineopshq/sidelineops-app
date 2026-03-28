@@ -52,6 +52,7 @@ export async function setPrimaryTeam(teamId: string) {
   if (error) return { error: error.message }
 
   revalidatePath('/settings/teams')
+  revalidatePath('/settings/team')
   revalidatePath('/dashboard')
   return { success: true }
 }
@@ -79,6 +80,7 @@ export async function saveGroupMeBotId(teamId: string, botId: string) {
   if (error) return { error: error.message }
 
   revalidatePath('/settings/teams')
+  revalidatePath('/settings/team')
   return { success: true }
 }
 
@@ -109,5 +111,6 @@ export async function updateNotificationSetting(
   if (error) return { error: error.message }
 
   revalidatePath('/settings/teams')
+  revalidatePath('/settings/team')
   return { success: true }
 }
