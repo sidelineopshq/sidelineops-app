@@ -60,8 +60,9 @@ export async function fireChangeNotifications({
 
   for (const tn of teamNotifications) {
     try {
-      console.log('[CHANGE ALERT] Old status:', tn.oldEvent.status, tn.oldTeamDetail.status)
-      console.log('[CHANGE ALERT] New status:', tn.newEvent.status, tn.newTeamDetail.status)
+      console.log('[CHANGE ALERT] Old event status:', tn.oldEvent.status)
+      console.log('[CHANGE ALERT] New event status:', tn.newEvent.status)
+      console.log('[CHANGE ALERT] Event date:', eventDate)
 
       const diff = detectEventChanges({
         eventDate,
@@ -72,8 +73,8 @@ export async function fireChangeNotifications({
         teamName:      tn.teamName,
       })
 
-      console.log('[CHANGE ALERT] hasChanges:', diff.hasChanges)
       console.log('[CHANGE ALERT] isUrgent:', diff.isUrgent)
+      console.log('[CHANGE ALERT] hasChanges:', diff.hasChanges)
       console.log('[CHANGE ALERT] changes:', JSON.stringify(diff.changes))
 
       if (!diff.hasChanges || !diff.isUrgent) continue
