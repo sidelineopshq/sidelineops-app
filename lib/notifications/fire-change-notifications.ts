@@ -75,6 +75,11 @@ export async function fireChangeNotifications({
         teamName:      tn.teamName,
       })
 
+      const now = new Date()
+      console.log('[CHANGE ALERT] Server UTC time:', now.toISOString())
+      console.log('[CHANGE ALERT] Event date from DB:', eventDate)
+      console.log('[CHANGE ALERT] Central today:', now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
+      console.log('[CHANGE ALERT] Central tomorrow:', new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
       console.log('[CHANGE ALERT] isUrgent:', diff.isUrgent)
       console.log('[CHANGE ALERT] hasChanges:', diff.hasChanges)
       console.log('[CHANGE ALERT] changes:', JSON.stringify(diff.changes))
