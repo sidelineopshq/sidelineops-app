@@ -23,14 +23,16 @@ function slugify(val: string) {
 }
 
 export interface OnboardingData {
-  schoolName:  string
-  city:        string
-  state:       string
-  sport:       string
-  seasonYear:  number
-  teamName:    string
-  level:       string
-  teamSlug:    string
+  schoolName:          string
+  city:                string
+  state:               string
+  sport:               string
+  seasonYear:          number
+  homeLocationName:    string
+  homeLocationAddress: string
+  teamName:            string
+  level:               string
+  teamSlug:            string
 }
 
 export async function createProgramAndTeam(data: OnboardingData) {
@@ -82,19 +84,26 @@ export async function createProgramAndTeam(data: OnboardingData) {
   if (existingProgram) {
     await service
       .from('programs')
-      .update({ sport: data.sport.trim(), season_year: data.seasonYear })
+      .update({
+        sport:                 data.sport.trim(),
+        season_year:           data.seasonYear,
+        home_location_name:    data.homeLocationName.trim()    || null,
+        home_location_address: data.homeLocationAddress.trim() || null,
+      })
       .eq('id', existingProgram.id)
     programId = existingProgram.id
   } else {
     const { data: newProgram, error: programErr } = await service
       .from('programs')
       .insert({
-        school_id:   schoolId,
-        name:        programName,
-        sport:       data.sport.trim(),
-        season_year: data.seasonYear,
-        slug:        programSlug,
-        is_active:   true,
+        school_id:             schoolId,
+        name:                  programName,
+        sport:                 data.sport.trim(),
+        season_year:           data.seasonYear,
+        slug:                  programSlug,
+        is_active:             true,
+        home_location_name:    data.homeLocationName.trim()    || null,
+        home_location_address: data.homeLocationAddress.trim() || null,
       })
       .select('id')
       .single()

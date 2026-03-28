@@ -52,8 +52,10 @@ export default function OnboardingPage() {
   const [schoolName,  setSchoolName]  = useState('')
   const [city,        setCity]        = useState('')
   const [state,       setState]       = useState('')
-  const [sport,       setSport]       = useState('')
-  const [seasonYear,  setSeasonYear]  = useState(new Date().getFullYear())
+  const [sport,               setSport]               = useState('')
+  const [seasonYear,          setSeasonYear]          = useState(new Date().getFullYear())
+  const [homeLocationName,    setHomeLocationName]    = useState('')
+  const [homeLocationAddress, setHomeLocationAddress] = useState('')
   const [teamName,    setTeamName]    = useState('')
   const [teamNameTouched, setTeamNameTouched] = useState(false)
   const [level,       setLevel]       = useState('Varsity')
@@ -99,6 +101,7 @@ export default function OnboardingPage() {
     startSubmit(async () => {
       const result = await createProgramAndTeam({
         schoolName, city, state, sport, seasonYear,
+        homeLocationName, homeLocationAddress,
         teamName, level, teamSlug,
       })
       if (result?.error) {
@@ -253,6 +256,35 @@ export default function OnboardingPage() {
                 max={2040}
                 className={inputClass}
               />
+            </div>
+
+            <div>
+              <label className={labelClass}>
+                Home Field / Facility Name <span className="normal-case font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={homeLocationName}
+                onChange={e => setHomeLocationName(e.target.value)}
+                placeholder="e.g. JCHS Jetsplex"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>
+                Home Field Address <span className="normal-case font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={homeLocationAddress}
+                onChange={e => setHomeLocationAddress(e.target.value)}
+                placeholder="e.g. 11306 County Line Rd, Madison, AL 35756"
+                className={inputClass}
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                This will be used as the default location for home games. You can always change it per event.
+              </p>
             </div>
 
             {step2Error && (

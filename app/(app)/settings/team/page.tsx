@@ -55,7 +55,7 @@ export default async function TeamSettingsPage({
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport')
+    .select('name, sport, home_location_name, home_location_address')
     .eq('id', teams[0]?.program_id ?? '')
     .single()
 
@@ -199,6 +199,9 @@ export default async function TeamSettingsPage({
             level: (t as any).level ?? null,
             slug:  t.slug ?? null,
           }))}
+          programId={teams[0]?.program_id ?? ''}
+          homeLocationName={program?.home_location_name ?? null}
+          homeLocationAddress={program?.home_location_address ?? null}
           canManage={canManage}
         />
       )}

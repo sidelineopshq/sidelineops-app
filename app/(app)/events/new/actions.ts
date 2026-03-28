@@ -74,6 +74,19 @@ export async function createEvent(formData: {
     return { error: 'Could not determine program. Please contact support.' }
   }
 
+  // Auto-populate home location from program defaults if coach left location blank
+  if (formData.is_home && !formData.location_name) {
+    const { data: programDefaults } = await authClient
+      .from('programs')
+      .select('home_location_name, home_location_address')
+      .eq('id', teamData.program_id)
+      .single()
+    if (programDefaults?.home_location_name) {
+      formData.location_name    = programDefaults.home_location_name
+      formData.location_address = programDefaults.home_location_address ?? undefined
+    }
+  }
+
   // Build title for non-game types
   let title = formData.title || null
   if (formData.event_type === 'practice')                  title = 'Practice'

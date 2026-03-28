@@ -12,6 +12,47 @@ function createServiceClient() {
   )
 }
 
+export async function saveHomeLocation(
+  programId: string,
+  homeLocationName: string,
+  homeLocationAddress: string,
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Verify user has can_manage_events on at least one team in this program
+  const { data: teams } = await authClient
+    .from('teams')
+    .select('id')
+    .eq('program_id', programId)
+
+  const teamIds = (teams ?? []).map(t => t.id)
+  if (teamIds.length === 0) return { error: 'Not authorized' }
+
+  const { data: teamUsers } = await authClient
+    .from('team_users')
+    .select('can_manage_events')
+    .eq('user_id', user.id)
+    .in('team_id', teamIds)
+
+  if (!teamUsers?.some(t => t.can_manage_events)) return { error: 'Not authorized' }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('programs')
+    .update({
+      home_location_name:    homeLocationName.trim()    || null,
+      home_location_address: homeLocationAddress.trim() || null,
+    })
+    .eq('id', programId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
 export async function saveTeamInfo(
   teamId: string,
   name: string,
