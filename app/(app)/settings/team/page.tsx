@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { setPrimaryTeam } from '../teams/actions'
 import { NotificationSettingsCard } from '../teams/NotificationSettingsCard'
+import { AppearanceTab } from './AppearanceTab'
 
 const TABS = [
   { id: 'general',       label: 'General'       },
@@ -33,7 +34,7 @@ export default async function TeamSettingsPage({
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id')
+    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -95,13 +96,16 @@ export default async function TeamSettingsPage({
 
       {/* ── Appearance ────────────────────────────────────────────────────────── */}
       {tab === 'appearance' && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Appearance</h2>
-            <p className="text-slate-400 text-xs mt-1">Customize your team&apos;s look and feel.</p>
-          </div>
-          <div className="px-6 py-10 text-center text-slate-500 text-sm">Coming soon</div>
-        </div>
+        <AppearanceTab
+          teams={teams.map(t => ({
+            id:              t.id,
+            name:            t.name,
+            logo_url:        t.logo_url        ?? null,
+            primary_color:   t.primary_color   ?? null,
+            secondary_color: t.secondary_color ?? null,
+          }))}
+          canManage={canManage}
+        />
       )}
 
       {/* ── Notifications ─────────────────────────────────────────────────────── */}
