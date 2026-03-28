@@ -61,7 +61,9 @@ export async function fireChangeNotifications({
   for (const tn of teamNotifications) {
     try {
       console.log('[CHANGE ALERT] Old event status:', tn.oldEvent.status)
+      console.log('[CHANGE ALERT] Old team status:', tn.oldTeamDetail.status)
       console.log('[CHANGE ALERT] New event status:', tn.newEvent.status)
+      console.log('[CHANGE ALERT] New team status:', tn.newTeamDetail.status)
       console.log('[CHANGE ALERT] Event date:', eventDate)
 
       const diff = detectEventChanges({
