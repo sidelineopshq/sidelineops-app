@@ -98,15 +98,14 @@ export async function sendCoachInvite(
   const { error: insertError } = await service
     .from('coach_invites')
     .insert({
-      program_id:      programId,
-      team_ids:        allowedTeamIds,
-      team_names:      teamNames,
-      email:           email.toLowerCase(),
+      program_id: programId,
+      team_ids:   allowedTeamIds,
+      team_names: teamNames,
+      email:      email.toLowerCase(),
       role,
       token,
-      invited_by:      user.id,
-      invited_by_name: inviterName,
-      expires_at:      expiresAt,
+      invited_by: user.id,
+      expires_at: expiresAt,
     })
 
   if (insertError) return { error: insertError.message }
@@ -151,7 +150,7 @@ export async function resendCoachInvite(inviteId: string) {
 
   const { data: invite } = await service
     .from('coach_invites')
-    .select('id, program_id, team_ids, team_names, email, role, token, invited_by_name')
+    .select('id, program_id, team_ids, team_names, email, role, token, invited_by')
     .eq('id', inviteId)
     .single()
 
@@ -167,6 +166,17 @@ export async function resendCoachInvite(inviteId: string) {
   if (!teamUsers?.some(t => t.can_manage_team_settings)) {
     return { error: 'Not authorized' }
   }
+
+  // Fetch inviter name from users table
+  const inviterId = invite.invited_by ?? user.id
+  const { data: inviter } = await service
+    .from('users')
+    .select('first_name, last_name')
+    .eq('id', inviterId)
+    .single()
+  const inviterName = inviter?.first_name
+    ? `${inviter.first_name} ${inviter.last_name ?? ''}`.trim()
+    : 'Your admin'
 
   // Extend expiry by 7 days from now
   const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -191,11 +201,11 @@ export async function resendCoachInvite(inviteId: string) {
     to:   invite.email,
     subject,
     html: buildCoachInviteEmail({
-      inviterName:  invite.invited_by_name ?? 'Your admin',
-      teamNames:    invite.team_names      ?? [],
-      programName:  program?.name          ?? '',
-      sport:        program?.sport         ?? '',
-      role:         invite.role as 'admin' | 'coach',
+      inviterName,
+      teamNames:   invite.team_names ?? [],
+      programName: program?.name     ?? '',
+      sport:       program?.sport    ?? '',
+      role:        invite.role as 'admin' | 'coach',
       acceptUrl,
     }),
   })
