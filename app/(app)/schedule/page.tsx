@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScheduleClient from './ScheduleClient'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 export default async function SchedulePage() {
   const supabase = await createClient()
@@ -27,7 +28,7 @@ export default async function SchedulePage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, level, program_id, is_primary')
+    .select('id, name, level, program_id, is_primary, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -118,7 +119,14 @@ export default async function SchedulePage() {
     }))
   }
 
-  const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
+  const teams = (teamsData ?? []).map(t => ({
+    id:   t.id,
+    name: formatTeamLabel(
+      (t as any).programs?.schools?.name ?? '',
+      (t as any).level ?? '',
+      (t as any).programs?.sport ?? '',
+    ),
+  }))
   // Primary team is first after ordering by is_primary desc
   const primaryTeamId = teamsData?.[0]?.id ?? null
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { saveTeamInfo } from './actions'
+import { LEVELS } from '@/lib/utils/team-label'
 
 type TeamInfo = {
   id:    string
@@ -65,14 +66,18 @@ function TeamInfoSection({
       {/* Level */}
       <div>
         <label className={labelClass}>Level</label>
-        <input
-          type="text"
+        <select
           value={level}
           onChange={e => setLevel(e.target.value)}
-          placeholder="e.g. Varsity, JV, Freshmen"
           className={inputClass}
+          style={{ appearance: 'auto' }}
           disabled={!canManage}
-        />
+        >
+          <option value="">Select level…</option>
+          {LEVELS.map(l => (
+            <option key={l} value={l}>{l}</option>
+          ))}
+        </select>
       </div>
 
       {/* Slug */}

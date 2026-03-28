@@ -5,6 +5,7 @@ import {
   type TeamDetailSnapshot,
 } from './change-detector'
 import { sendChangeAlert } from './channel-router'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -75,7 +76,7 @@ export async function fireChangeNotifications({
       const [{ data: team }, { data: contacts }] = await Promise.all([
         supabase
           .from('teams')
-          .select('name, slug, notify_on_change, groupme_enabled, groupme_bot_id, program_id')
+          .select('name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, program_id, programs(sport, schools(name))')
           .eq('id', tn.teamId)
           .single(),
         supabase
@@ -98,7 +99,7 @@ export async function fireChangeNotifications({
       await sendChangeAlert({
         team: {
           id:               tn.teamId,
-          name:             team.name ?? '',
+          name:             formatTeamLabel((team as any).programs?.schools?.name ?? '', (team as any).level ?? '', (team as any).programs?.sport ?? ''),
           slug:             team.slug ?? null,
           notify_on_change: team.notify_on_change,
           groupme_enabled:  team.groupme_enabled,

@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { setPrimaryTeam } from '@/app/(app)/settings/teams/actions'
 import { addTeam } from '@/app/actions/teams'
+import { LEVELS } from '@/lib/utils/team-label'
 
 export type ManageTeam = {
   id:         string
@@ -13,7 +14,6 @@ export type ManageTeam = {
   sort_order: number | null
 }
 
-const LEVELS = ['Varsity', 'JV', 'Freshman', 'Middle School', 'Other']
 
 function slugify(val: string) {
   return val

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,20 +50,29 @@ export async function GET(
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport, season_year')
+    .select('name, sport, season_year, school_id')
     .eq('id', team.program_id)
     .single()
+
+  const { data: school } = program?.school_id
+    ? await supabase.from('schools').select('name').eq('id', program.school_id).single()
+    : { data: null }
 
   // All teams in the same program — primary first, then alphabetical
   const { data: allTeamsData } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary')
+    .select('id, name, level, slug, is_primary')
     .eq('program_id', team.program_id)
     .not('slug', 'is', null)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
 
-  const allTeams = (allTeamsData ?? []) as { id: string; name: string; slug: string | null; is_primary: boolean }[]
+  const allTeams = (allTeamsData ?? []).map(t => ({
+    id:         t.id,
+    name:       formatTeamLabel(school?.name ?? '', (t as any).level ?? '', program?.sport ?? ''),
+    slug:       t.slug,
+    is_primary: t.is_primary,
+  }))
   const allTeamIds    = allTeams.map(t => t.id)
   const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
 

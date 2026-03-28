@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { sendNewEventAlert } from '@/lib/notifications/channel-router'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -155,7 +156,7 @@ export async function createEvent(formData: {
           .single(),
         supabase
           .from('teams')
-          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id')
+          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, programs(sport, schools(name))')
           .in('id', selectedTeamIds),
         supabase
           .from('contacts')
@@ -171,7 +172,7 @@ export async function createEvent(formData: {
       const assignedTeams = teamRecords.map(tr => {
         const assignment = formData.team_assignments.find(a => a.team_id === tr.id)
         return {
-          name:       tr.name ?? '',
+          name:       formatTeamLabel((tr as any).programs?.schools?.name ?? '', tr.level ?? '', (tr as any).programs?.sport ?? ''),
           level:      tr.level ?? null,
           start_time: assignment?.start_time || null,
         }
@@ -183,7 +184,7 @@ export async function createEvent(formData: {
         await sendNewEventAlert({
           team: {
             id:               tr.id,
-            name:             tr.name ?? '',
+            name:             formatTeamLabel((tr as any).programs?.schools?.name ?? '', tr.level ?? '', (tr as any).programs?.sport ?? ''),
             level:            tr.level ?? null,
             slug:             tr.slug ?? null,
             notify_on_change: tr.notify_on_change,

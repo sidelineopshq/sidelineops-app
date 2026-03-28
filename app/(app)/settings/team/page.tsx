@@ -6,6 +6,7 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
   return createServiceClient(
@@ -45,7 +46,7 @@ export default async function TeamSettingsPage({
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, level, slug, is_primary, sort_order, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, slug, is_primary, sort_order, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -79,8 +80,15 @@ export default async function TeamSettingsPage({
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
 
-    // Build team name lookup from already-fetched teams
-    const inviteTeamNameById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+    // Build formatted team name lookup from already-fetched teams
+    const inviteTeamNameById = Object.fromEntries(teams.map(t => [
+      t.id,
+      formatTeamLabel(
+        (t as any).programs?.schools?.name ?? '',
+        (t as any).level ?? '',
+        (t as any).programs?.sport ?? '',
+      ),
+    ]))
 
     pendingInvites = (invitesRaw ?? []).map(r => ({
       id:         r.id,
@@ -106,8 +114,15 @@ export default async function TeamSettingsPage({
           .in('id', userIds)
       : { data: [] }
 
-    // Build lookup: teamId → name
-    const teamNameById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+    // Build lookup: teamId → formatted label
+    const teamNameById = Object.fromEntries(teams.map(t => [
+      t.id,
+      formatTeamLabel(
+        (t as any).programs?.schools?.name ?? '',
+        (t as any).level ?? '',
+        (t as any).programs?.sport ?? '',
+      ),
+    ]))
 
     // Group team memberships by user_id
     const memberMap = new Map<string, ActiveMember>()

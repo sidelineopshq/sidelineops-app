@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppNav from './AppNav'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 export default async function AppLayout({
   children,
@@ -34,7 +35,7 @@ export default async function AppLayout({
   // Get all teams + program info + branding
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, is_primary, program_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, is_primary, program_id, logo_url, primary_color, secondary_color, programs(sport, schools(name))')
     .in('id', teamIds)
 
   const { data: program } = await supabase
@@ -71,7 +72,14 @@ export default async function AppLayout({
         displayName={displayName}
         initials={initials}
         email={profile?.email ?? user.email ?? ''}
-        teams={(teamsData ?? []).map(t => ({ id: t.id, name: t.name }))}
+        teams={(teamsData ?? []).map(t => ({
+          id:   t.id,
+          name: formatTeamLabel(
+            (t as any).programs?.schools?.name ?? '',
+            (t as any).level ?? '',
+            (t as any).programs?.sport ?? '',
+          ),
+        }))}
         programName={program?.name ?? ''}
         sport={program?.sport ?? ''}
         role={primaryTeamUser?.role ?? ''}

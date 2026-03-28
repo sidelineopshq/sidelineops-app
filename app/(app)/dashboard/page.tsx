@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
   const { data: allTeamsData } = await supabase
     .from('teams')
-    .select('id, name, level, slug, program_id, team_schedule_token')
+    .select('id, name, level, slug, program_id, team_schedule_token, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('name', { ascending: false })
 
@@ -115,7 +116,11 @@ export default async function DashboardPage() {
     .filter(t => t.slug)
     .map(t => ({
       id:        t.id,
-      name:      t.name,
+      name:      formatTeamLabel(
+        (t as any).programs?.schools?.name ?? '',
+        (t as any).level ?? '',
+        (t as any).programs?.sport ?? '',
+      ),
       slug:      t.slug as string,
       publicUrl: `${appUrl}/schedule/${t.slug}`,
       teamUrl:   (t as any).team_schedule_token
@@ -134,7 +139,11 @@ export default async function DashboardPage() {
         <h2 className="text-3xl font-bold">{program?.name ?? 'Your Team'}</h2>
         {team?.name && (
           <p className="mt-1 text-slate-400 text-sm">
-            {team.name} · {teamUser?.role?.replace('_', ' ')}
+            {formatTeamLabel(
+              (team as any).programs?.schools?.name ?? '',
+              (team as any).level ?? '',
+              (team as any).programs?.sport ?? '',
+            )} · {teamUser?.role?.replace('_', ' ')}
           </p>
         )}
       </div>

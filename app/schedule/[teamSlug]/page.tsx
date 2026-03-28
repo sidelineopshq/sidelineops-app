@@ -5,6 +5,7 @@ import PublicScheduleClient, {
   type PublicTeam,
   type PublicChildGame,
 } from './PublicScheduleClient'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 export default async function PublicSchedulePage({
   params,
@@ -16,7 +17,7 @@ export default async function PublicSchedulePage({
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, slug, program_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, slug, program_id, logo_url, primary_color, secondary_color')
     .eq('slug', teamSlug)
     .single()
 
@@ -43,13 +44,18 @@ export default async function PublicSchedulePage({
   // All teams in the same program — primary first, then alphabetical
   const { data: allTeamsData } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary')
+    .select('id, name, level, slug, is_primary')
     .eq('program_id', team.program_id)
     .not('slug', 'is', null)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
 
-  const allTeams: PublicTeam[] = (allTeamsData ?? []) as PublicTeam[]
+  const allTeams: PublicTeam[] = (allTeamsData ?? []).map(t => ({
+    id:         t.id,
+    name:       formatTeamLabel(school?.name ?? '', (t as any).level ?? '', program?.sport ?? ''),
+    slug:       t.slug,
+    is_primary: t.is_primary,
+  }))
   const allTeamIds   = allTeams.map(t => t.id)
   const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
 
@@ -172,7 +178,7 @@ export default async function PublicSchedulePage({
                 {program?.name ?? team.name}
               </h1>
               <p className="text-slate-500 text-sm mt-0.5">
-                {team.name} · {program?.sport} · {program?.season_year} Season
+                {formatTeamLabel(school?.name ?? '', (team as any).level ?? '', program?.sport ?? '')} · {program?.season_year} Season
               </p>
               {school && (
                 <p className="text-slate-400 text-xs mt-0.5">

@@ -6,6 +6,7 @@ import { Resend } from 'resend'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { buildCoachInviteEmail } from '@/lib/email/coachInvite'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -64,13 +65,17 @@ export async function sendCoachInvite(
   // 3. Resolve team names + program
   const { data: teams } = await service
     .from('teams')
-    .select('id, name, program_id')
+    .select('id, name, level, program_id, programs(sport, schools(name))')
     .in('id', allowedTeamIds)
 
   if (!teams?.length) return { error: 'Teams not found' }
 
   const programId = teams[0].program_id
-  const teamNames = teams.map(t => t.name)
+  const teamNames = teams.map(t => formatTeamLabel(
+    (t as any).programs?.schools?.name ?? '',
+    (t as any).level ?? '',
+    (t as any).programs?.sport ?? '',
+  ))
 
   const { data: program } = await service
     .from('programs')
@@ -194,9 +199,13 @@ export async function resendCoachInvite(inviteId: string) {
   // Fetch team names from team_ids (not stored in DB)
   const { data: teamsForEmail } = await service
     .from('teams')
-    .select('name')
+    .select('name, level, programs(sport, schools(name))')
     .in('id', invite.team_ids)
-  const teamNames = teamsForEmail?.map(t => t.name) ?? []
+  const teamNames = (teamsForEmail ?? []).map(t => formatTeamLabel(
+    (t as any).programs?.schools?.name ?? '',
+    (t as any).level ?? '',
+    (t as any).programs?.sport ?? '',
+  ))
 
   const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const acceptUrl = `${baseUrl}/accept-invite?token=${invite.token}`

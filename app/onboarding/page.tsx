@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProgramAndTeam } from '@/app/actions/onboarding'
+import { LEVELS } from '@/lib/utils/team-label'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -11,7 +12,6 @@ const SPORT_SUGGESTIONS = [
   'Volleyball', 'Track', 'Swimming', 'Tennis', 'Other',
 ]
 
-const LEVELS = ['Varsity', 'JV', 'Freshman', 'Middle School', 'Other']
 
 const US_STATES = [
   ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],

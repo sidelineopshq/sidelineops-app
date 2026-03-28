@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NewEventForm from './NewEventForm'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 export default async function NewEventPage() {
   const supabase = await createClient()
@@ -20,12 +21,19 @@ export default async function NewEventPage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name')
+    .select('id, name, level, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
 
-  const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
+  const teams = (teamsData ?? []).map(t => ({
+    id:   t.id,
+    name: formatTeamLabel(
+      (t as any).programs?.schools?.name ?? '',
+      (t as any).level ?? '',
+      (t as any).programs?.sport ?? '',
+    ),
+  }))
 
   return <NewEventForm teams={teams} />
 }

@@ -8,6 +8,7 @@ import {
   buildDisplayTitle,
   type TeamNotificationInput,
 } from '@/lib/notifications/fire-change-notifications'
+import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -85,7 +86,7 @@ export async function updateEvent(
       .in('team_id', teamAssignments.map(a => a.team_id)),
     supabase
       .from('teams')
-      .select('id, name')
+      .select('id, name, level, programs(sport, schools(name))')
       .in('id', teamAssignments.map(a => a.team_id)),
   ])
 
@@ -160,7 +161,12 @@ export async function updateEvent(
       .map(a => {
         const old  = oldTeamDetails?.find(d => d.team_id === a.team_id)
         if (!old) return null  // new team assignment — no prior state to diff
-        const name = teamNames?.find(t => t.id === a.team_id)?.name ?? ''
+        const tr   = teamNames?.find(t => t.id === a.team_id) as any
+        const name = tr ? formatTeamLabel(
+          tr.programs?.schools?.name ?? '',
+          tr.level ?? '',
+          tr.programs?.sport ?? '',
+        ) : ''
         return {
           teamId:        a.team_id,
           teamName:      name,
