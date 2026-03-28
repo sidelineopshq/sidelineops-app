@@ -100,7 +100,6 @@ export async function sendCoachInvite(
     .insert({
       program_id: programId,
       team_ids:   allowedTeamIds,
-      team_names: teamNames,
       email:      email.toLowerCase(),
       role,
       token,
@@ -150,7 +149,7 @@ export async function resendCoachInvite(inviteId: string) {
 
   const { data: invite } = await service
     .from('coach_invites')
-    .select('id, program_id, team_ids, team_names, email, role, token, invited_by')
+    .select('id, program_id, team_ids, email, role, token, invited_by')
     .eq('id', inviteId)
     .single()
 
@@ -191,6 +190,13 @@ export async function resendCoachInvite(inviteId: string) {
     .eq('id', invite.program_id)
     .single()
 
+  // Fetch team names from team_ids (not stored in DB)
+  const { data: teamsForEmail } = await service
+    .from('teams')
+    .select('name')
+    .in('id', invite.team_ids)
+  const teamNames = teamsForEmail?.map(t => t.name) ?? []
+
   const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const acceptUrl = `${baseUrl}/accept-invite?token=${invite.token}`
   const subject   = `You've been invited to join ${program?.name ?? 'a team'} on SidelineOps`
@@ -202,9 +208,9 @@ export async function resendCoachInvite(inviteId: string) {
     subject,
     html: buildCoachInviteEmail({
       inviterName,
-      teamNames:   invite.team_names ?? [],
-      programName: program?.name     ?? '',
-      sport:       program?.sport    ?? '',
+      teamNames,
+      programName: program?.name ?? '',
+      sport:       program?.sport ?? '',
       role:        invite.role as 'admin' | 'coach',
       acceptUrl,
     }),

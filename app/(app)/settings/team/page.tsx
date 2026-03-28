@@ -72,17 +72,20 @@ export default async function TeamSettingsPage({
     // Pending invites: accepted_at IS NULL and not expired
     const { data: invitesRaw } = await svc
       .from('coach_invites')
-      .select('id, email, role, team_names, created_at, expires_at')
+      .select('id, email, role, team_ids, created_at, expires_at')
       .eq('program_id', programId)
       .is('accepted_at', null)
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
 
+    // Build team name lookup from already-fetched teams
+    const inviteTeamNameById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+
     pendingInvites = (invitesRaw ?? []).map(r => ({
       id:         r.id,
       email:      r.email,
       role:       r.role as 'admin' | 'coach',
-      team_names: r.team_names ?? [],
+      team_names: (r.team_ids ?? []).map((id: string) => inviteTeamNameById[id]).filter(Boolean),
       created_at: r.created_at,
       expires_at: r.expires_at,
     }))
