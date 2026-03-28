@@ -125,6 +125,17 @@ function EditContactModal({ contact, players, teamId, onSave, onClose }: {
           <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">×</button>
         </div>
 
+        {contact.email_unsubscribed && (
+          <div className="mb-4 rounded-xl border border-white/10 bg-slate-800/60 px-4 py-3">
+            <span className="inline-block rounded-full border border-white/10 bg-slate-700 px-2.5 py-0.5 text-xs font-semibold text-slate-400 mb-2">
+              Unsubscribed
+            </span>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This contact has unsubscribed from email notifications. They will not receive change alerts or weekly digests.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -255,7 +266,7 @@ function ContactRow({ contact, players, canManage, teamId, onEdit, onDelete }: {
               </span>
             )}
             {contact.email_unsubscribed && (
-              <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-xs text-red-400">
+              <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
                 Unsubscribed
               </span>
             )}
