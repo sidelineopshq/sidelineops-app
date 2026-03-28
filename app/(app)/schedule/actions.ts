@@ -55,6 +55,20 @@ export async function cancelEvent(eventId: string) {
     return { error: 'Failed to cancel event. Please try again.' }
   }
 
+  // ── Cancel debug logs (synchronous — logged before async void block) ───────
+  if (oldEventData) {
+    const _now            = new Date()
+    const centralToday    = _now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+    const centralTomorrow = new Date(_now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+    const isUrgent        = oldEventData.event_date === centralToday || oldEventData.event_date === centralTomorrow
+    const hasChanges      = oldEventData.status !== 'cancelled'
+    console.log('[CANCEL] Event date:', oldEventData.event_date)
+    console.log('[CANCEL] Central today:', centralToday)
+    console.log('[CANCEL] Central tomorrow:', centralTomorrow)
+    console.log('[CANCEL] isUrgent:', isUrgent)
+    console.log('[CANCEL] hasChanges:', hasChanges)
+  }
+
   // ── Fire change notifications (non-blocking) ─────────────────────────────
   if (oldEventData && linkedTeams?.length) {
     const oldEventSnap = {
@@ -138,6 +152,20 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
   if (error) {
     console.error('Cancel event for team error:', error)
     return { error: 'Failed to cancel event. Please try again.' }
+  }
+
+  // ── Cancel debug logs (synchronous — logged before async void block) ───────
+  if (oldEventData && oldDetailData) {
+    const _now            = new Date()
+    const centralToday    = _now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+    const centralTomorrow = new Date(_now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+    const isUrgent        = oldEventData.event_date === centralToday || oldEventData.event_date === centralTomorrow
+    const hasChanges      = oldDetailData.status !== 'cancelled'
+    console.log('[CANCEL] Event date:', oldEventData.event_date)
+    console.log('[CANCEL] Central today:', centralToday)
+    console.log('[CANCEL] Central tomorrow:', centralTomorrow)
+    console.log('[CANCEL] isUrgent:', isUrgent)
+    console.log('[CANCEL] hasChanges:', hasChanges)
   }
 
   // ── Fire change notifications (non-blocking) ─────────────────────────────

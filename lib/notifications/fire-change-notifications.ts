@@ -60,12 +60,6 @@ export async function fireChangeNotifications({
 
   for (const tn of teamNotifications) {
     try {
-      console.log('[CHANGE ALERT] Old event status:', tn.oldEvent.status)
-      console.log('[CHANGE ALERT] Old team status:', tn.oldTeamDetail.status)
-      console.log('[CHANGE ALERT] New event status:', tn.newEvent.status)
-      console.log('[CHANGE ALERT] New team status:', tn.newTeamDetail.status)
-      console.log('[CHANGE ALERT] Event date:', eventDate)
-
       const diff = detectEventChanges({
         eventDate,
         oldEvent:      tn.oldEvent,
@@ -74,15 +68,6 @@ export async function fireChangeNotifications({
         newTeamDetail: tn.newTeamDetail,
         teamName:      tn.teamName,
       })
-
-      const now = new Date()
-      console.log('[CHANGE ALERT] Server UTC time:', now.toISOString())
-      console.log('[CHANGE ALERT] Event date from DB:', eventDate)
-      console.log('[CHANGE ALERT] Central today:', now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
-      console.log('[CHANGE ALERT] Central tomorrow:', new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
-      console.log('[CHANGE ALERT] isUrgent:', diff.isUrgent)
-      console.log('[CHANGE ALERT] hasChanges:', diff.hasChanges)
-      console.log('[CHANGE ALERT] changes:', JSON.stringify(diff.changes))
 
       if (!diff.hasChanges || !diff.isUrgent) continue
 
@@ -100,9 +85,6 @@ export async function fireChangeNotifications({
           .is('deleted_at', null)
           .or('email.not.is.null,sms_consent.eq.true'),
       ])
-
-      console.log('[CHANGE ALERT] notify_on_change:', team?.notify_on_change)
-      console.log('[CHANGE ALERT] contacts found:', contacts?.length ?? 0)
 
       if (!team) continue
 
