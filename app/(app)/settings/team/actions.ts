@@ -12,6 +12,42 @@ function createServiceClient() {
   )
 }
 
+export async function saveTeamInfo(
+  teamId: string,
+  name: string,
+  level: string,
+  slug: string,
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: teamUser } = await authClient
+    .from('team_users')
+    .select('can_manage_events')
+    .eq('user_id', user.id)
+    .eq('team_id', teamId)
+    .single()
+
+  if (!teamUser?.can_manage_events) return { error: 'Not authorized' }
+
+  const trimmedSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  if (!name.trim()) return { error: 'Team name is required' }
+  if (!trimmedSlug) return { error: 'Slug is required' }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('teams')
+    .update({ name: name.trim(), level: level.trim() || null, slug: trimmedSlug })
+    .eq('id', teamId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/settings/team')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 export async function saveColors(
   teamId: string,
   primaryColor: string,

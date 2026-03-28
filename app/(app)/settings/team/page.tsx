@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { setPrimaryTeam } from '../teams/actions'
 import { NotificationSettingsCard } from '../teams/NotificationSettingsCard'
 import { AppearanceTab } from './AppearanceTab'
+import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 
 function serviceClient() {
@@ -24,7 +25,7 @@ const TABS = [
 export default async function TeamSettingsPage({
   searchParams,
 }: {
-  searchParams: { tab?: string }
+  searchParams: Promise<{ tab?: string }>
 }) {
   const supabase = await createClient()
 
@@ -43,7 +44,7 @@ export default async function TeamSettingsPage({
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, slug, is_primary, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -56,7 +57,8 @@ export default async function TeamSettingsPage({
     .eq('id', teams[0]?.program_id ?? '')
     .single()
 
-  const tab = searchParams.tab ?? 'general'
+  const { tab: tabParam } = await searchParams
+  const tab = tabParam ?? 'general'
 
   // ── Team Members tab data ──────────────────────────────────────────────────
   let pendingInvites: PendingInvite[] = []
@@ -167,13 +169,15 @@ export default async function TeamSettingsPage({
 
       {/* ── General ───────────────────────────────────────────────────────────── */}
       {tab === 'general' && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">General</h2>
-            <p className="text-slate-400 text-xs mt-1">Basic team configuration.</p>
-          </div>
-          <div className="px-6 py-10 text-center text-slate-500 text-sm">Coming soon</div>
-        </div>
+        <GeneralTab
+          teams={teams.map(t => ({
+            id:    t.id,
+            name:  t.name,
+            level: (t as any).level ?? null,
+            slug:  t.slug ?? null,
+          }))}
+          canManage={canManage}
+        />
       )}
 
       {/* ── Appearance ────────────────────────────────────────────────────────── */}
