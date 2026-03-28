@@ -28,11 +28,14 @@ export default async function AppLayout({
   const primaryTeamUser = teamUsersRaw?.[0]
   const teamIds = (teamUsersRaw ?? []).map(t => t.team_id)
 
+  // No team membership → send to onboarding
+  if (teamIds.length === 0) redirect('/onboarding')
+
   // Get all teams + program info + branding
   const { data: teamsData } = await supabase
     .from('teams')
     .select('id, name, is_primary, program_id, logo_url, primary_color, secondary_color')
-    .in('id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
+    .in('id', teamIds)
 
   const { data: program } = await supabase
     .from('programs')

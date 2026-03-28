@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       default_arrival_time, status, meal_required, meal_time,
       event_team_details!inner(team_id, start_time, arrival_time)
     `)
-    .in('event_team_details.team_id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
+    .in('event_team_details.team_id', teamIds)
     .gte('event_date', today)
     .eq('status', 'scheduled')
     .order('event_date', { ascending: true })
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
   const { data: upcomingEvents } = await supabase
     .from('events')
     .select('id, event_team_details!inner(team_id)')
-    .in('event_team_details.team_id', teamIds.length > 0 ? teamIds : ['00000000-0000-0000-0000-000000000000'])
+    .in('event_team_details.team_id', teamIds)
     .gte('event_date', today)
     .lte('event_date', nextWeekStr)
     .neq('status', 'cancelled')
