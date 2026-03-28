@@ -78,12 +78,13 @@ export async function sendCoachInvite(
     .eq('id', programId)
     .single()
 
-  // 4. Check for an existing non-expired invite for this email + program
+  // 4. Block only if there is a pending (not accepted, not expired) invite
   const { data: existing } = await service
     .from('coach_invites')
     .select('id')
     .eq('program_id', programId)
     .eq('email', email.toLowerCase())
+    .is('accepted_at', null)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle()
 
