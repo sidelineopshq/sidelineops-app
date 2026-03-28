@@ -1,8 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { setPrimaryTeam } from '../teams/actions'
 import { NotificationSettingsCard } from '../teams/NotificationSettingsCard'
 import { AppearanceTab } from './AppearanceTab'
+import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
+
+function serviceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 const TABS = [
   { id: 'general',       label: 'General'       },
@@ -48,6 +57,79 @@ export default async function TeamSettingsPage({
     .single()
 
   const tab = searchParams.tab ?? 'general'
+
+  // ── Team Members tab data ──────────────────────────────────────────────────
+  let pendingInvites: PendingInvite[] = []
+  let activeMembers:  ActiveMember[]  = []
+
+  if (tab === 'team-members') {
+    const svc       = serviceClient()
+    const programId = teams[0]?.program_id ?? ''
+    const allTeamIds = teams.map(t => t.id)
+
+    // Pending invites: accepted_at IS NULL and not expired
+    const { data: invitesRaw } = await svc
+      .from('coach_invites')
+      .select('id, email, role, team_names, created_at, expires_at')
+      .eq('program_id', programId)
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+
+    pendingInvites = (invitesRaw ?? []).map(r => ({
+      id:         r.id,
+      email:      r.email,
+      role:       r.role as 'admin' | 'coach',
+      team_names: r.team_names ?? [],
+      created_at: r.created_at,
+      expires_at: r.expires_at,
+    }))
+
+    // Active members: team_users for all program teams, joined with user profiles
+    const { data: teamUsersAll } = await svc
+      .from('team_users')
+      .select('user_id, role, team_id')
+      .in('team_id', allTeamIds)
+
+    const userIds = [...new Set((teamUsersAll ?? []).map(r => r.user_id))]
+
+    const { data: usersRaw } = userIds.length > 0
+      ? await svc
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .in('id', userIds)
+      : { data: [] }
+
+    // Build lookup: teamId → name
+    const teamNameById = Object.fromEntries(teams.map(t => [t.id, t.name]))
+
+    // Group team memberships by user_id
+    const memberMap = new Map<string, ActiveMember>()
+    for (const tu of teamUsersAll ?? []) {
+      if (!memberMap.has(tu.user_id)) {
+        const u = (usersRaw ?? []).find(u => u.id === tu.user_id)
+        const name = u?.first_name
+          ? `${u.first_name} ${u.last_name ?? ''}`.trim()
+          : ''
+        memberMap.set(tu.user_id, {
+          user_id:    tu.user_id,
+          name,
+          email:      u?.email ?? '',
+          role:       tu.role,
+          team_names: [],
+        })
+      }
+      const m = memberMap.get(tu.user_id)!
+      const teamName = teamNameById[tu.team_id]
+      if (teamName && !m.team_names.includes(teamName)) {
+        m.team_names.push(teamName)
+      }
+    }
+
+    activeMembers = [...memberMap.values()].sort((a, b) =>
+      (a.name || a.email).localeCompare(b.name || b.email),
+    )
+  }
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-10">
@@ -125,13 +207,12 @@ export default async function TeamSettingsPage({
 
       {/* ── Team Members ──────────────────────────────────────────────────────── */}
       {tab === 'team-members' && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Team Members</h2>
-            <p className="text-slate-400 text-xs mt-1">Invite and manage coaches and staff.</p>
-          </div>
-          <div className="px-6 py-10 text-center text-slate-500 text-sm">Coming soon</div>
-        </div>
+        <TeamMembersTab
+          teams={teams.map(t => ({ id: t.id, name: t.name }))}
+          pendingInvites={pendingInvites}
+          activeMembers={activeMembers}
+          canManage={canManage}
+        />
       )}
 
       {/* ── Manage Teams ──────────────────────────────────────────────────────── */}
