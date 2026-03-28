@@ -39,7 +39,7 @@ export async function GET(
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, slug, program_id')
+    .select('id, name, slug, program_id, logo_url, primary_color, secondary_color')
     .eq('slug', teamSlug)
     .single()
 
@@ -141,6 +141,10 @@ export async function GET(
     childGames = childRows ?? []
   }
 
+  const brandPrimary   = (team as any).primary_color   ?? '#0ea5e9'
+  const brandSecondary = (team as any).secondary_color ?? '#1e293b'
+  const teamLogoUrl    = (team as any).logo_url as string | null
+
   const baseUrl       = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const publicPageUrl = `${baseUrl}/schedule/${teamSlug}`
 
@@ -222,6 +226,8 @@ export async function GET(
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      --brand-primary:   ${brandPrimary};
+      --brand-secondary: ${brandSecondary};
       --bg:            #0f172a;
       --card:          #1e293b;
       --border:        rgba(255,255,255,0.08);
@@ -254,12 +260,13 @@ export async function GET(
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 10px;
       margin-bottom: 12px;
     }
-    .header h2 { font-size: 15px; font-weight: 700; }
+    .header-text { flex: 1; min-width: 0; }
+    .header h2 { font-size: 15px; font-weight: 700; color: var(--brand-primary); }
     .header p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .logo { height: 26px; width: auto; opacity: 0.6; }
+    .team-logo { height: 40px; max-height: 40px; width: auto; object-fit: contain; flex-shrink: 0; }
 
     .list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -279,7 +286,7 @@ export async function GET(
       flex-wrap: wrap;
     }
 
-    .date { font-size: 11px; font-weight: 600; color: var(--muted); }
+    .date { font-size: 11px; font-weight: 600; color: var(--brand-primary); }
 
     .badges { display: flex; flex-wrap: wrap; gap: 4px; }
 
@@ -321,11 +328,11 @@ export async function GET(
 </head>
 <body>
   <div class="header">
-    <div>
+    ${teamLogoUrl ? `<img src="${teamLogoUrl}" alt="${team.name}" class="team-logo" />` : ''}
+    <div class="header-text">
       <h2>${program?.name ?? team.name}</h2>
       <p>${program?.season_year ?? ''} Season &middot; ${events.length} game${events.length !== 1 ? 's' : ''} remaining</p>
     </div>
-    <img src="/sidelineops-logo-cropped.png" alt="SidelineOps" class="logo" />
   </div>
 
   <div class="list">${eventsHtml}</div>
