@@ -105,18 +105,27 @@ export default function PublicScheduleClient({
   const upcomingCount = filteredEvents.filter(e => !e.is_past).length
   const nextGame      = filteredEvents.find(e => !e.is_past) ?? null
 
+  const primarySubtle = brandPrimary + '15'
+  const primaryMuted  = brandPrimary + '4d'
+
   return (
-    <div>
-      {/* Team filter tabs */}
+    <div style={{
+      '--color-primary':        brandPrimary,
+      '--color-secondary':      brandSecondary,
+      '--color-primary-subtle': primarySubtle,
+      '--color-primary-muted':  primaryMuted,
+    } as React.CSSProperties}>
+
+      {/* Filter tabs */}
       {showFilterTabs && (
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setActiveFilter('all')}
             className="rounded-full px-4 py-1.5 text-sm font-semibold transition-colors border"
             style={
               activeFilter === 'all'
                 ? { backgroundColor: brandPrimary, color: '#fff', borderColor: brandPrimary }
-                : { backgroundColor: '#fff', color: '#475569', borderColor: '#e2e8f0' }
+                : { backgroundColor: '#fff', color: '#475569', borderColor: '#cbd5e1' }
             }
           >
             All
@@ -129,7 +138,7 @@ export default function PublicScheduleClient({
               style={
                 activeFilter === team.id
                   ? { backgroundColor: brandPrimary, color: '#fff', borderColor: brandPrimary }
-                  : { backgroundColor: '#fff', color: '#475569', borderColor: '#e2e8f0' }
+                  : { backgroundColor: '#fff', color: '#475569', borderColor: '#cbd5e1' }
               }
             >
               {team.name}
@@ -138,15 +147,21 @@ export default function PublicScheduleClient({
         </div>
       )}
 
-      {/* Next Game card — solid brand color background */}
+      {/* Next Game hero card — white with left accent border */}
       {nextGame && (
-        <div className="mb-8 rounded-2xl px-6 py-5 shadow-lg" style={{ backgroundColor: brandPrimary }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
+        <div
+          className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm"
+          style={{
+            border:       '1px solid #e2e8f0',
+            borderLeft:   `4px solid ${brandPrimary}`,
+          }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: brandPrimary }}>
             Next Game
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-xl font-bold text-slate-900">
                 {nextGame.event_type === 'tournament'
                   ? nextGame.title ?? 'Tournament'
                   : nextGame.opponent
@@ -154,7 +169,7 @@ export default function PublicScheduleClient({
                     : 'TBD'
                 }
               </h2>
-              <div className="flex flex-wrap items-center mt-2 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              <div className="flex flex-wrap items-center mt-2 text-sm text-slate-500">
                 <span className="flex items-center gap-1.5 mr-4">
                   <span>📅</span>
                   <span>{formatDate(nextGame.event_date)}</span>
@@ -175,7 +190,11 @@ export default function PublicScheduleClient({
               {resolveSupplementalBadges(nextGame, activeFilter, primaryTeamId).length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {resolveSupplementalBadges(nextGame, activeFilter, primaryTeamId).map(tt => (
-                    <span key={tt.teamId} className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <span
+                      key={tt.teamId}
+                      className="text-xs rounded-full px-2 py-0.5 font-medium"
+                      style={{ backgroundColor: brandSecondary + '20', color: brandSecondary }}
+                    >
                       {tt.teamName}{tt.startTime ? ` · ${formatTime(tt.startTime)}` : ''}
                     </span>
                   ))}
@@ -186,15 +205,18 @@ export default function PublicScheduleClient({
                   href={`https://maps.google.com/?q=${encodeURIComponent(nextGame.location_address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1.5 text-xs underline block transition-opacity hover:opacity-100"
-                  style={{ color: 'rgba(255,255,255,0.7)' }}
+                  className="mt-1.5 text-xs hover:underline block transition-colors"
+                  style={{ color: brandPrimary }}
                 >
                   {nextGame.location_address} →
                 </a>
               )}
             </div>
             {nextGame.event_type !== 'tournament' && nextGame.is_home !== null && (
-              <span className="shrink-0 rounded-xl border px-4 py-2 text-sm font-bold text-white" style={{ borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.15)' }}>
+              <span
+                className="shrink-0 rounded-xl px-4 py-2 text-sm font-bold text-white"
+                style={{ backgroundColor: brandSecondary }}
+              >
                 {nextGame.is_home ? '🏠 Home' : '🚌 Away'}
               </span>
             )}
@@ -202,131 +224,142 @@ export default function PublicScheduleClient({
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-white">Game Schedule</h2>
-        <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-          {upcomingCount} game{upcomingCount !== 1 ? 's' : ''} remaining
-        </span>
-      </div>
-
-      {filteredEvents.length === 0 ? (
-        <div className="rounded-2xl border border-white/20 bg-white/10 p-10 text-center">
-          <p className="text-white font-semibold">No games scheduled yet</p>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>Check back soon.</p>
+      {/* Schedule section — subtle brand-tinted background */}
+      <div className="rounded-2xl p-5 sm:p-6" style={{ backgroundColor: primarySubtle }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Game Schedule</h2>
+          <span className="text-sm text-slate-500">
+            {upcomingCount} game{upcomingCount !== 1 ? 's' : ''} remaining
+          </span>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredEvents.map(event => {
-            const games           = childGames.filter(g => g.parent_event_id === event.id)
-            const displayTime     = resolveDisplayTime(event, activeFilter, primaryTeamId)
-            const suppBadges      = resolveSupplementalBadges(event, activeFilter, primaryTeamId)
-            const title = event.event_type === 'tournament'
-              ? event.title ?? 'Tournament'
-              : event.opponent
-                ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
-                : 'TBD'
 
-            return (
-              <div
-                key={event.id}
-                className={`rounded-2xl border px-5 py-4 bg-white shadow-sm transition-shadow ${
-                  event.is_past ? 'opacity-55' : 'hover:shadow-md'
-                }`}
-                style={{ borderColor: event.is_past ? '#e2e8f0' : '#e2e8f0' }}
-              >
-                {/* Date + badges row */}
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <p className="text-xs font-semibold" style={{ color: brandPrimary }}>
-                    {formatDate(event.event_date)}
-                  </p>
-                  {event.is_past && (
-                    <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-400">
-                      Final
-                    </span>
-                  )}
-                  {event.is_tournament && (
-                    <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-600">
-                      Tournament
-                    </span>
-                  )}
-                  {suppBadges.map(tt => (
+        {filteredEvents.length === 0 ? (
+          <div className="rounded-xl bg-white border border-slate-200 p-10 text-center">
+            <p className="text-slate-600 font-semibold">No games scheduled yet</p>
+            <p className="text-slate-400 text-sm mt-1">Check back soon.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredEvents.map(event => {
+              const games       = childGames.filter(g => g.parent_event_id === event.id)
+              const displayTime = resolveDisplayTime(event, activeFilter, primaryTeamId)
+              const suppBadges  = resolveSupplementalBadges(event, activeFilter, primaryTeamId)
+              const title = event.event_type === 'tournament'
+                ? event.title ?? 'Tournament'
+                : event.opponent
+                  ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
+                  : 'TBD'
+
+              return (
+                <div
+                  key={event.id}
+                  className={`rounded-xl border border-slate-200 bg-white px-5 py-4 transition-shadow ${
+                    event.is_past ? 'opacity-55' : 'shadow-sm hover:shadow-md'
+                  }`}
+                >
+                  {/* Date pill + badges */}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span
-                      key={tt.teamId}
-                      className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-600"
+                      className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+                      style={{ backgroundColor: event.is_past ? '#94a3b8' : brandPrimary }}
                     >
-                      {tt.teamName}{tt.startTime ? ` · ${formatTime(tt.startTime)}` : ''}
+                      {formatDate(event.event_date)}
                     </span>
-                  ))}
-                </div>
-
-                {/* Title + Home/Away badge */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className={`text-base font-bold ${event.is_past ? 'text-slate-400' : 'text-slate-900'}`}>
-                      {title}
-                    </h3>
-                    <div className="flex flex-wrap items-center mt-1.5 text-sm text-slate-500">
-                      {displayTime && (
-                        <span className="flex items-center gap-1.5 mr-4">
-                          <span>🕐</span>
-                          <span>{formatTime(displayTime)}</span>
-                        </span>
-                      )}
-                      {event.location_name && (
-                        <span className="flex items-center gap-1.5 mr-4">
-                          <span>📍</span>
-                          <span>{event.location_name}</span>
-                        </span>
-                      )}
-                    </div>
-                    {event.location_address && !event.is_past && (
-                      <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 text-xs hover:underline transition-colors block"
-                        style={{ color: brandPrimary }}
-                      >
-                        {event.location_address} →
-                      </a>
+                    {event.is_past && (
+                      <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-400">
+                        Final
+                      </span>
                     )}
-                  </div>
-                  {event.event_type !== 'tournament' && event.is_home !== null && (
-                    <span className={`shrink-0 rounded-xl border px-3 py-1 text-xs font-semibold ${
-                      event.is_past
-                        ? 'border-slate-200 bg-slate-100 text-slate-400'
-                        : event.is_home
-                          ? 'border-green-200 bg-green-50 text-green-700'
-                          : 'border-amber-200 bg-amber-50 text-amber-700'
-                    }`}>
-                      {event.is_home ? 'Home' : 'Away'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Tournament child games */}
-                {event.is_tournament && games.length > 0 && (
-                  <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-200 pl-4">
-                    {games.map(game => (
-                      <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-600">
-                        <span className="font-medium">
-                          {game.opponent ? `vs ${game.opponent}` : 'TBD'}
-                        </span>
-                        {game.default_start_time && (
-                          <span className="text-slate-400">{formatTime(game.default_start_time)}</span>
-                        )}
-                        {game.location_name && (
-                          <span className="text-slate-400">· {game.location_name}</span>
-                        )}
-                      </div>
+                    {event.is_tournament && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs font-semibold border"
+                        style={{ borderColor: brandSecondary + '60', color: brandSecondary, backgroundColor: brandSecondary + '15' }}
+                      >
+                        Tournament
+                      </span>
+                    )}
+                    {suppBadges.map(tt => (
+                      <span
+                        key={tt.teamId}
+                        className="rounded-full px-2 py-0.5 text-xs font-medium border"
+                        style={{ borderColor: brandSecondary + '60', color: brandSecondary, backgroundColor: brandSecondary + '15' }}
+                      >
+                        {tt.teamName}{tt.startTime ? ` · ${formatTime(tt.startTime)}` : ''}
+                      </span>
                     ))}
                   </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+
+                  {/* Title + Home/Away */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className={`text-base font-bold ${event.is_past ? 'text-slate-400' : 'text-slate-900'}`}>
+                        {title}
+                      </h3>
+                      <div className="flex flex-wrap items-center mt-1.5 text-sm text-slate-500">
+                        {displayTime && (
+                          <span className="flex items-center gap-1.5 mr-4">
+                            <span>🕐</span>
+                            <span>{formatTime(displayTime)}</span>
+                          </span>
+                        )}
+                        {event.location_name && (
+                          <span className="flex items-center gap-1.5 mr-4">
+                            <span>📍</span>
+                            <span>{event.location_name}</span>
+                          </span>
+                        )}
+                      </div>
+                      {event.location_address && !event.is_past && (
+                        <a
+                          href={`https://maps.google.com/?q=${encodeURIComponent(event.location_address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 text-xs hover:underline transition-colors block"
+                          style={{ color: brandPrimary }}
+                        >
+                          {event.location_address} →
+                        </a>
+                      )}
+                    </div>
+                    {event.event_type !== 'tournament' && event.is_home !== null && (
+                      <span
+                        className="shrink-0 rounded-xl px-3 py-1 text-xs font-semibold text-white"
+                        style={{
+                          backgroundColor: event.is_past ? '#94a3b8' : brandSecondary,
+                        }}
+                      >
+                        {event.is_home ? 'Home' : 'Away'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tournament child games */}
+                  {event.is_tournament && games.length > 0 && (
+                    <div
+                      className="mt-3 ml-2 space-y-1.5 pl-4"
+                      style={{ borderLeft: `2px solid ${brandSecondary}60` }}
+                    >
+                      {games.map(game => (
+                        <div key={game.id} className="flex flex-wrap items-center gap-x-3 text-sm text-slate-600">
+                          <span className="font-medium">
+                            {game.opponent ? `vs ${game.opponent}` : 'TBD'}
+                          </span>
+                          {game.default_start_time && (
+                            <span className="text-slate-400">{formatTime(game.default_start_time)}</span>
+                          )}
+                          {game.location_name && (
+                            <span className="text-slate-400">· {game.location_name}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

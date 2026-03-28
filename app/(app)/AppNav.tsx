@@ -95,20 +95,22 @@ export default function AppNav({
       {/* ── Main nav bar ── */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
 
-        {/* Left: team logo (if set) or SidelineOps logo */}
-        <a href="/dashboard" className="shrink-0">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={teams[0]?.name ?? 'Team'}
-              style={{ height: '48px', maxHeight: '48px', width: 'auto', objectFit: 'contain' }}
-            />
-          ) : (
-            <img
-              src="/sidelineops-logo-cropped.png"
-              alt="SidelineOps"
-              style={{ height: '36px', width: 'auto' }}
-            />
+        {/* Left: SidelineOps logo always + team logo when set */}
+        <a href="/dashboard" className="shrink-0 flex items-center gap-3">
+          <img
+            src="/sidelineops-logo-cropped.png"
+            alt="SidelineOps"
+            style={{ height: '28px', width: 'auto', opacity: 0.85 }}
+          />
+          {logoUrl && (
+            <>
+              <div className="w-px bg-white/20" style={{ height: '32px' }} />
+              <img
+                src={logoUrl}
+                alt={teams[0]?.name ?? 'Team'}
+                style={{ height: '40px', maxHeight: '40px', width: 'auto', objectFit: 'contain' }}
+              />
+            </>
           )}
         </a>
 

@@ -216,6 +216,8 @@ export async function GET(
         `
       }).join('')
 
+  const primarySubtle = brandPrimary + '15'
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -228,43 +230,28 @@ export async function GET(
     :root {
       --brand-primary:   ${brandPrimary};
       --brand-secondary: ${brandSecondary};
-      --bg:            #0f172a;
-      --card:          #1e293b;
-      --border:        rgba(255,255,255,0.08);
-      --text:          #f1f5f9;
-      --muted:         #94a3b8;
-      --faint:         #475569;
-      --home-bg:       rgba(34,197,94,0.15);
-      --home-text:     #86efac;
-      --home-border:   rgba(34,197,94,0.3);
-      --away-bg:       rgba(251,191,36,0.15);
-      --away-text:     #fcd34d;
-      --away-border:   rgba(251,191,36,0.3);
-      --tourn-bg:      rgba(251,191,36,0.1);
-      --tourn-text:    #fcd34d;
-      --tourn-border:  rgba(251,191,36,0.3);
-      --team-bg:       rgba(139,92,246,0.1);
-      --team-text:     #c4b5fd;
-      --team-border:   rgba(139,92,246,0.3);
+      --brand-subtle:    ${primarySubtle};
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--brand-primary);
+      background: #f1f5f9;
       color: #0f172a;
       font-size: 14px;
       line-height: 1.5;
-      padding: 14px;
+      padding: 12px;
     }
 
+    /* Header — neutral bg with brand bottom border */
     .header {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 12px;
-      background: #fff;
+      margin-bottom: 10px;
+      background: #f8fafc;
       border-radius: 10px;
       padding: 10px 13px;
+      border-bottom: 2px solid ${brandPrimary}4d;
     }
     .header-logos {
       display: flex;
@@ -272,21 +259,28 @@ export async function GET(
       gap: 8px;
       flex-shrink: 0;
     }
-    .so-logo  { height: 16px; width: auto; opacity: 0.5; }
-    .logo-divider { width: 1px; height: 24px; background: #e2e8f0; flex-shrink: 0; }
-    .team-logo { height: 36px; max-height: 36px; width: auto; object-fit: contain; }
-    .header-text { flex: 1; min-width: 0; }
-    .header h2 { font-size: 14px; font-weight: 700; color: #0f172a; }
-    .header p  { font-size: 11px; color: #64748b; margin-top: 1px; }
+    .so-logo      { height: 15px; width: auto; opacity: 0.45; }
+    .logo-divider { width: 1px; height: 22px; background: #cbd5e1; flex-shrink: 0; }
+    .team-logo    { height: 32px; max-height: 32px; width: auto; object-fit: contain; }
+    .header-text  { flex: 1; min-width: 0; }
+    .header h2    { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .header p     { font-size: 11px; color: #64748b; margin-top: 1px; }
 
-    .list { display: flex; flex-direction: column; gap: 8px; }
+    /* Schedule list — subtle brand tint */
+    .schedule-section {
+      background: var(--brand-subtle);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .list { display: flex; flex-direction: column; gap: 7px; }
 
+    /* Event cards — always white */
     .card {
       background: #fff;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 11px 13px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     }
 
     .card-top {
@@ -298,7 +292,13 @@ export async function GET(
       flex-wrap: wrap;
     }
 
-    .date { font-size: 11px; font-weight: 600; color: var(--brand-primary); }
+    /* Date pill — primary color bg, white text */
+    .date {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 999px;
+      background: var(--brand-primary); color: #fff;
+      display: inline-block;
+    }
 
     .badges { display: flex; flex-wrap: wrap; gap: 4px; }
 
@@ -306,36 +306,44 @@ export async function GET(
       font-size: 10px; font-weight: 600;
       padding: 2px 8px; border-radius: 999px; border: 1px solid;
     }
-    .badge-home       { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .badge-away       { background: #fffbeb; color: #b45309; border-color: #fde68a; }
-    .badge-tournament { background: #fffbeb; color: #b45309; border-color: #fde68a; }
-    .badge-team       { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+    /* Home/Away — secondary color */
+    .badge-home, .badge-away {
+      background: ${brandSecondary}20;
+      color: ${brandSecondary};
+      border-color: ${brandSecondary}60;
+    }
+    /* Tournament/team — secondary outline */
+    .badge-tournament, .badge-team {
+      background: ${brandSecondary}15;
+      color: ${brandSecondary};
+      border-color: ${brandSecondary}60;
+    }
 
-    .title   { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-    .details { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #64748b; }
-    .detail  { display: flex; align-items: center; gap: 4px; }
+    .title   { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+    .details { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #64748b; }
+    .detail  { display: flex; align-items: center; gap: 3px; }
 
     .tournament-games {
-      margin-top: 9px; padding-top: 7px;
+      margin-top: 7px; padding-top: 6px;
       border-top: 1px solid #f1f5f9;
-      border-left: 2px solid #fde68a;
-      margin-left: 2px; padding-left: 10px;
+      border-left: 2px solid ${brandSecondary}60;
+      margin-left: 2px; padding-left: 9px;
       display: flex; flex-direction: column; gap: 4px;
     }
-    .tournament-game { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+    .tournament-game { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; }
     .tg-name   { color: #1e293b; font-weight: 600; }
     .tg-detail { color: #94a3b8; }
 
-    .empty { text-align: center; padding: 28px; color: rgba(255,255,255,0.6); font-size: 13px; }
+    .empty { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
 
-    .footer { margin-top: 12px; text-align: center; }
+    .footer { margin-top: 10px; text-align: center; }
     .footer a {
-      font-size: 11px; color: rgba(255,255,255,0.35);
+      font-size: 11px; color: #94a3b8;
       text-decoration: none;
       display: inline-flex; align-items: center; gap: 4px;
     }
-    .footer a:hover { color: rgba(255,255,255,0.6); }
-    .footer img { height: 13px; width: auto; opacity: 0.5; }
+    .footer a:hover { color: #475569; }
+    .footer img { height: 12px; width: auto; opacity: 0.45; }
   </style>
 </head>
 <body>
@@ -350,7 +358,9 @@ export async function GET(
     </div>
   </div>
 
-  <div class="list">${eventsHtml}</div>
+  <div class="schedule-section">
+    <div class="list">${eventsHtml}</div>
+  </div>
 
   <div class="footer">
     <a href="${publicPageUrl}" target="_blank" rel="noopener noreferrer">

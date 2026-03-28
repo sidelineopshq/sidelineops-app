@@ -143,10 +143,10 @@ export default async function PublicSchedulePage({
   const otherTeams    = allTeams.filter(t => t.id !== team.id)
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: brandPrimary }}>
+    <main className="min-h-screen bg-gray-50">
 
-      {/* Header — white card on colored background */}
-      <div className="bg-white shadow-sm">
+      {/* Header */}
+      <div className="bg-gray-50" style={{ borderBottom: `1px solid ${brandPrimary}4d` }}>
         <div className="mx-auto max-w-4xl px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -159,7 +159,7 @@ export default async function PublicSchedulePage({
                 />
                 {teamLogoUrl && (
                   <>
-                    <div className="w-px bg-gray-300" style={{ height: '32px' }} />
+                    <div className="w-px bg-slate-300" style={{ height: '32px' }} />
                     <img
                       src={teamLogoUrl}
                       alt={team.name}
@@ -196,7 +196,8 @@ export default async function PublicSchedulePage({
             </div>
             <a
               href={calendarUrl}
-              className="shrink-0 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-slate-600 px-4 py-2 text-sm font-semibold text-center transition-colors shadow-sm"
+              className="shrink-0 rounded-xl border bg-white hover:bg-gray-100 text-slate-600 px-4 py-2 text-sm font-semibold text-center transition-colors"
+              style={{ borderColor: `${brandPrimary}4d` }}
             >
               📅 Subscribe to Calendar
             </a>
@@ -215,14 +216,10 @@ export default async function PublicSchedulePage({
         />
 
         {/* Footer */}
-        <div className="mt-10 pt-6 border-t border-white/10 text-center">
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="mt-10 pt-6 border-t border-slate-200 text-center">
+          <p className="text-xs text-slate-400">
             Powered by{' '}
-            <a
-              href="https://sidelineopshq.com"
-              className="hover:underline transition-colors"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
-            >
+            <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-700 transition-colors">
               SidelineOps
             </a>
           </p>
