@@ -16,11 +16,17 @@ export default async function PublicSchedulePage({
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, slug, program_id')
+    .select('id, name, slug, program_id, logo_url, primary_color, secondary_color')
     .eq('slug', teamSlug)
     .single()
 
   if (!team) notFound()
+
+  const brandPrimary   = (team as any).primary_color   ?? '#1a3a5c'
+  const brandSecondary = (team as any).secondary_color ?? '#c8a456'
+  const teamLogoUrl    = (team as any).logo_url as string | null
+
+  console.log('[BRANDING] logo_url:', teamLogoUrl, 'primary_color:', brandPrimary)
 
   const { data: program } = await supabase
     .from('programs')
@@ -137,27 +143,39 @@ export default async function PublicSchedulePage({
   const otherTeams    = allTeams.filter(t => t.id !== team.id)
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen" style={{ backgroundColor: brandPrimary }}>
 
-      {/* Header */}
-      <div className="border-b border-white/10 bg-slate-900">
-        <div className="mx-auto max-w-4xl px-6 py-6">
+      {/* Header — white card on colored background */}
+      <div className="bg-white shadow-sm">
+        <div className="mx-auto max-w-4xl px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <img
-                src="/sidelineops-logo-cropped.png"
-                alt="SidelineOps"
-                style={{ height: '24px', width: 'auto', opacity: 0.7 }}
-                className="mb-2"
-              />
-              <h1 className="text-2xl font-bold text-white">
+              {/* Dual logo row */}
+              <div className="flex items-center gap-3 mb-3">
+                <img
+                  src="/sidelineops-logo-cropped.png"
+                  alt="SidelineOps"
+                  style={{ height: '22px', width: 'auto', opacity: 0.55 }}
+                />
+                {teamLogoUrl && (
+                  <>
+                    <div className="w-px bg-gray-300" style={{ height: '32px' }} />
+                    <img
+                      src={teamLogoUrl}
+                      alt={team.name}
+                      style={{ height: '48px', maxHeight: '48px', width: 'auto', objectFit: 'contain' }}
+                    />
+                  </>
+                )}
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900">
                 {program?.name ?? team.name}
               </h1>
-              <p className="text-slate-400 text-sm mt-0.5">
+              <p className="text-slate-500 text-sm mt-0.5">
                 {team.name} · {program?.sport} · {program?.season_year} Season
               </p>
               {school && (
-                <p className="text-slate-500 text-xs mt-0.5">
+                <p className="text-slate-400 text-xs mt-0.5">
                   {school.name} · {school.city}, {school.state}
                 </p>
               )}
@@ -167,7 +185,8 @@ export default async function PublicSchedulePage({
                     <a
                       key={t.id}
                       href={`/schedule/${t.slug}`}
-                      className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                      className="text-xs hover:underline transition-colors"
+                      style={{ color: brandPrimary }}
                     >
                       {t.name} Schedule →
                     </a>
@@ -177,7 +196,7 @@ export default async function PublicSchedulePage({
             </div>
             <a
               href={calendarUrl}
-              className="shrink-0 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 text-sm font-semibold text-center transition-colors"
+              className="shrink-0 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-slate-600 px-4 py-2 text-sm font-semibold text-center transition-colors shadow-sm"
             >
               📅 Subscribe to Calendar
             </a>
@@ -191,13 +210,19 @@ export default async function PublicSchedulePage({
           teams={allTeams}
           childGames={childGames}
           primaryTeamId={primaryTeamId}
+          brandPrimary={brandPrimary}
+          brandSecondary={brandSecondary}
         />
 
         {/* Footer */}
-        <div className="mt-10 pt-6 border-t border-white/5 text-center">
-          <p className="text-xs text-slate-600">
+        <div className="mt-10 pt-6 border-t border-white/10 text-center">
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
             Powered by{' '}
-            <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-400 transition-colors">
+            <a
+              href="https://sidelineopshq.com"
+              className="hover:underline transition-colors"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
               SidelineOps
             </a>
           </p>

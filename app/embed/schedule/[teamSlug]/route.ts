@@ -250,8 +250,8 @@ export async function GET(
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--brand-primary);
+      color: #0f172a;
       font-size: 14px;
       line-height: 1.5;
       padding: 14px;
@@ -262,19 +262,31 @@ export async function GET(
       align-items: center;
       gap: 10px;
       margin-bottom: 12px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 13px;
     }
+    .header-logos {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .so-logo  { height: 16px; width: auto; opacity: 0.5; }
+    .logo-divider { width: 1px; height: 24px; background: #e2e8f0; flex-shrink: 0; }
+    .team-logo { height: 36px; max-height: 36px; width: auto; object-fit: contain; }
     .header-text { flex: 1; min-width: 0; }
-    .header h2 { font-size: 15px; font-weight: 700; color: var(--brand-primary); }
-    .header p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .team-logo { height: 40px; max-height: 40px; width: auto; object-fit: contain; flex-shrink: 0; }
+    .header h2 { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .header p  { font-size: 11px; color: #64748b; margin-top: 1px; }
 
     .list { display: flex; flex-direction: column; gap: 8px; }
 
     .card {
-      background: var(--card);
-      border: 1px solid var(--border);
+      background: #fff;
+      border: 1px solid #e2e8f0;
       border-radius: 10px;
       padding: 11px 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .card-top {
@@ -294,41 +306,44 @@ export async function GET(
       font-size: 10px; font-weight: 600;
       padding: 2px 8px; border-radius: 999px; border: 1px solid;
     }
-    .badge-home       { background: var(--home-bg);  color: var(--home-text);  border-color: var(--home-border); }
-    .badge-away       { background: var(--away-bg);  color: var(--away-text);  border-color: var(--away-border); }
-    .badge-tournament { background: var(--tourn-bg); color: var(--tourn-text); border-color: var(--tourn-border); }
-    .badge-team       { background: var(--team-bg);  color: var(--team-text);  border-color: var(--team-border); }
+    .badge-home       { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .badge-away       { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+    .badge-tournament { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+    .badge-team       { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
 
-    .title   { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-    .details { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .title   { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .details { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #64748b; }
     .detail  { display: flex; align-items: center; gap: 4px; }
 
     .tournament-games {
       margin-top: 9px; padding-top: 7px;
-      border-top: 1px solid var(--border);
-      border-left: 2px solid var(--tourn-border);
+      border-top: 1px solid #f1f5f9;
+      border-left: 2px solid #fde68a;
       margin-left: 2px; padding-left: 10px;
       display: flex; flex-direction: column; gap: 4px;
     }
     .tournament-game { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
-    .tg-name   { color: var(--text); font-weight: 600; }
-    .tg-detail { color: var(--muted); }
+    .tg-name   { color: #1e293b; font-weight: 600; }
+    .tg-detail { color: #94a3b8; }
 
-    .empty { text-align: center; padding: 28px; color: var(--muted); font-size: 13px; }
+    .empty { text-align: center; padding: 28px; color: rgba(255,255,255,0.6); font-size: 13px; }
 
     .footer { margin-top: 12px; text-align: center; }
     .footer a {
-      font-size: 11px; color: var(--faint);
+      font-size: 11px; color: rgba(255,255,255,0.35);
       text-decoration: none;
       display: inline-flex; align-items: center; gap: 4px;
     }
-    .footer a:hover { color: var(--muted); }
+    .footer a:hover { color: rgba(255,255,255,0.6); }
     .footer img { height: 13px; width: auto; opacity: 0.5; }
   </style>
 </head>
 <body>
   <div class="header">
-    ${teamLogoUrl ? `<img src="${teamLogoUrl}" alt="${team.name}" class="team-logo" />` : ''}
+    <div class="header-logos">
+      <img src="/sidelineops-logo-cropped.png" alt="SidelineOps" class="so-logo" />
+      ${teamLogoUrl ? `<div class="logo-divider"></div><img src="${teamLogoUrl}" alt="${team.name}" class="team-logo" />` : ''}
+    </div>
     <div class="header-text">
       <h2>${program?.name ?? team.name}</h2>
       <p>${program?.season_year ?? ''} Season &middot; ${events.length} game${events.length !== 1 ? 's' : ''} remaining</p>
