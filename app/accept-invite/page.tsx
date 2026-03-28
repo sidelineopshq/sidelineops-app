@@ -21,11 +21,15 @@ export default async function AcceptInvitePage({
 
   const service = createServiceClient()
 
-  const { data: invite } = await service
+  const { data: invite, error: inviteError } = await service
     .from('coach_invites')
-    .select('id, program_id, team_ids, team_names, email, role, token, invited_by_name, expires_at, accepted_at')
+    .select('id, program_id, team_ids, email, role, token, invited_by, expires_at, accepted_at')
     .eq('token', token)
     .maybeSingle()
+
+  console.log('[ACCEPT INVITE] token:', token)
+  console.log('[ACCEPT INVITE] invite found:', invite)
+  console.log('[ACCEPT INVITE] error:', inviteError)
 
   if (!invite) {
     return <ErrorPage message="This invitation link is invalid or does not exist." />
@@ -39,6 +43,23 @@ export default async function AcceptInvitePage({
     return <ErrorPage message="This invitation has already been accepted." action="Go to login" actionHref="/login" />
   }
 
+  // Fetch team names and inviter name (not stored in DB)
+  const { data: inviteTeams } = await service
+    .from('teams')
+    .select('name')
+    .in('id', invite.team_ids ?? [])
+
+  const { data: inviter } = await service
+    .from('users')
+    .select('first_name, last_name')
+    .eq('id', invite.invited_by)
+    .single()
+
+  const teamNames  = inviteTeams?.map(t => t.name) ?? []
+  const inviterName = inviter?.first_name
+    ? `${inviter.first_name} ${inviter.last_name ?? ''}`.trim()
+    : 'Your admin'
+
   const { data: program } = await service
     .from('programs')
     .select('name, sport')
@@ -50,10 +71,10 @@ export default async function AcceptInvitePage({
       token={token}
       email={invite.email}
       role={invite.role as 'admin' | 'coach'}
-      teamNames={invite.team_names ?? []}
+      teamNames={teamNames}
       programName={program?.name ?? ''}
       sport={program?.sport ?? ''}
-      inviterName={invite.invited_by_name ?? 'Your admin'}
+      inviterName={inviterName}
     />
   )
 }
