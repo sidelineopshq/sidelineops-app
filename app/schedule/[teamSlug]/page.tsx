@@ -155,7 +155,7 @@ export default async function PublicSchedulePage({
                 <img
                   src="/sidelineops-logo-cropped.png"
                   alt="SidelineOps"
-                  style={{ height: '22px', width: 'auto', opacity: 0.55 }}
+                  style={{ height: '40px', width: 'auto' }}
                 />
                 {teamLogoUrl && (
                   <>
