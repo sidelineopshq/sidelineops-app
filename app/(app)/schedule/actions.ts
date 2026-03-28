@@ -55,52 +55,44 @@ export async function cancelEvent(eventId: string) {
     return { error: 'Failed to cancel event. Please try again.' }
   }
 
-  // ── Urgency check + debug logs ───────────────────────────────────────────
+  // ── Urgency gate ─────────────────────────────────────────────────────────
   if (oldEventData) {
     const eventDate       = oldEventData.event_date
     const now             = new Date()
     const centralToday    = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
     const centralTomorrow = new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
     const isUrgent        = eventDate === centralToday || eventDate === centralTomorrow
-    console.log('[CANCEL] Event date:', eventDate)
-    console.log('[CANCEL] Central today:', centralToday)
-    console.log('[CANCEL] Central tomorrow:', centralTomorrow)
-    console.log('[CANCEL] isUrgent:', isUrgent)
     if (!isUrgent) return { success: true }
   }
 
   // ── Fire change notifications (non-blocking) ─────────────────────────────
   if (oldEventData && linkedTeams?.length) {
-    try {
-      const oldEventSnap = {
-        default_end_time: oldEventData.default_end_time,
-        location_name:    oldEventData.location_name,
-        location_address: oldEventData.location_address,
-        status:           oldEventData.status,
-      }
-      const newEventSnap = { ...oldEventSnap, status: 'cancelled' }
-
-      const teamNotifications: TeamNotificationInput[] = linkedTeams.map(td => {
-        const teamRow = Array.isArray(td.teams) ? td.teams[0] : td.teams
-        return {
-          teamId:        td.team_id,
-          teamName:      (teamRow as { name: string } | null)?.name ?? '',
-          oldEvent:      oldEventSnap,
-          newEvent:      newEventSnap,
-          // Team detail status is unchanged — only the event-level status changed
-          oldTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
-          newTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
-        }
-      })
-
-      void fireChangeNotifications({
-        eventDate:    oldEventData.event_date,
-        displayTitle: buildDisplayTitle(oldEventData),
-        teamNotifications,
-      })
-    } catch (err) {
-      console.error('[CANCEL] Notification error:', err)
+    const oldEventSnap = {
+      default_end_time: oldEventData.default_end_time,
+      location_name:    oldEventData.location_name,
+      location_address: oldEventData.location_address,
+      status:           oldEventData.status,
     }
+    const newEventSnap = { ...oldEventSnap, status: 'cancelled' }
+
+    const teamNotifications: TeamNotificationInput[] = linkedTeams.map(td => {
+      const teamRow = Array.isArray(td.teams) ? td.teams[0] : td.teams
+      return {
+        teamId:        td.team_id,
+        teamName:      (teamRow as { name: string } | null)?.name ?? '',
+        oldEvent:      oldEventSnap,
+        newEvent:      newEventSnap,
+        // Team detail status is unchanged — only the event-level status changed
+        oldTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
+        newTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
+      }
+    })
+
+    void fireChangeNotifications({
+      eventDate:    oldEventData.event_date,
+      displayTitle: buildDisplayTitle(oldEventData),
+      teamNotifications,
+    })
   }
 
   return { success: true }
@@ -158,46 +150,38 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
     return { error: 'Failed to cancel event. Please try again.' }
   }
 
-  // ── Urgency check + debug logs ───────────────────────────────────────────
+  // ── Urgency gate ─────────────────────────────────────────────────────────
   if (oldEventData) {
     const eventDate       = oldEventData.event_date
     const now             = new Date()
     const centralToday    = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
     const centralTomorrow = new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
     const isUrgent        = eventDate === centralToday || eventDate === centralTomorrow
-    console.log('[CANCEL] Event date:', eventDate)
-    console.log('[CANCEL] Central today:', centralToday)
-    console.log('[CANCEL] Central tomorrow:', centralTomorrow)
-    console.log('[CANCEL] isUrgent:', isUrgent)
     if (!isUrgent) return { success: true }
   }
 
   // ── Fire change notifications (non-blocking) ─────────────────────────────
   if (oldEventData && oldDetailData) {
-    try {
-      const eventSnap = {
-        default_end_time: oldEventData.default_end_time,
-        location_name:    oldEventData.location_name,
-        location_address: oldEventData.location_address,
-        status:           oldEventData.status,
-      }
-
-      void fireChangeNotifications({
-        eventDate:    oldEventData.event_date,
-        displayTitle: buildDisplayTitle(oldEventData),
-        teamNotifications: [{
-          teamId,
-          teamName:      teamData?.name ?? '',
-          // Event-level fields are unchanged — only the team detail status changes
-          oldEvent:      eventSnap,
-          newEvent:      eventSnap,
-          oldTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: oldDetailData.status },
-          newTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: 'cancelled' },
-        }],
-      })
-    } catch (err) {
-      console.error('[CANCEL] Notification error:', err)
+    const eventSnap = {
+      default_end_time: oldEventData.default_end_time,
+      location_name:    oldEventData.location_name,
+      location_address: oldEventData.location_address,
+      status:           oldEventData.status,
     }
+
+    void fireChangeNotifications({
+      eventDate:    oldEventData.event_date,
+      displayTitle: buildDisplayTitle(oldEventData),
+      teamNotifications: [{
+        teamId,
+        teamName:      teamData?.name ?? '',
+        // Event-level fields are unchanged — only the team detail status changes
+        oldEvent:      eventSnap,
+        newEvent:      eventSnap,
+        oldTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: oldDetailData.status },
+        newTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: 'cancelled' },
+      }],
+    })
   }
 
   return { success: true }
