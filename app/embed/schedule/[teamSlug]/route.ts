@@ -66,7 +66,7 @@ export async function GET(
   const allTeamIds    = allTeams.map(t => t.id)
   const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   const { data: eventRows } = await supabase
     .from('events')

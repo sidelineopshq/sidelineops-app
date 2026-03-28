@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     .single()
 
   // Next upcoming event
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   const { data: nextEventRows } = await supabase
     .from('events')
@@ -72,9 +72,8 @@ export default async function DashboardPage() {
   const nextEventArrival = nextEventRow?.event_team_details?.[0]?.arrival_time || nextEventRow?.default_arrival_time
 
   // This week count
-  const nextWeek = new Date()
-  nextWeek.setDate(nextWeek.getDate() + 7)
-  const nextWeekStr = nextWeek.toISOString().split('T')[0]
+  const nextWeekStr = new Date(new Date().getTime() + 7 * 86400000)
+    .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   const { data: upcomingEvents } = await supabase
     .from('events')

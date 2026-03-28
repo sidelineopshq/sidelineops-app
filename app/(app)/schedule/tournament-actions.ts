@@ -93,12 +93,12 @@ export async function addTournamentGame(formData: {
   // ── Step 6: Fire new-event notification (non-blocking) ───────────────────
   void (async () => {
     try {
-      // Replicate dayLabel() check so we can log before entering sendNewEventAlert
-      const _today    = new Date(); _today.setHours(0, 0, 0, 0)
-      const _tomorrow = new Date(_today); _tomorrow.setDate(_tomorrow.getDate() + 1)
-      const [_y, _mo, _d] = formData.event_date.split('-').map(Number)
-      const _eventDay = new Date(_y, _mo - 1, _d)
-      const isUrgent  = _eventDay.getTime() === _today.getTime() || _eventDay.getTime() === _tomorrow.getTime()
+      // Replicate dayLabel() check so we can skip fetches for non-urgent events
+      const _now             = new Date()
+      const _centralToday    = _now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+      const _centralTomorrow = new Date(_now.getTime() + 86400000)
+        .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+      const isUrgent = formData.event_date === _centralToday || formData.event_date === _centralTomorrow
       const [{ data: team }, { data: program }, { data: contacts }] = await Promise.all([
         supabase
           .from('teams')

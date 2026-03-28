@@ -38,7 +38,7 @@ export default async function SchedulePage() {
     .eq('id', teamsData?.[0]?.program_id ?? '')
     .single()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   // Fetch events for all of the user's teams
   const { data: eventRows } = await supabase

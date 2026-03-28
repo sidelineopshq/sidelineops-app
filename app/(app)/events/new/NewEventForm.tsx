@@ -68,7 +68,7 @@ export default function NewEventForm({ teams }: { teams: Team[] }) {
   const router = useRouter()
 
   const [eventType, setEventType]             = useState('game')
-  const [eventDate, setEventDate]             = useState('')
+  const [eventDate, setEventDate]             = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
   const [opponent, setOpponent]               = useState('')
   const [isHome, setIsHome]                   = useState(true)
   const [locationName, setLocationName]       = useState('')

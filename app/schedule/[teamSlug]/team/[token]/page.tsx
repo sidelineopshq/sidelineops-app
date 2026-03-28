@@ -88,7 +88,7 @@ export default async function TeamSchedulePage({
   const allTeams = (allTeamsData ?? []) as { id: string; name: string; slug: string | null }[]
   const allTeamIds = allTeams.map(t => t.id)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   // Fetch events for the current team only (players want their own schedule)
   const { data: eventRows } = await supabase

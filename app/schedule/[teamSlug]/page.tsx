@@ -47,7 +47,7 @@ export default async function PublicSchedulePage({
   const allTeamIds   = allTeams.map(t => t.id)
   const primaryTeamId = allTeams.find(t => t.is_primary)?.id ?? allTeams[0]?.id ?? null
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
   // Fetch events for any team in the program
   const { data: eventRows } = await supabase

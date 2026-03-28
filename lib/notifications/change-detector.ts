@@ -98,17 +98,11 @@ function formatStatus(value: string | null): string {
  * local timezone.
  */
 function isUrgentDate(eventDate: string): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  // Parse without shifting timezone (treat date as local midnight)
-  const [year, month, day] = eventDate.split('-').map(Number)
-  const target = new Date(year, month - 1, day)
-
-  return target.getTime() === today.getTime() || target.getTime() === tomorrow.getTime()
+  const now             = new Date()
+  const centralToday    = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  const centralTomorrow = new Date(now.getTime() + 86400000)
+    .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  return eventDate === centralToday || eventDate === centralTomorrow
 }
 
 // ---------------------------------------------------------------------------

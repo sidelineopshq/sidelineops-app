@@ -138,12 +138,12 @@ export async function createEvent(formData: {
   // ── Step 6: Fire new-event notifications (non-blocking) ──────────────────
   void (async () => {
     try {
-      // Date check — skip all fetches if event is not today or tomorrow
-      const _today    = new Date(); _today.setHours(0, 0, 0, 0)
-      const _tomorrow = new Date(_today); _tomorrow.setDate(_tomorrow.getDate() + 1)
-      const [_y, _mo, _d] = formData.event_date.split('-').map(Number)
-      const _eventDay = new Date(_y, _mo - 1, _d)
-      const isUrgent  = _eventDay.getTime() === _today.getTime() || _eventDay.getTime() === _tomorrow.getTime()
+      // Date check — skip all fetches if event is not today or tomorrow (Central time)
+      const _now             = new Date()
+      const _centralToday    = _now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+      const _centralTomorrow = new Date(_now.getTime() + 86400000)
+        .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+      const isUrgent = formData.event_date === _centralToday || formData.event_date === _centralTomorrow
       if (!isUrgent) return
 
       // Fetch program (shared) + all team records + all contacts in parallel

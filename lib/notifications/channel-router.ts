@@ -40,18 +40,15 @@ function formatTime(time: string | null): string | null {
   return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
-/** Returns 'today' | 'tomorrow' | null for a YYYY-MM-DD date in local time. */
+/** Returns 'Today' | 'Tomorrow' | null for a YYYY-MM-DD date in Central time. */
 function dayLabel(eventDate: string): 'Today' | 'Tomorrow' | null {
-  const today    = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  const now             = new Date()
+  const centralToday    = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  const centralTomorrow = new Date(now.getTime() + 86400000)
+    .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
-  const [y, mo, d] = eventDate.split('-').map(Number)
-  const target = new Date(y, mo - 1, d)
-
-  if (target.getTime() === today.getTime())    return 'Today'
-  if (target.getTime() === tomorrow.getTime()) return 'Tomorrow'
+  if (eventDate === centralToday)    return 'Today'
+  if (eventDate === centralTomorrow) return 'Tomorrow'
   return null
 }
 
