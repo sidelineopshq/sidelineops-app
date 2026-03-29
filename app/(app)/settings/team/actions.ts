@@ -12,6 +12,135 @@ function createServiceClient() {
   )
 }
 
+// ── Volunteer Role helpers ────────────────────────────────────────────────────
+
+async function assertProgramManageAccess(userId: string, programId: string) {
+  const authClient = await createServerClient()
+  const { data: teams } = await authClient
+    .from('teams')
+    .select('id')
+    .eq('program_id', programId)
+  const teamIds = (teams ?? []).map(t => t.id)
+  if (teamIds.length === 0) return false
+  const { data: teamUsers } = await authClient
+    .from('team_users')
+    .select('can_manage_events')
+    .eq('user_id', userId)
+    .in('team_id', teamIds)
+  return teamUsers?.some(t => t.can_manage_events) ?? false
+}
+
+export async function addVolunteerRole(
+  programId:   string,
+  name:        string,
+  description: string,
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await assertProgramManageAccess(user.id, programId))) return { error: 'Not authorized' }
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Role name is required' }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('volunteer_roles')
+    .insert({
+      program_id:  programId,
+      name:        trimmed,
+      description: description.trim() || null,
+      is_active:   true,
+    })
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
+export async function updateVolunteerRole(
+  roleId:      string,
+  name:        string,
+  description: string,
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  // Look up program_id to verify access
+  const { data: role } = await service
+    .from('volunteer_roles')
+    .select('program_id')
+    .eq('id', roleId)
+    .single()
+  if (!role) return { error: 'Role not found' }
+  if (!(await assertProgramManageAccess(user.id, role.program_id))) return { error: 'Not authorized' }
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Role name is required' }
+
+  const { error } = await service
+    .from('volunteer_roles')
+    .update({ name: trimmed, description: description.trim() || null })
+    .eq('id', roleId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
+export async function deactivateVolunteerRole(roleId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  const { data: role } = await service
+    .from('volunteer_roles')
+    .select('program_id')
+    .eq('id', roleId)
+    .single()
+  if (!role) return { error: 'Role not found' }
+  if (!(await assertProgramManageAccess(user.id, role.program_id))) return { error: 'Not authorized' }
+
+  const { error } = await service
+    .from('volunteer_roles')
+    .update({ is_active: false })
+    .eq('id', roleId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
+export async function reactivateVolunteerRole(roleId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  const { data: role } = await service
+    .from('volunteer_roles')
+    .select('program_id')
+    .eq('id', roleId)
+    .single()
+  if (!role) return { error: 'Role not found' }
+  if (!(await assertProgramManageAccess(user.id, role.program_id))) return { error: 'Not authorized' }
+
+  const { error } = await service
+    .from('volunteer_roles')
+    .update({ is_active: true })
+    .eq('id', roleId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
 export async function saveHomeLocation(
   programId: string,
   homeLocationName: string,

@@ -6,6 +6,7 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
+import { VolunteerRolesTab, type VolunteerRole } from './VolunteerRolesTab'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
@@ -16,11 +17,12 @@ function serviceClient() {
 }
 
 const TABS = [
-  { id: 'general',       label: 'General'       },
-  { id: 'appearance',    label: 'Appearance'    },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'team-members',  label: 'Team Members'  },
-  { id: 'manage-teams',  label: 'Manage Teams'  },
+  { id: 'general',          label: 'General'          },
+  { id: 'appearance',       label: 'Appearance'       },
+  { id: 'notifications',    label: 'Notifications'    },
+  { id: 'team-members',     label: 'Team Members'     },
+  { id: 'manage-teams',     label: 'Manage Teams'     },
+  { id: 'volunteer-roles',  label: 'Volunteer Roles'  },
 ]
 
 export default async function TeamSettingsPage({
@@ -148,6 +150,45 @@ export default async function TeamSettingsPage({
     )
   }
 
+  // ── Volunteer Roles tab data ───────────────────────────────────────────────
+  let volunteerRoles: VolunteerRole[] = []
+
+  if (tab === 'volunteer-roles') {
+    const svc       = serviceClient()
+    const programId = teams[0]?.program_id ?? ''
+
+    const DEFAULT_ROLES = [
+      { name: 'Concession Stand',       description: null },
+      { name: 'Gate / Ticket Sales',    description: null },
+      { name: 'Field Setup & Teardown', description: null },
+      { name: 'Scoreboard Operator',    description: null },
+    ]
+
+    // Fetch existing roles
+    const { data: rolesRaw } = await svc
+      .from('volunteer_roles')
+      .select('id, name, description, is_active')
+      .eq('program_id', programId)
+      .order('created_at', { ascending: true })
+
+    // Seed defaults if none exist yet
+    if ((rolesRaw ?? []).length === 0 && programId) {
+      await svc
+        .from('volunteer_roles')
+        .insert(DEFAULT_ROLES.map(r => ({ ...r, program_id: programId, is_active: true })))
+
+      const { data: seeded } = await svc
+        .from('volunteer_roles')
+        .select('id, name, description, is_active')
+        .eq('program_id', programId)
+        .order('created_at', { ascending: true })
+
+      volunteerRoles = (seeded ?? []) as VolunteerRole[]
+    } else {
+      volunteerRoles = (rolesRaw ?? []) as VolunteerRole[]
+    }
+  }
+
   return (
     <section className="mx-auto max-w-3xl px-6 py-10">
 
@@ -252,6 +293,15 @@ export default async function TeamSettingsPage({
           programId={teams[0]?.program_id ?? ''}
           canManage={canManage}
           canManageTeamSettings={canManageTeamSettings}
+        />
+      )}
+
+      {/* ── Volunteer Roles ───────────────────────────────────────────────────── */}
+      {tab === 'volunteer-roles' && (
+        <VolunteerRolesTab
+          programId={teams[0]?.program_id ?? ''}
+          roles={volunteerRoles}
+          canManage={canManage}
         />
       )}
 
