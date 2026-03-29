@@ -39,9 +39,8 @@ export async function assignVolunteer(
   programName: string,
   data: {
     contact_id?: string
-    first_name:  string
-    last_name?:  string
-    email?:      string
+    volunteer_name:  string
+    volunteer_email?: string
   },
   meta: {
     role_name:   string
@@ -54,7 +53,7 @@ export async function assignVolunteer(
   if (!user) return { error: 'Not authenticated' }
   if (!(await assertEventAccess(user.id, eventId))) return { error: 'Not authorized' }
 
-  const trimmedName = data.first_name.trim()
+  const trimmedName = data.volunteer_name.trim()
   if (!trimmedName) return { error: 'Name is required' }
 
   const service = createServiceClient()
@@ -62,26 +61,25 @@ export async function assignVolunteer(
   const { data: assignment, error: insertError } = await service
     .from('volunteer_assignments')
     .insert({
-      slot_id:       slotId,
-      contact_id:    data.contact_id || null,
-      first_name:    trimmedName,
-      last_name:     data.last_name?.trim()  || null,
-      email:         data.email?.trim()       || null,
-      signup_source: 'coach',
-      status:        'assigned',
+      event_volunteer_slot_id: slotId,
+      contact_id:              data.contact_id || null,
+      volunteer_name:          trimmedName,
+      volunteer_email:         data.volunteer_email?.trim() || null,
+      signup_source:           'coach',
+      status:                  'assigned',
     })
-    .select('id, first_name, last_name, email, signup_source, status, contact_id')
+    .select('id, volunteer_name, volunteer_email, signup_source, status, contact_id')
     .single()
 
   if (insertError) return { error: insertError.message }
 
   // Send confirmation email (non-blocking)
-  if (data.email?.trim()) {
+  if (data.volunteer_email?.trim()) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
         from:    `${programName} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
-        to:      data.email.trim(),
+        to:      data.volunteer_email.trim(),
         subject: `Volunteer Confirmation: ${meta.role_name} — ${meta.event_label}`,
         html:    buildVolunteerConfirmationEmail({
           volunteerName: trimmedName,

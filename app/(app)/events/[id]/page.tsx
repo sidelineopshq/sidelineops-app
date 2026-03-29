@@ -54,7 +54,7 @@ export default async function EventDetailPage({
       id, slot_count, start_time, end_time, notes, signup_token,
       volunteer_roles(id, name),
       volunteer_assignments(
-        id, first_name, last_name, email, signup_source, status, contact_id
+        id, volunteer_name, volunteer_email, signup_source, status, contact_id
       )
     `)
     .eq('event_id', id)
@@ -85,13 +85,12 @@ export default async function EventDetailPage({
     notes:       s.notes,
     signup_token: s.signup_token,
     assignments: (s.volunteer_assignments ?? []).map((a: any) => ({
-      id:           a.id,
-      first_name:   a.first_name,
-      last_name:    a.last_name,
-      email:        a.email,
-      signup_source: a.signup_source,
-      status:       a.status,
-      contact_id:   a.contact_id,
+      id:              a.id,
+      volunteer_name:  a.volunteer_name,
+      volunteer_email: a.volunteer_email,
+      signup_source:   a.signup_source,
+      status:          a.status,
+      contact_id:      a.contact_id,
     })),
   }))
 

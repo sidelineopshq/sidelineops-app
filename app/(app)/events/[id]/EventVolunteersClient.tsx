@@ -1,19 +1,18 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { assignVolunteer, unassignVolunteer } from './volunteer-actions'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type Assignment = {
-  id:           string
-  first_name:   string
-  last_name:    string | null
-  email:        string | null
-  signup_source: 'coach' | 'public'
-  status:       string
-  contact_id:   string | null
+  id:              string
+  volunteer_name:  string
+  volunteer_email: string | null
+  signup_source:   'coach' | 'self'
+  status:          string
+  contact_id:      string | null
 }
 
 export type VolunteerSlot = {
@@ -94,14 +93,13 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
   onClose:     () => void
   onAssigned:  (assignment: Assignment) => void
 }) {
-  const [mode, setMode]             = useState<'search' | 'manual'>('search')
-  const [query, setQuery]           = useState('')
+  const [mode, setMode]                       = useState<'search' | 'manual'>('search')
+  const [query, setQuery]                     = useState('')
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
-  const [firstName, setFirstName]   = useState('')
-  const [lastName, setLastName]     = useState('')
-  const [email, setEmail]           = useState('')
-  const [error, setError]           = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [volunteerName, setVolunteerName]     = useState('')
+  const [volunteerEmail, setVolunteerEmail]   = useState('')
+  const [error, setError]                     = useState<string | null>(null)
+  const [isPending, startTransition]          = useTransition()
 
   const filtered = query.trim().length > 0
     ? contacts.filter(c => {
@@ -114,16 +112,15 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
   function handleSelectContact(c: Contact) {
     setSelectedContact(c)
     setQuery(`${c.first_name} ${c.last_name ?? ''}`.trim())
-    setFirstName(c.first_name)
-    setLastName(c.last_name ?? '')
-    setEmail(c.email ?? '')
+    setVolunteerName(`${c.first_name} ${c.last_name ?? ''}`.trim())
+    setVolunteerEmail(c.email ?? '')
   }
 
   function handleSubmit() {
     setError(null)
-    const name = mode === 'search' ? (selectedContact?.first_name ?? firstName) : firstName
+    const name = mode === 'search' ? volunteerName : volunteerName
     if (!name.trim()) {
-      setError('First name is required.')
+      setError('Name is required.')
       return
     }
 
@@ -133,8 +130,8 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
         eventId,
         programName,
         mode === 'search' && selectedContact
-          ? { contact_id: selectedContact.id, first_name: selectedContact.first_name, last_name: selectedContact.last_name ?? undefined, email: selectedContact.email ?? undefined }
-          : { first_name: firstName.trim(), last_name: lastName.trim() || undefined, email: email.trim() || undefined },
+          ? { contact_id: selectedContact.id, volunteer_name: volunteerName, volunteer_email: volunteerEmail || undefined }
+          : { volunteer_name: volunteerName.trim(), volunteer_email: volunteerEmail.trim() || undefined },
         { role_name: slot.role_name, event_label: eventLabel, event_date: eventDate },
       )
       if (result?.error) {
@@ -222,30 +219,18 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  First Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  placeholder="Jane"
-                  className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Last Name</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  placeholder="Smith"
-                  className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">
+                Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={volunteerName}
+                onChange={e => setVolunteerName(e.target.value)}
+                placeholder="Jane Smith"
+                className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
+                autoFocus
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
@@ -253,8 +238,8 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                value={volunteerEmail}
+                onChange={e => setVolunteerEmail(e.target.value)}
                 placeholder="jane@example.com"
                 className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
               />
@@ -351,7 +336,7 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
       )}
       {unassignTarget && (
         <UnassignDialog
-          name={`${unassignTarget.first_name}${unassignTarget.last_name ? ' ' + unassignTarget.last_name : ''}`}
+          name={unassignTarget.volunteer_name}
           loading={isPending}
           onConfirm={() => handleUnassign(unassignTarget)}
           onCancel={() => setUnassignTarget(null)}
@@ -388,13 +373,11 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
             {assignments.map(a => (
               <li key={a.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-800/50 px-4 py-2.5">
                 <div className="min-w-0">
-                  <span className="text-sm font-medium text-white">
-                    {a.first_name}{a.last_name ? ' ' + a.last_name : ''}
-                  </span>
-                  {a.email && (
-                    <span className="ml-2 text-xs text-slate-400">{a.email}</span>
+                  <span className="text-sm font-medium text-white">{a.volunteer_name}</span>
+                  {a.volunteer_email && (
+                    <span className="ml-2 text-xs text-slate-400">{a.volunteer_email}</span>
                   )}
-                  {a.signup_source === 'public' && (
+                  {a.signup_source === 'self' && (
                     <span className="ml-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
                       Self-signed
                     </span>
