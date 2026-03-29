@@ -6,7 +6,7 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
   return createServiceClient(
@@ -83,11 +83,7 @@ export default async function TeamSettingsPage({
     // Build formatted team name lookup from already-fetched teams
     const inviteTeamNameById = Object.fromEntries(teams.map(t => [
       t.id,
-      formatTeamLabel(
-        (t as any).programs?.schools?.name ?? '',
-        (t as any).level ?? '',
-        (t as any).programs?.sport ?? '',
-      ),
+      formatTeamShortLabel((t as any).level ?? ''),
     ]))
 
     pendingInvites = (invitesRaw ?? []).map(r => ({
@@ -117,11 +113,7 @@ export default async function TeamSettingsPage({
     // Build lookup: teamId → formatted label
     const teamNameById = Object.fromEntries(teams.map(t => [
       t.id,
-      formatTeamLabel(
-        (t as any).programs?.schools?.name ?? '',
-        (t as any).level ?? '',
-        (t as any).programs?.sport ?? '',
-      ),
+      formatTeamShortLabel((t as any).level ?? ''),
     ]))
 
     // Group team memberships by user_id

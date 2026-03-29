@@ -5,7 +5,7 @@ import PublicScheduleClient, {
   type PublicTeam,
   type PublicChildGame,
 } from './PublicScheduleClient'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamLabel, formatTeamShortLabel } from '@/lib/utils/team-label'
 
 export default async function PublicSchedulePage({
   params,
@@ -52,7 +52,7 @@ export default async function PublicSchedulePage({
 
   const allTeams: PublicTeam[] = (allTeamsData ?? []).map(t => ({
     id:         t.id,
-    name:       formatTeamLabel(school?.name ?? '', (t as any).level ?? '', program?.sport ?? ''),
+    name:       formatTeamShortLabel((t as any).level ?? ''),
     slug:       t.slug,
     is_primary: t.is_primary,
   }))

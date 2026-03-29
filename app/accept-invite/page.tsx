@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import AcceptInviteForm from './AcceptInviteForm'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -56,11 +56,7 @@ export default async function AcceptInvitePage({
     .eq('id', invite.invited_by)
     .single()
 
-  const teamNames = (inviteTeams ?? []).map(t => formatTeamLabel(
-    (t as any).programs?.schools?.name ?? '',
-    (t as any).level ?? '',
-    (t as any).programs?.sport ?? '',
-  ))
+  const teamNames = (inviteTeams ?? []).map(t => formatTeamShortLabel((t as any).level ?? ''))
   const inviterName = inviter?.first_name
     ? `${inviter.first_name} ${inviter.last_name ?? ''}`.trim()
     : 'Your admin'

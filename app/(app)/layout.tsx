@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppNav from './AppNav'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 export default async function AppLayout({
   children,
@@ -74,11 +74,7 @@ export default async function AppLayout({
         email={profile?.email ?? user.email ?? ''}
         teams={(teamsData ?? []).map(t => ({
           id:   t.id,
-          name: formatTeamLabel(
-            (t as any).programs?.schools?.name ?? '',
-            (t as any).level ?? '',
-            (t as any).programs?.sport ?? '',
-          ),
+          name: formatTeamShortLabel((t as any).level ?? ''),
         }))}
         programName={program?.name ?? ''}
         sport={program?.sport ?? ''}

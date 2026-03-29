@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -116,11 +116,7 @@ export default async function DashboardPage() {
     .filter(t => t.slug)
     .map(t => ({
       id:        t.id,
-      name:      formatTeamLabel(
-        (t as any).programs?.schools?.name ?? '',
-        (t as any).level ?? '',
-        (t as any).programs?.sport ?? '',
-      ),
+      name:      formatTeamShortLabel((t as any).level ?? ''),
       slug:      t.slug as string,
       publicUrl: `${appUrl}/schedule/${t.slug}`,
       teamUrl:   (t as any).team_schedule_token
@@ -139,11 +135,7 @@ export default async function DashboardPage() {
         <h2 className="text-3xl font-bold">{program?.name ?? 'Your Team'}</h2>
         {team?.name && (
           <p className="mt-1 text-slate-400 text-sm">
-            {formatTeamLabel(
-              (team as any).programs?.schools?.name ?? '',
-              (team as any).level ?? '',
-              (team as any).programs?.sport ?? '',
-            )} · {teamUser?.role?.replace('_', ' ')}
+            {formatTeamShortLabel((team as any).level ?? '')} · {teamUser?.role?.replace('_', ' ')}
           </p>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +69,7 @@ export async function GET(
 
   const allTeams = (allTeamsData ?? []).map(t => ({
     id:         t.id,
-    name:       formatTeamLabel(school?.name ?? '', (t as any).level ?? '', program?.sport ?? ''),
+    name:       formatTeamShortLabel((t as any).level ?? ''),
     slug:       t.slug,
     is_primary: t.is_primary,
   }))

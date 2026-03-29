@@ -2,9 +2,8 @@ export const LEVELS = ['Varsity', 'JV', 'Freshman', '8th Grade', '7th Grade'] as
 export type Level = typeof LEVELS[number]
 
 /**
- * Returns the standardized team label: "[School Name] [Level] [Sport]"
+ * Full label for page headers, email subjects, and primary display.
  * e.g. "James Clemens Varsity Softball"
- * Filters out empty parts to avoid extra spaces.
  */
 export function formatTeamLabel(
   schoolName: string,
@@ -12,4 +11,12 @@ export function formatTeamLabel(
   sport: string,
 ): string {
   return [schoolName, level, sport].filter(Boolean).join(' ')
+}
+
+/**
+ * Short label for menus, dropdowns, badges, filter tabs, and subtext.
+ * e.g. "Varsity", "JV", "Freshman"
+ */
+export function formatTeamShortLabel(level: string): string {
+  return level
 }

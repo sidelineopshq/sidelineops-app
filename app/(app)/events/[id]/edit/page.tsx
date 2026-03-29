@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import EditEventForm from './EditEventForm'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -53,11 +53,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
 
   const teams = (teamsData ?? []).map(t => ({
     id:   t.id,
-    name: formatTeamLabel(
-      (t as any).programs?.schools?.name ?? '',
-      (t as any).level ?? '',
-      (t as any).programs?.sport ?? '',
-    ),
+    name: formatTeamShortLabel((t as any).level ?? ''),
   }))
 
   return (
