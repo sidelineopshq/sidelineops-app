@@ -7,13 +7,15 @@ import {
   updateVolunteerRole,
   deactivateVolunteerRole,
   reactivateVolunteerRole,
+  setSuppressReminders,
 } from './actions'
 
 export interface VolunteerRole {
-  id:          string
-  name:        string
-  description: string | null
-  is_active:   boolean
+  id:                 string
+  name:               string
+  description:        string | null
+  is_active:          boolean
+  suppress_reminders: boolean
 }
 
 const inputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
@@ -44,7 +46,8 @@ export function VolunteerRolesTab({
   const [editPending, startEdit]      = useTransition()
 
   // ── Toggle (deactivate / reactivate) ──────────────────────────────────────
-  const [togglePending, startToggle] = useTransition()
+  const [togglePending, startToggle]     = useTransition()
+  const [suppressPending, startSuppress] = useTransition()
 
   function openEdit(role: VolunteerRole) {
     setEditingId(role.id)
@@ -94,6 +97,13 @@ export function VolunteerRolesTab({
       } else {
         await reactivateVolunteerRole(role.id)
       }
+      router.refresh()
+    })
+  }
+
+  function handleSuppressToggle(role: VolunteerRole) {
+    startSuppress(async () => {
+      await setSuppressReminders(role.id, !role.suppress_reminders)
       router.refresh()
     })
   }
@@ -157,44 +167,71 @@ export function VolunteerRolesTab({
                   </div>
                 ) : (
                   /* ── Read-only row ── */
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-sm font-medium ${role.is_active ? 'text-white' : 'text-slate-500'}`}>
-                          {role.name}
-                        </span>
-                        {!role.is_active && (
-                          <span className="text-xs bg-slate-700/70 text-slate-400 px-2 py-0.5 rounded-full">
-                            Inactive
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-sm font-medium ${role.is_active ? 'text-white' : 'text-slate-500'}`}>
+                            {role.name}
                           </span>
+                          {!role.is_active && (
+                            <span className="text-xs bg-slate-700/70 text-slate-400 px-2 py-0.5 rounded-full">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        {role.description && (
+                          <p className={`text-xs mt-0.5 ${role.is_active ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {role.description}
+                          </p>
                         )}
                       </div>
-                      {role.description && (
-                        <p className={`text-xs mt-0.5 ${role.is_active ? 'text-slate-400' : 'text-slate-600'}`}>
-                          {role.description}
-                        </p>
+
+                      {canManage && (
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            onClick={() => openEdit(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-40"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleToggle(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            className={`text-xs transition-colors px-2.5 py-1.5 rounded-lg disabled:opacity-40 ${
+                              role.is_active
+                                ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10'
+                                : 'text-sky-400 hover:text-sky-300 hover:bg-sky-400/10'
+                            }`}
+                          >
+                            {role.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                        </div>
                       )}
                     </div>
 
+                    {/* Suppress reminders toggle */}
                     {canManage && (
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-slate-800/40 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-300">Suppress reminder emails</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Use this for recurring roles like Announcer where reminders aren't needed.
+                          </p>
+                        </div>
                         <button
-                          onClick={() => openEdit(role)}
-                          disabled={togglePending || !!editingId}
-                          className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-40"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggle(role)}
-                          disabled={togglePending || !!editingId}
-                          className={`text-xs transition-colors px-2.5 py-1.5 rounded-lg disabled:opacity-40 ${
-                            role.is_active
-                              ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10'
-                              : 'text-sky-400 hover:text-sky-300 hover:bg-sky-400/10'
+                          role="switch"
+                          aria-checked={role.suppress_reminders}
+                          onClick={() => handleSuppressToggle(role)}
+                          disabled={suppressPending || togglePending || !!editingId}
+                          className={`shrink-0 mt-0.5 relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-40 focus:outline-none ${
+                            role.suppress_reminders ? 'bg-sky-600' : 'bg-slate-600'
                           }`}
                         >
-                          {role.is_active ? 'Deactivate' : 'Reactivate'}
+                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                            role.suppress_reminders ? 'translate-x-4' : 'translate-x-1'
+                          }`} />
                         </button>
                       </div>
                     )}

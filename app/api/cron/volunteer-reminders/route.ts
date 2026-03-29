@@ -225,7 +225,7 @@ export async function GET(req: NextRequest) {
     .from('event_volunteer_slots')
     .select(`
       id, slot_count, start_time, end_time, notes, signup_token, reminded_at,
-      volunteer_roles(name),
+      volunteer_roles(name, suppress_reminders),
       volunteer_assignments(id, volunteer_name, volunteer_email, status),
       events!inner(
         id, event_type, title, opponent, is_home, event_date,
@@ -380,9 +380,14 @@ export async function GET(req: NextRequest) {
 
       // ── 3d. Send reminder emails to confirmed volunteers ──────────────────────
       for (const slot of slots) {
-        const assignments = (slot.volunteer_assignments as any[]) ?? []
-        const roleName    = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
-        const slotStart   = slot.start_time ?? startTime
+        const assignments      = (slot.volunteer_assignments as any[]) ?? []
+        const role             = slot.volunteer_roles as any
+        const roleName         = role?.name ?? 'Volunteer'
+        const slotStart        = slot.start_time ?? startTime
+        const suppressReminder = role?.suppress_reminders === true
+
+        // Skip volunteer reminder emails for roles with suppress_reminders = true
+        if (suppressReminder) continue
 
         for (const assignment of assignments) {
           if (!assignment.volunteer_email || assignment.status === 'cancelled') continue

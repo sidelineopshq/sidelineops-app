@@ -91,6 +91,31 @@ export async function updateVolunteerRole(
   return { success: true }
 }
 
+export async function setSuppressReminders(roleId: string, suppress: boolean) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  const { data: role } = await service
+    .from('volunteer_roles')
+    .select('program_id')
+    .eq('id', roleId)
+    .single()
+  if (!role) return { error: 'Role not found' }
+  if (!(await assertProgramManageAccess(user.id, role.program_id))) return { error: 'Not authorized' }
+
+  const { error } = await service
+    .from('volunteer_roles')
+    .update({ suppress_reminders: suppress })
+    .eq('id', roleId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
 export async function deactivateVolunteerRole(roleId: string) {
   const authClient = await createServerClient()
   const { data: { user } } = await authClient.auth.getUser()

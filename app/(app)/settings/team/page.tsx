@@ -167,7 +167,7 @@ export default async function TeamSettingsPage({
     // Fetch existing roles
     const { data: rolesRaw } = await svc
       .from('volunteer_roles')
-      .select('id, name, description, is_active')
+      .select('id, name, description, is_active, suppress_reminders')
       .eq('program_id', programId)
       .order('created_at', { ascending: true })
 
@@ -179,7 +179,7 @@ export default async function TeamSettingsPage({
 
       const { data: seeded } = await svc
         .from('volunteer_roles')
-        .select('id, name, description, is_active')
+        .select('id, name, description, is_active, suppress_reminders')
         .eq('program_id', programId)
         .order('created_at', { ascending: true })
 
