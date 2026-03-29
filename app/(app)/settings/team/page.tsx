@@ -6,7 +6,7 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
-import { VolunteerRolesTab, type VolunteerRole } from './VolunteerRolesTab'
+import { VolunteerRolesTab, type VolunteerRole, type StandingAssignment, type TabContact } from './VolunteerRolesTab'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
@@ -151,11 +151,14 @@ export default async function TeamSettingsPage({
   }
 
   // ── Volunteer Roles tab data ───────────────────────────────────────────────
-  let volunteerRoles: VolunteerRole[] = []
+  let volunteerRoles:       VolunteerRole[]       = []
+  let standingAssignments:  StandingAssignment[]  = []
+  let tabContacts:          TabContact[]          = []
 
   if (tab === 'volunteer-roles') {
-    const svc       = serviceClient()
-    const programId = teams[0]?.program_id ?? ''
+    const svc        = serviceClient()
+    const programId  = teams[0]?.program_id ?? ''
+    const allTeamIds = teams.map(t => t.id)
 
     const DEFAULT_ROLES = [
       { name: 'Concession Stand',       description: null },
@@ -164,14 +167,36 @@ export default async function TeamSettingsPage({
       { name: 'Scoreboard Operator',    description: null },
     ]
 
-    // Fetch existing roles
-    const { data: rolesRaw } = await svc
-      .from('volunteer_roles')
-      .select('id, name, description, is_active, suppress_reminders')
-      .eq('program_id', programId)
-      .order('created_at', { ascending: true })
+    // Fetch roles, standing assignments, and contacts in parallel
+    const [rolesResult, standingResult, contactsResult] = await Promise.all([
+      svc
+        .from('volunteer_roles')
+        .select('id, name, description, is_active, suppress_reminders')
+        .eq('program_id', programId)
+        .order('created_at', { ascending: true }),
+      svc
+        .from('volunteer_standing_assignments')
+        .select(`
+          id, role_id, contact_id, volunteer_name, volunteer_email,
+          volunteer_roles(name),
+          contacts(first_name, last_name, email)
+        `)
+        .eq('program_id', programId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true }),
+      allTeamIds.length > 0
+        ? svc
+            .from('contacts')
+            .select('id, first_name, last_name, email')
+            .in('team_id', allTeamIds)
+            .is('deleted_at', null)
+            .order('last_name', { ascending: true })
+            .order('first_name', { ascending: true })
+        : Promise.resolve({ data: [] }),
+    ])
 
     // Seed defaults if none exist yet
+    let rolesRaw = rolesResult.data
     if ((rolesRaw ?? []).length === 0 && programId) {
       await svc
         .from('volunteer_roles')
@@ -183,10 +208,32 @@ export default async function TeamSettingsPage({
         .eq('program_id', programId)
         .order('created_at', { ascending: true })
 
-      volunteerRoles = (seeded ?? []) as VolunteerRole[]
-    } else {
-      volunteerRoles = (rolesRaw ?? []) as VolunteerRole[]
+      rolesRaw = seeded
     }
+
+    volunteerRoles = (rolesRaw ?? []) as VolunteerRole[]
+
+    standingAssignments = (standingResult.data ?? []).map((row: any) => {
+      const contact = row.contacts as any
+      const displayName  = row.volunteer_name
+        ?? (contact ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : '')
+      const displayEmail = row.volunteer_email ?? contact?.email ?? null
+      return {
+        id:            row.id,
+        role_id:       row.role_id,
+        role_name:     (row.volunteer_roles as any)?.name ?? '',
+        contact_id:    row.contact_id,
+        display_name:  displayName,
+        display_email: displayEmail,
+      } satisfies StandingAssignment
+    })
+
+    tabContacts = (contactsResult.data ?? []).map((c: any) => ({
+      id:         c.id,
+      first_name: c.first_name,
+      last_name:  c.last_name  ?? null,
+      email:      c.email      ?? null,
+    })) as TabContact[]
   }
 
   return (
@@ -301,6 +348,8 @@ export default async function TeamSettingsPage({
         <VolunteerRolesTab
           programId={teams[0]?.program_id ?? ''}
           roles={volunteerRoles}
+          standingAssignments={standingAssignments}
+          contacts={tabContacts}
           canManage={canManage}
         />
       )}

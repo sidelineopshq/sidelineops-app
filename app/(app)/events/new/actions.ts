@@ -157,6 +157,8 @@ export async function createEvent(formData: {
   }
 
   // ── Step 6: Insert volunteer slots (home events only) ────────────────────
+  let insertedSlots: { id: string; role_id: string; slot_count: number }[] = []
+
   if (formData.is_home && formData.volunteer_slots?.length) {
     const slotRows = formData.volunteer_slots.map(s => ({
       event_id:   event.id,
@@ -166,10 +168,63 @@ export async function createEvent(formData: {
       end_time:   s.end_time   || null,
       notes:      s.notes      || null,
     }))
-    const { error: slotsError } = await supabase
+    const { data: insertedSlotData, error: slotsError } = await supabase
       .from('event_volunteer_slots')
       .insert(slotRows)
-    if (slotsError) console.error('[createEvent] volunteer slots error:', slotsError)
+      .select('id, role_id, slot_count')
+    if (slotsError) {
+      console.error('[createEvent] volunteer slots error:', slotsError)
+    } else {
+      insertedSlots = insertedSlotData ?? []
+    }
+  }
+
+  // ── Step 6b: Auto-apply standing assignments ──────────────────────────────
+  if (formData.is_home && insertedSlots.length > 0) {
+    const { data: standingRaw } = await supabase
+      .from('volunteer_standing_assignments')
+      .select(`
+        id, role_id, contact_id, volunteer_name, volunteer_email,
+        contacts(first_name, last_name, email)
+      `)
+      .eq('program_id', teamData.program_id)
+      .eq('is_active', true)
+
+    for (const standing of standingRaw ?? []) {
+      const matchingSlot = insertedSlots.find(s => s.role_id === standing.role_id)
+      if (!matchingSlot) continue
+
+      // Check current fill (should be 0 for a new event, but be safe)
+      const { count } = await supabase
+        .from('volunteer_assignments')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_volunteer_slot_id', matchingSlot.id)
+        .neq('status', 'cancelled')
+
+      if ((count ?? 0) >= matchingSlot.slot_count) continue
+
+      const contact        = (standing as any).contacts as any
+      const volunteerName  = standing.volunteer_name
+        ?? (contact ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : null)
+      const volunteerEmail = standing.volunteer_email ?? contact?.email ?? null
+
+      if (!volunteerName) continue
+
+      const { error: assignError } = await supabase
+        .from('volunteer_assignments')
+        .insert({
+          event_volunteer_slot_id: matchingSlot.id,
+          contact_id:              standing.contact_id ?? null,
+          volunteer_name:          volunteerName,
+          volunteer_email:         volunteerEmail,
+          status:                  'assigned',
+          signup_source:           'standing',
+        })
+
+      if (assignError) {
+        console.error('[createEvent] standing assignment error:', assignError)
+      }
+    }
   }
 
   // ── Step 7: Fire new-event notifications (non-blocking) ──────────────────

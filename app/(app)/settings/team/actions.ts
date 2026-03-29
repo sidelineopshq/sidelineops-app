@@ -166,6 +166,68 @@ export async function reactivateVolunteerRole(roleId: string) {
   return { success: true }
 }
 
+// ── Standing assignments ──────────────────────────────────────────────────────
+
+export async function createStandingAssignment(
+  programId: string,
+  roleId:    string,
+  data: {
+    contact_id?:     string
+    volunteer_name?:  string
+    volunteer_email?: string
+  },
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await assertProgramManageAccess(user.id, programId))) return { error: 'Not authorized' }
+
+  if (!data.contact_id && !data.volunteer_name?.trim()) {
+    return { error: 'A contact or a name is required.' }
+  }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('volunteer_standing_assignments')
+    .insert({
+      program_id:      programId,
+      role_id:         roleId,
+      contact_id:      data.contact_id      || null,
+      volunteer_name:  data.volunteer_name?.trim()  || null,
+      volunteer_email: data.volunteer_email?.trim() || null,
+      is_active:       true,
+    })
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
+export async function removeStandingAssignment(standingId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  const { data: row } = await service
+    .from('volunteer_standing_assignments')
+    .select('program_id')
+    .eq('id', standingId)
+    .single()
+  if (!row) return { error: 'Assignment not found' }
+  if (!(await assertProgramManageAccess(user.id, row.program_id))) return { error: 'Not authorized' }
+
+  const { error } = await service
+    .from('volunteer_standing_assignments')
+    .update({ is_active: false })
+    .eq('id', standingId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings/team')
+  return { success: true }
+}
+
 export async function saveHomeLocation(
   programId: string,
   homeLocationName: string,

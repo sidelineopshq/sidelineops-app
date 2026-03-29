@@ -8,7 +8,11 @@ import {
   deactivateVolunteerRole,
   reactivateVolunteerRole,
   setSuppressReminders,
+  createStandingAssignment,
+  removeStandingAssignment,
 } from './actions'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface VolunteerRole {
   id:                 string
@@ -18,36 +22,274 @@ export interface VolunteerRole {
   suppress_reminders: boolean
 }
 
+export interface StandingAssignment {
+  id:            string
+  role_id:       string
+  role_name:     string
+  contact_id:    string | null
+  display_name:  string
+  display_email: string | null
+}
+
+export interface TabContact {
+  id:         string
+  first_name: string
+  last_name:  string | null
+  email:      string | null
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const inputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
 const labelClass = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
+
+// ── Add Standing Volunteer Modal ──────────────────────────────────────────────
+
+function AddStandingModal({
+  programId,
+  activeRoles,
+  contacts,
+  onClose,
+  onSaved,
+}: {
+  programId:   string
+  activeRoles: VolunteerRole[]
+  contacts:    TabContact[]
+  onClose:     () => void
+  onSaved:     () => void
+}) {
+  const [roleId, setRoleId]       = useState(activeRoles[0]?.id ?? '')
+  const [source, setSource]       = useState<'contact' | 'external'>('contact')
+  const [query, setQuery]         = useState('')
+  const [selectedContact, setSelectedContact] = useState<TabContact | null>(null)
+  const [extName, setExtName]     = useState('')
+  const [extEmail, setExtEmail]   = useState('')
+  const [error, setError]         = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const filtered = query.trim().length > 0 && !selectedContact
+    ? contacts.filter(c => {
+        const full = `${c.first_name} ${c.last_name ?? ''}`.toLowerCase()
+        return full.includes(query.toLowerCase()) ||
+          (c.email ?? '').toLowerCase().includes(query.toLowerCase())
+      }).slice(0, 8)
+    : []
+
+  function handleSelectContact(c: TabContact) {
+    setSelectedContact(c)
+    setQuery(`${c.first_name} ${c.last_name ?? ''}`.trim())
+  }
+
+  function handleSave() {
+    setError(null)
+    if (!roleId) { setError('Please select a role.'); return }
+
+    if (source === 'contact' && !selectedContact) {
+      setError('Please select a contact.'); return
+    }
+    if (source === 'external' && !extName.trim()) {
+      setError('Name is required.'); return
+    }
+
+    startTransition(async () => {
+      const result = await createStandingAssignment(
+        programId,
+        roleId,
+        source === 'contact' && selectedContact
+          ? { contact_id: selectedContact.id }
+          : { volunteer_name: extName.trim(), volunteer_email: extEmail.trim() || undefined },
+      )
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        onSaved()
+        onClose()
+      }
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold">Add Standing Volunteer</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Role */}
+          <div>
+            <label className={labelClass}>Role</label>
+            <select
+              value={roleId}
+              onChange={e => setRoleId(e.target.value)}
+              className={inputClass}
+              style={{ appearance: 'auto' }}
+            >
+              {activeRoles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Source toggle */}
+          <div>
+            <label className={labelClass}>Assign From</label>
+            <div className="flex gap-1 p-1 bg-slate-800 rounded-xl">
+              <button
+                onClick={() => { setSource('contact'); setError(null) }}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
+                  source === 'contact' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Existing Contact
+              </button>
+              <button
+                onClick={() => { setSource('external'); setSelectedContact(null); setQuery(''); setError(null) }}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors ${
+                  source === 'external' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                External Person
+              </button>
+            </div>
+          </div>
+
+          {/* Contact search */}
+          {source === 'contact' && (
+            <div className="relative">
+              <label className={labelClass}>Search Contact</label>
+              <input
+                type="text"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setSelectedContact(null) }}
+                placeholder="Search by name or email…"
+                className={inputClass}
+                autoFocus
+              />
+              {filtered.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full rounded-xl border border-white/10 bg-slate-800 shadow-xl overflow-hidden">
+                  {filtered.map(c => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectContact(c)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-slate-700 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-white">
+                          {c.first_name} {c.last_name ?? ''}
+                        </span>
+                        {c.email && (
+                          <span className="ml-2 text-xs text-slate-400">{c.email}</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {selectedContact && (
+                <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3">
+                  <p className="text-sm font-semibold text-white">
+                    {selectedContact.first_name} {selectedContact.last_name ?? ''}
+                  </p>
+                  {selectedContact.email && (
+                    <p className="text-xs text-slate-400 mt-0.5">{selectedContact.email}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* External person */}
+          {source === 'external' && (
+            <div className="space-y-3">
+              <div>
+                <label className={labelClass}>Name <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  value={extName}
+                  onChange={e => setExtName(e.target.value)}
+                  placeholder="Jane Smith"
+                  className={inputClass}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Email <span className="normal-case font-normal text-slate-500">(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  value={extEmail}
+                  onChange={e => setExtEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="flex-1 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            {isPending ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={isPending}
+            className="rounded-xl border border-white/10 hover:bg-white/5 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Tab Component ────────────────────────────────────────────────────────
 
 export function VolunteerRolesTab({
   programId,
   roles,
+  standingAssignments,
+  contacts,
   canManage,
 }: {
-  programId: string
-  roles:     VolunteerRole[]
-  canManage: boolean
+  programId:           string
+  roles:               VolunteerRole[]
+  standingAssignments: StandingAssignment[]
+  contacts:            TabContact[]
+  canManage:           boolean
 }) {
   const router = useRouter()
 
-  // ── Add form ──────────────────────────────────────────────────────────────
+  // ── Roles: add form ───────────────────────────────────────────────────────
   const [newName,    setNewName]    = useState('')
   const [newDesc,    setNewDesc]    = useState('')
   const [addError,   setAddError]   = useState<string | null>(null)
   const [addPending, startAdd]      = useTransition()
 
-  // ── Edit state ────────────────────────────────────────────────────────────
+  // ── Roles: edit state ─────────────────────────────────────────────────────
   const [editingId,   setEditingId]   = useState<string | null>(null)
   const [editName,    setEditName]    = useState('')
   const [editDesc,    setEditDesc]    = useState('')
   const [editError,   setEditError]   = useState<string | null>(null)
   const [editPending, startEdit]      = useTransition()
 
-  // ── Toggle (deactivate / reactivate) ──────────────────────────────────────
-  const [togglePending, startToggle]     = useTransition()
+  // ── Roles: toggle (deactivate / reactivate) ───────────────────────────────
+  const [togglePending,   startToggle]   = useTransition()
   const [suppressPending, startSuppress] = useTransition()
+
+  // ── Standing: remove + modal ─────────────────────────────────────────────
+  const [removePending, startRemove]     = useTransition()
+  const [showAddModal,  setShowAddModal] = useState(false)
 
   function openEdit(role: VolunteerRole) {
     setEditingId(role.id)
@@ -108,8 +350,28 @@ export function VolunteerRolesTab({
     })
   }
 
+  function handleRemoveStanding(id: string) {
+    startRemove(async () => {
+      await removeStandingAssignment(id)
+      router.refresh()
+    })
+  }
+
+  const activeRoles = roles.filter(r => r.is_active)
+
   return (
     <div className="space-y-4">
+
+      {/* ── Add Standing Volunteer Modal ──────────────────────────────────── */}
+      {showAddModal && (
+        <AddStandingModal
+          programId={programId}
+          activeRoles={activeRoles}
+          contacts={contacts}
+          onClose={() => setShowAddModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
 
       {/* ── Role list ──────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
@@ -283,6 +545,78 @@ export function VolunteerRolesTab({
           </div>
         </div>
       )}
+
+      {/* ── Standing Volunteers ────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Standing Volunteers</h2>
+            <p className="text-slate-400 text-xs mt-1">
+              These volunteers are automatically assigned to every home game for their role.
+            </p>
+          </div>
+          {canManage && activeRoles.length > 0 && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+            >
+              + Add Standing Volunteer
+            </button>
+          )}
+        </div>
+
+        {standingAssignments.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-slate-500">
+            No standing volunteers yet.
+            {activeRoles.length === 0 ? ' Add volunteer roles first.' : ''}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Source</th>
+                  {canManage && <th className="px-4 py-3" />}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {standingAssignments.map(sa => (
+                  <tr key={sa.id}>
+                    <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{sa.display_name}</td>
+                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                      {sa.display_email ?? <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{sa.role_name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                        sa.contact_id
+                          ? 'border-sky-500/30 bg-sky-500/10 text-sky-400'
+                          : 'border-white/10 bg-slate-800 text-slate-400'
+                      }`}>
+                        {sa.contact_id ? 'Contact' : 'External'}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleRemoveStanding(sa.id)}
+                          disabled={removePending}
+                          className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
     </div>
   )

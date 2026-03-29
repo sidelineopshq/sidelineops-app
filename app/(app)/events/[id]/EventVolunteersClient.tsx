@@ -10,7 +10,7 @@ export type Assignment = {
   id:              string
   volunteer_name:  string
   volunteer_email: string | null
-  signup_source:   'coach' | 'self'
+  signup_source:   'coach' | 'self' | 'standing'
   status:          string
   contact_id:      string | null
 }
@@ -380,6 +380,11 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
                   {a.signup_source === 'self' && (
                     <span className="ml-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
                       Self-signed
+                    </span>
+                  )}
+                  {a.signup_source === 'standing' && (
+                    <span className="ml-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                      Standing
                     </span>
                   )}
                 </div>
