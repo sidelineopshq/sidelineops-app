@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateEvent, deleteEvent } from './actions'
+import {
+  VolunteerSlotsSection,
+  type VolunteerRole,
+  type VolunteerSlot,
+} from '../../VolunteerSlotsSection'
 
 const EVENT_TYPES = [
   { value: 'game',       label: 'Game' },
@@ -85,10 +90,18 @@ type TeamAssignment = {
   assigned: boolean // true = has/will have an event_team_details row
 }
 
-export default function EditEventForm({ event, teams, allTeamDetails }: {
-  event: any
-  teams: Team[]
+export default function EditEventForm({
+  event,
+  teams,
+  allTeamDetails,
+  volunteerRoles,
+  existingSlots,
+}: {
+  event:          any
+  teams:          Team[]
   allTeamDetails: TeamDetail[]
+  volunteerRoles: VolunteerRole[]
+  existingSlots:  VolunteerSlot[]
 }) {
   const router = useRouter()
 
@@ -110,6 +123,7 @@ export default function EditEventForm({ event, teams, allTeamDetails }: {
   const [loading, setLoading]               = useState(false)
   const [deleteConfirm, setDeleteConfirm]   = useState(false)
   const [error, setError]                   = useState<string | null>(null)
+  const [volunteerSlots, setVolunteerSlots] = useState<VolunteerSlot[]>(existingSlots)
 
   // Build initial team assignments from existing data
   const [teamAssignments, setTeamAssignments] = useState<TeamAssignment[]>(() =>
@@ -177,7 +191,8 @@ export default function EditEventForm({ event, teams, allTeamDetails }: {
         arrival_time: a.arrival_time || undefined,
         end_time:     a.end_time     || undefined,
         status:       a.status,
-      }))
+      })),
+      isGameLike ? volunteerSlots : undefined
     )
 
     if (result?.error) {
@@ -460,6 +475,24 @@ export default function EditEventForm({ event, teams, allTeamDetails }: {
                 placeholder="Any additional notes for this event..."
                 className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none resize-none text-sm" />
             </div>
+
+            {/* Volunteer Slots — home games/scrimmages only */}
+            {isGameLike && (
+              <div>
+                <label className={labelClass}>Volunteer Slots</label>
+                {isHome ? (
+                  <VolunteerSlotsSection
+                    roles={volunteerRoles}
+                    slots={volunteerSlots}
+                    onChange={setVolunteerSlots}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Volunteer slots are only available for home games.
+                  </p>
+                )}
+              </div>
+            )}
 
           </div>
 

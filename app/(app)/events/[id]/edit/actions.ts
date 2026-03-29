@@ -42,6 +42,14 @@ export async function updateEvent(
     arrival_time?: string
     end_time?: string
     status: string
+  }[],
+  volunteerSlots?: {
+    id?:        string
+    role_id:    string
+    slot_count: number
+    start_time?: string
+    end_time?:   string
+    notes?:      string
   }[]
 ) {
   const authClient = await createServerClient()
@@ -140,6 +148,44 @@ export async function updateEvent(
 
   if (detailsError) {
     console.error('Update team details error:', detailsError)
+  }
+
+  // ── Sync volunteer slots (home events only) ──────────────────────────────
+  // Only touch slots when is_home is true — preserves saved slots if coach
+  // temporarily toggles is_home off without saving.
+  if (formData.is_home && volunteerSlots !== undefined) {
+    const existingIdsToKeep = (volunteerSlots ?? [])
+      .filter(s => s.id)
+      .map(s => s.id as string)
+
+    // Delete slots that were removed from the list
+    if (existingIdsToKeep.length > 0) {
+      await supabase
+        .from('event_volunteer_slots')
+        .delete()
+        .eq('event_id', eventId)
+        .not('id', 'in', `(${existingIdsToKeep.map(id => `"${id}"`).join(',')})`)
+    } else {
+      await supabase
+        .from('event_volunteer_slots')
+        .delete()
+        .eq('event_id', eventId)
+    }
+
+    // Insert new slots (those without an id)
+    const newSlots = (volunteerSlots ?? []).filter(s => !s.id)
+    if (newSlots.length > 0) {
+      await supabase
+        .from('event_volunteer_slots')
+        .insert(newSlots.map(s => ({
+          event_id:   eventId,
+          role_id:    s.role_id,
+          slot_count: s.slot_count,
+          start_time: s.start_time || null,
+          end_time:   s.end_time   || null,
+          notes:      s.notes      || null,
+        })))
+    }
   }
 
   // ── Fire change notifications (awaited — must complete before redirect) ───

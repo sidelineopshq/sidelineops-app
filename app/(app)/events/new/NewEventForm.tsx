@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createEvent } from './actions'
+import {
+  VolunteerSlotsSection,
+  type VolunteerRole,
+  type VolunteerSlot,
+} from '../VolunteerSlotsSection'
 
 const EVENT_TYPES = [
   { value: 'game',       label: 'Game' },
@@ -64,7 +69,13 @@ type TeamTimes = {
   end_time: string
 }
 
-export default function NewEventForm({ teams }: { teams: Team[] }) {
+export default function NewEventForm({
+  teams,
+  volunteerRoles,
+}: {
+  teams:           Team[]
+  volunteerRoles:  VolunteerRole[]
+}) {
   const router = useRouter()
 
   const [eventType, setEventType]             = useState('game')
@@ -83,6 +94,7 @@ export default function NewEventForm({ teams }: { teams: Team[] }) {
   const [tournamentTitle, setTournamentTitle] = useState('')
   const [loading, setLoading]                 = useState(false)
   const [error, setError]                     = useState<string | null>(null)
+  const [volunteerSlots, setVolunteerSlots]   = useState<VolunteerSlot[]>([])
 
   // Team assignment — all teams selected by default
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(teams.map(t => t.id))
@@ -145,6 +157,7 @@ export default function NewEventForm({ teams }: { teams: Team[] }) {
       meal_time:            mealRequired && mealTime ? mealTime : undefined,
       is_public:            isPublic,
       team_assignments,
+      volunteer_slots:      (isGameLike && isHome) ? volunteerSlots : [],
     })
 
     if (result?.error) {
@@ -388,6 +401,24 @@ export default function NewEventForm({ teams }: { teams: Team[] }) {
                 className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none resize-none text-sm"
               />
             </div>
+
+            {/* Volunteer Slots — home games only */}
+            {isGameLike && (
+              <div>
+                <label className={labelClass}>Volunteer Slots</label>
+                {isHome ? (
+                  <VolunteerSlotsSection
+                    roles={volunteerRoles}
+                    slots={volunteerSlots}
+                    onChange={setVolunteerSlots}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Volunteer slots are only available for home games.
+                  </p>
+                )}
+              </div>
+            )}
 
           </div>
 

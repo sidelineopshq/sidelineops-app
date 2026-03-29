@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import NewEventForm from './NewEventForm'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
+
+function serviceClient() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export default async function NewEventPage() {
   const supabase = await createClient()
@@ -21,7 +29,7 @@ export default async function NewEventPage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, level, programs(sport, schools(name))')
+    .select('id, name, level, program_id, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -31,5 +39,15 @@ export default async function NewEventPage() {
     name: formatTeamShortLabel((t as any).level ?? ''),
   }))
 
-  return <NewEventForm teams={teams} />
+  const programId = (teamsData ?? [])[0]?.program_id ?? ''
+  const { data: rolesRaw } = await serviceClient()
+    .from('volunteer_roles')
+    .select('id, name')
+    .eq('program_id', programId)
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
+  const volunteerRoles = (rolesRaw ?? []) as { id: string; name: string }[]
+
+  return <NewEventForm teams={teams} volunteerRoles={volunteerRoles} />
 }

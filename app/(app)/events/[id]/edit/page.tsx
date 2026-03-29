@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect, notFound } from 'next/navigation'
 import EditEventForm from './EditEventForm'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
+
+function serviceClient() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -56,11 +64,38 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
     name: formatTeamShortLabel((t as any).level ?? ''),
   }))
 
+  const svc = serviceClient()
+  const [{ data: rolesRaw }, { data: existingSlotsRaw }] = await Promise.all([
+    svc
+      .from('volunteer_roles')
+      .select('id, name')
+      .eq('program_id', event.program_id)
+      .eq('is_active', true)
+      .order('name', { ascending: true }),
+    svc
+      .from('event_volunteer_slots')
+      .select('id, role_id, slot_count, start_time, end_time, notes')
+      .eq('event_id', id)
+      .order('created_at', { ascending: true }),
+  ])
+
+  const volunteerRoles   = (rolesRaw ?? []) as { id: string; name: string }[]
+  const existingSlots    = (existingSlotsRaw ?? []).map(s => ({
+    id:         s.id,
+    role_id:    s.role_id,
+    slot_count: s.slot_count,
+    start_time: s.start_time ?? '',
+    end_time:   s.end_time   ?? '',
+    notes:      s.notes      ?? '',
+  }))
+
   return (
     <EditEventForm
       event={event}
       teams={teams}
       allTeamDetails={allTeamDetails ?? []}
+      volunteerRoles={volunteerRoles}
+      existingSlots={existingSlots}
     />
   )
 }

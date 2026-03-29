@@ -35,6 +35,13 @@ export async function createEvent(formData: {
     arrival_time?: string
     end_time?: string
   }[]
+  volunteer_slots?: {
+    role_id:    string
+    slot_count: number
+    start_time?: string
+    end_time?:   string
+    notes?:      string
+  }[]
 }) {
   // Step 1: Auth check
   const authClient = await createServerClient()
@@ -149,7 +156,23 @@ export async function createEvent(formData: {
     console.error('Event team details error:', detailsError)
   }
 
-  // ── Step 6: Fire new-event notifications (non-blocking) ──────────────────
+  // ── Step 6: Insert volunteer slots (home events only) ────────────────────
+  if (formData.is_home && formData.volunteer_slots?.length) {
+    const slotRows = formData.volunteer_slots.map(s => ({
+      event_id:   event.id,
+      role_id:    s.role_id,
+      slot_count: s.slot_count,
+      start_time: s.start_time || null,
+      end_time:   s.end_time   || null,
+      notes:      s.notes      || null,
+    }))
+    const { error: slotsError } = await supabase
+      .from('event_volunteer_slots')
+      .insert(slotRows)
+    if (slotsError) console.error('[createEvent] volunteer slots error:', slotsError)
+  }
+
+  // ── Step 7: Fire new-event notifications (non-blocking) ──────────────────
   void (async () => {
     try {
       // Date check — skip all fetches if event is not today or tomorrow (Central time)
