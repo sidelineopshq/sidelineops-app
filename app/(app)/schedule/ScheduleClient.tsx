@@ -312,13 +312,14 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
 // ── Event Row (List View) ─────────────────────────────────────
 
 function EventRow({ event, childGames, canManageEvents, canSendNotifications,
-  teamId, teams, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  teamId, teams, volunteerSummary, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
   event: any
   childGames: any[]
   canManageEvents: boolean
   canSendNotifications: boolean
   teamId: string
   teams: { id: string; name: string }[]
+  volunteerSummary?: { filled: number; total: number }
   onCancelRequest: (event: any) => void
   onTournamentGameAdded: (game: any) => void
   onTournamentGameDeleted: (gameId: string) => void
@@ -373,6 +374,15 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {event.meal_required && (
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
               🍽 Meal
+            </span>
+          )}
+          {volunteerSummary && (
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              volunteerSummary.filled >= volunteerSummary.total
+                ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+            }`}>
+              👥 {volunteerSummary.filled}/{volunteerSummary.total}
             </span>
           )}
         </div>
@@ -433,6 +443,15 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
               className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition-colors"
             >
               + Game
+            </button>
+          )}
+          {canManageEvents && volunteerSummary && (
+            <button
+              onClick={() => router.push(`/events/${event.id}`)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-semibold transition-colors"
+            >
+              Volunteers
             </button>
           )}
           {canManageEvents && (
@@ -657,6 +676,7 @@ export default function ScheduleClient({
   programName,
   canManageEvents,
   canSendNotifications,
+  volunteerSummaryMap = {},
 }: {
   events?: any[]
   childGames?: any[]
@@ -665,6 +685,7 @@ export default function ScheduleClient({
   programName: string
   canManageEvents: boolean
   canSendNotifications: boolean
+  volunteerSummaryMap?: Record<string, { filled: number; total: number }>
 }) {
   const router = useRouter()
   const [eventList, setEventList]         = useState(events)
@@ -876,6 +897,7 @@ export default function ScheduleClient({
                     canSendNotifications={canSendNotifications}
                     teamId={actionTeamId}
                     teams={teams}
+                    volunteerSummary={volunteerSummaryMap[event.id]}
                     onCancelRequest={setCancelTarget}
                     onTournamentGameAdded={handleTournamentGameAdded}
                     onTournamentGameDeleted={handleTournamentGameDeleted}

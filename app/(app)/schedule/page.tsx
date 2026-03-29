@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import ScheduleClient from './ScheduleClient'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
+
+function serviceClient() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export default async function SchedulePage() {
   const supabase = await createClient()
@@ -119,6 +127,32 @@ export default async function SchedulePage() {
     }))
   }
 
+  // Fetch volunteer slot summaries for events that have slots (coaches only)
+  const eventIdsWithPossibleSlots = allEvents.map((e: any) => e.id)
+  let volunteerSummaryMap: Record<string, { filled: number; total: number }> = {}
+
+  if (canManageEvents && eventIdsWithPossibleSlots.length > 0) {
+    const svc = serviceClient()
+    const { data: slotRows } = await svc
+      .from('event_volunteer_slots')
+      .select(`
+        id, event_id, slot_count,
+        volunteer_assignments(id, status)
+      `)
+      .in('event_id', eventIdsWithPossibleSlots)
+
+    for (const slot of slotRows ?? []) {
+      const filled = ((slot as any).volunteer_assignments ?? []).filter((a: any) => a.status !== 'cancelled').length
+      const existing = volunteerSummaryMap[slot.event_id]
+      if (existing) {
+        existing.filled += filled
+        existing.total  += slot.slot_count
+      } else {
+        volunteerSummaryMap[slot.event_id] = { filled, total: slot.slot_count }
+      }
+    }
+  }
+
   const teams = (teamsData ?? []).map(t => ({
     id:   t.id,
     name: formatTeamShortLabel((t as any).level ?? ''),
@@ -135,6 +169,7 @@ export default async function SchedulePage() {
       programName={program?.name ?? ''}
       canManageEvents={canManageEvents}
       canSendNotifications={canSendNotifications}
+      volunteerSummaryMap={volunteerSummaryMap}
     />
   )
 }
