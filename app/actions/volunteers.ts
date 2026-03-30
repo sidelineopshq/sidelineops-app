@@ -48,13 +48,13 @@ export async function createTemplateSlot(
   const { error } = await service
     .from('volunteer_slot_templates')
     .insert({
-      program_id: programId,
-      role_id:    data.role_id,
-      slot_count: data.slot_count,
-      start_time: data.start_time || null,
-      end_time:   data.end_time   || null,
-      notes:      data.notes      || null,
-      is_active:  true,
+      program_id:        programId,
+      volunteer_role_id: data.role_id,
+      slot_count:        data.slot_count,
+      start_time:        data.start_time || null,
+      end_time:          data.end_time   || null,
+      notes:             data.notes      || null,
+      is_active:         true,
     })
 
   if (error) return { error: error.message }
@@ -88,11 +88,11 @@ export async function updateTemplateSlot(
   const { error } = await service
     .from('volunteer_slot_templates')
     .update({
-      role_id:    data.role_id,
-      slot_count: data.slot_count,
-      start_time: data.start_time || null,
-      end_time:   data.end_time   || null,
-      notes:      data.notes      || null,
+      volunteer_role_id: data.role_id,
+      slot_count:        data.slot_count,
+      start_time:        data.start_time || null,
+      end_time:          data.end_time   || null,
+      notes:             data.notes      || null,
     })
     .eq('id', slotId)
 

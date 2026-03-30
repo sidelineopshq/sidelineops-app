@@ -51,7 +51,7 @@ export default async function NewEventPage() {
       .order('name', { ascending: true }),
     svc
       .from('volunteer_slot_templates')
-      .select('id, role_id, slot_count, start_time, end_time, notes, volunteer_roles(name)')
+      .select('id, volunteer_role_id, slot_count, start_time, end_time, notes, volunteer_roles!volunteer_role_id(name)')
       .eq('program_id', programId)
       .eq('is_active', true)
       .order('created_at', { ascending: true }),
@@ -61,7 +61,7 @@ export default async function NewEventPage() {
 
   const templateSlots = (templateResult.data ?? []).map((t: any) => ({
     id:         t.id as string,
-    role_id:    t.role_id as string,
+    role_id:    t.volunteer_role_id as string,
     role_name:  ((t.volunteer_roles as any)?.name ?? 'Unknown') as string,
     slot_count: t.slot_count as number,
     start_time: (t.start_time ?? null) as string | null,

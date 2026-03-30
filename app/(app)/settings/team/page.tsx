@@ -217,7 +217,7 @@ export default async function TeamSettingsPage({
         : Promise.resolve({ data: [] }),
       svc
         .from('volunteer_slot_templates')
-        .select('id, role_id, slot_count, start_time, end_time, notes, volunteer_roles(name)')
+        .select('id, volunteer_role_id, slot_count, start_time, end_time, notes, volunteer_roles!volunteer_role_id(name)')
         .eq('program_id', programId)
         .eq('is_active', true)
         .order('created_at', { ascending: true }),
@@ -265,7 +265,7 @@ export default async function TeamSettingsPage({
 
     templateSlots = (templateResult.data ?? []).map((t: any) => ({
       id:         t.id,
-      role_id:    t.role_id,
+      role_id:    t.volunteer_role_id,
       role_name:  (t.volunteer_roles as any)?.name ?? 'Unknown',
       slot_count: t.slot_count,
       start_time: t.start_time ?? null,
@@ -291,21 +291,24 @@ export default async function TeamSettingsPage({
       </div>
 
       {/* ── Tab navigation ────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-white/10 mb-6 overflow-x-auto">
-        {TABS.map(t => (
-          <a
-            key={t.id}
-            href={`/settings/team?tab=${t.id}`}
-            className={[
-              'shrink-0 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap',
-              tab === t.id
-                ? 'text-white border-b-2 border-sky-500 -mb-px'
-                : 'text-slate-400 hover:text-white',
-            ].join(' ')}
-          >
-            {t.label}
-          </a>
-        ))}
+      <div className="relative mb-6">
+        <div className="flex gap-1 border-b border-white/10 overflow-x-auto">
+          {TABS.map(t => (
+            <a
+              key={t.id}
+              href={`/settings/team?tab=${t.id}`}
+              className={[
+                'shrink-0 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap',
+                tab === t.id
+                  ? 'text-white border-b-2 border-sky-500 -mb-px'
+                  : 'text-slate-400 hover:text-white',
+              ].join(' ')}
+            >
+              {t.label}
+            </a>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-[#0f172a] to-transparent" />
       </div>
 
       {/* ── General ───────────────────────────────────────────────────────────── */}

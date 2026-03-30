@@ -153,12 +153,13 @@ function TemplateSlotModal({
               max={99}
               value={count}
               onChange={e => setCount(Math.max(1, Number(e.target.value)))}
+              onFocus={e => e.target.select()}
               className="w-24 rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-sky-500 focus:outline-none text-center"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
               <label className={labelClass}>
                 Start Time <span className="normal-case font-normal text-slate-500">(optional)</span>
               </label>
@@ -169,7 +170,7 @@ function TemplateSlotModal({
                 className={timeInputClass}
               />
             </div>
-            <div>
+            <div className="flex-1">
               <label className={labelClass}>
                 End Time <span className="normal-case font-normal text-slate-500">(optional)</span>
               </label>
