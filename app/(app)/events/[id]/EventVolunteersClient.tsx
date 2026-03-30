@@ -16,15 +16,14 @@ export type Assignment = {
 }
 
 export type VolunteerSlot = {
-  id:           string
-  role_id:      string
-  role_name:    string
-  slot_count:   number
-  start_time:   string | null
-  end_time:     string | null
-  notes:        string | null
-  signup_token: string | null
-  assignments:  Assignment[]
+  id:          string
+  role_id:     string
+  role_name:   string
+  slot_count:  number
+  start_time:  string | null
+  end_time:    string | null
+  notes:       string | null
+  assignments: Assignment[]
 }
 
 export type Contact = {
@@ -124,8 +123,7 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
 
   function handleSubmit() {
     setError(null)
-    const name = mode === 'search' ? volunteerName : volunteerName
-    if (!name.trim()) {
+    if (!volunteerName.trim()) {
       setError('Name is required.')
       return
     }
@@ -278,24 +276,23 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
 
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts, baseUrl, onSlotChange }: {
+function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts, onSlotChange }: {
   slot:         VolunteerSlot
   eventId:      string
   eventLabel:   string
   eventDate:    string
   programName:  string
   contacts:     Contact[]
-  baseUrl:      string
   onSlotChange: (slotId: string, assignments: Assignment[]) => void
 }) {
-  const [assignments, setAssignments] = useState<Assignment[]>(slot.assignments)
-  const [showAssign, setShowAssign]   = useState(false)
-  const [unassignTarget, setUnassignTarget] = useState<Assignment | null>(null)
-  const [isPending, startTransition]  = useTransition()
-  const [copied, setCopied]           = useState(false)
+  const [assignments, setAssignments]           = useState<Assignment[]>(slot.assignments)
+  const [showAssign, setShowAssign]             = useState(false)
+  const [unassignTarget, setUnassignTarget]     = useState<Assignment | null>(null)
+  const [isPending, startTransition]            = useTransition()
 
   const filled = assignments.filter(a => a.status !== 'cancelled').length
   const total  = slot.slot_count
+  const isFull = filled >= total
 
   function handleAssigned(a: Assignment) {
     const next = [...assignments, a]
@@ -314,17 +311,6 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
       setUnassignTarget(null)
     })
   }
-
-  function handleCopyLink() {
-    if (!slot.signup_token) return
-    const url = `${baseUrl}/volunteer/signup?token=${slot.signup_token}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  const isFull = filled >= total
 
   return (
     <>
@@ -405,29 +391,14 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
           <p className="text-xs text-slate-500 mb-4">No volunteers assigned yet.</p>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          {!isFull && (
-            <button
-              onClick={() => setShowAssign(true)}
-              className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
-            >
-              + Assign Volunteer
-            </button>
-          )}
-          {slot.signup_token && (
-            <button
-              onClick={handleCopyLink}
-              className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
-                copied
-                  ? 'border-green-500/30 bg-green-500/10 text-green-400'
-                  : 'border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              {copied ? 'Copied!' : 'Copy Signup Link'}
-            </button>
-          )}
-        </div>
+        {!isFull && (
+          <button
+            onClick={() => setShowAssign(true)}
+            className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+          >
+            + Assign Volunteer
+          </button>
+        )}
       </div>
     </>
   )
@@ -442,18 +413,19 @@ export default function EventVolunteersClient({
   programName,
   slots: initialSlots,
   contacts,
-  baseUrl,
+  teamSlug,
 }: {
-  eventId:      string
-  eventLabel:   string
-  eventDate:    string
-  programName:  string
-  slots:        VolunteerSlot[]
-  contacts:     Contact[]
-  baseUrl:      string
+  eventId:     string
+  eventLabel:  string
+  eventDate:   string
+  programName: string
+  slots:       VolunteerSlot[]
+  contacts:    Contact[]
+  teamSlug:    string | null
 }) {
   const router = useRouter()
-  const [slots, setSlots] = useState<VolunteerSlot[]>(initialSlots)
+  const [slots, setSlots]   = useState<VolunteerSlot[]>(initialSlots)
+  const [copied, setCopied] = useState(false)
 
   const formattedDate = new Date(eventDate + 'T00:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -464,6 +436,15 @@ export default function EventVolunteersClient({
 
   function handleSlotChange(slotId: string, assignments: Assignment[]) {
     setSlots(prev => prev.map(s => s.id === slotId ? { ...s, assignments } : s))
+  }
+
+  function handleCopySignupPage() {
+    if (!teamSlug) return
+    const url = `${window.location.origin}/volunteer/${teamSlug}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
   return (
@@ -495,13 +476,25 @@ export default function EventVolunteersClient({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-3">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
             <button
               onClick={() => router.push(`/events/${eventId}/edit`)}
               className="rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-semibold transition-colors"
             >
               Edit Event
             </button>
+            {teamSlug && (
+              <button
+                onClick={handleCopySignupPage}
+                className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+                  copied
+                    ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                    : 'border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
+              >
+                {copied ? 'Signup link copied!' : 'Share Volunteer Signup Page'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -524,7 +517,6 @@ export default function EventVolunteersClient({
                 eventDate={eventDate}
                 programName={programName}
                 contacts={contacts}
-                baseUrl={baseUrl}
                 onSlotChange={handleSlotChange}
               />
             ))}

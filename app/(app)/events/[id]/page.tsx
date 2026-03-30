@@ -47,11 +47,21 @@ export default async function EventDetailPage({
 
   const svc = serviceClient()
 
+  // Fetch slug for the "Share Volunteer Signup Page" button
+  const eventTeamIds = ((event as any).event_team_details ?? []).map((d: any) => d.team_id)
+  const { data: teamWithSlug } = await supabase
+    .from('teams')
+    .select('slug')
+    .in('id', eventTeamIds)
+    .not('slug', 'is', null)
+    .limit(1)
+    .maybeSingle()
+
   // Fetch slots with role name and assignments
   const { data: slotsRaw } = await svc
     .from('event_volunteer_slots')
     .select(`
-      id, slot_count, start_time, end_time, notes, signup_token,
+      id, slot_count, start_time, end_time, notes,
       volunteer_roles(id, name),
       volunteer_assignments(
         id, volunteer_name, volunteer_email, signup_source, status, contact_id
@@ -77,13 +87,12 @@ export default async function EventDetailPage({
 
   const slots = (slotsRaw ?? []).map((s: any) => ({
     id:          s.id,
-    role_id:     s.volunteer_roles?.id ?? '',
-    role_name:   s.volunteer_roles?.name ?? 'Unknown',
-    slot_count:  s.slot_count,
-    start_time:  s.start_time,
-    end_time:    s.end_time,
-    notes:       s.notes,
-    signup_token: s.signup_token,
+    role_id:    s.volunteer_roles?.id ?? '',
+    role_name:  s.volunteer_roles?.name ?? 'Unknown',
+    slot_count: s.slot_count,
+    start_time: s.start_time,
+    end_time:   s.end_time,
+    notes:      s.notes,
     assignments: (s.volunteer_assignments ?? []).map((a: any) => ({
       id:              a.id,
       volunteer_name:  a.volunteer_name,
@@ -94,7 +103,7 @@ export default async function EventDetailPage({
     })),
   }))
 
-  const baseUrl = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const teamSlug = teamWithSlug?.slug ?? null
 
   const ev = event!
   let label = ev.title ?? 'Event'
@@ -111,7 +120,7 @@ export default async function EventDetailPage({
       programName={program?.name ?? ''}
       slots={slots}
       contacts={contacts ?? []}
-      baseUrl={baseUrl}
+      teamSlug={teamSlug}
     />
   )
 }

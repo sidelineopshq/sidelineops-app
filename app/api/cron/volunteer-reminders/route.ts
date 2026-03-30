@@ -62,31 +62,25 @@ function buildAdminReminderEmail({
   startTime,
   locationName,
   unfilled,
-  baseUrl,
+  signupPageUrl,
 }: {
-  programName:  string
-  eventLabel:   string
-  eventDate:    string
-  startTime:    string | null
-  locationName: string | null
-  unfilled: { roleName: string; open: number; total: number; signupToken: string | null }[]
-  baseUrl: string
+  programName:    string
+  eventLabel:     string
+  eventDate:      string
+  startTime:      string | null
+  locationName:   string | null
+  unfilled:       { roleName: string; open: number; total: number }[]
+  signupPageUrl:  string | null
 }): string {
-  const slotRows = unfilled.map(s => {
-    const link = s.signupToken
-      ? `${baseUrl}/volunteer/signup?token=${s.signupToken}`
-      : null
-    return `
+  const slotRows = unfilled.map(s => `
       <tr>
         <td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
           <p style="margin:0;font-size:14px;font-weight:600;color:#e2e8f0;">${esc(s.roleName)}</p>
           <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">
             ${s.open} of ${s.total} spot${s.total !== 1 ? 's' : ''} unfilled
           </p>
-          ${link ? `<a href="${esc(link)}" style="display:inline-block;margin-top:6px;font-size:12px;color:#38bdf8;">Copy signup link →</a>` : ''}
         </td>
-      </tr>`
-  }).join('')
+      </tr>`).join('')
 
   const details = [
     { label: 'Event',    value: eventLabel },
@@ -122,9 +116,12 @@ function buildAdminReminderEmail({
           <table width="100%" cellpadding="0" cellspacing="0">
             <tbody>${slotRows}</tbody>
           </table>
-          <p style="margin:20px 0 0;font-size:12px;color:#475569;line-height:1.6;">
-            You can assign volunteers manually from the event page or share the signup links above.
-          </p>
+          ${signupPageUrl ? `<p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;">
+            Share the volunteer signup page with parents:<br>
+            <a href="${esc(signupPageUrl)}" style="color:#38bdf8;">${esc(signupPageUrl)}</a>
+          </p>` : `<p style="margin:20px 0 0;font-size:12px;color:#475569;line-height:1.6;">
+            You can assign volunteers manually from the event page.
+          </p>`}
         </td></tr>
 
         <tr><td style="background:#1e293b;border-radius:0 0 16px 16px;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.08);">
@@ -230,7 +227,7 @@ export async function GET(req: NextRequest) {
   const { data: eventSlotRows, error: eventsError } = await supabase
     .from('event_volunteer_slots')
     .select(`
-      id, slot_count, start_time, end_time, notes, signup_token, reminded_at,
+      id, slot_count, start_time, end_time, notes, reminded_at,
       volunteer_roles(name, suppress_reminders),
       volunteer_assignments(id, volunteer_name, volunteer_email, status),
       events!inner(
@@ -255,6 +252,19 @@ export async function GET(req: NextRequest) {
   if (!eventSlotRows?.length) {
     return NextResponse.json({ ...summary, message: 'No volunteer slots for tomorrow.' })
   }
+
+  // Batch-fetch team slugs for the signup page link in admin emails
+  const allTeamIds = [...new Set((eventSlotRows).flatMap(row =>
+    ((row.events as any).event_team_details ?? []).map((d: any) => d.team_id as string)
+  ))]
+  const { data: teamSlugRows } = await supabase
+    .from('teams')
+    .select('id, slug')
+    .in('id', allTeamIds.length > 0 ? allTeamIds : ['00000000-0000-0000-0000-000000000000'])
+    .not('slug', 'is', null)
+  const teamSlugById: Record<string, string> = Object.fromEntries(
+    (teamSlugRows ?? []).map(t => [t.id, t.slug as string])
+  )
 
   // ── 2. Group slots by event ───────────────────────────────────────────────────
   const eventMap = new Map<string, {
@@ -283,14 +293,15 @@ export async function GET(req: NextRequest) {
       const locationName  = event.location_name ?? null
       const teamIds       = ((event.event_team_details ?? []) as any[]).map((d: any) => d.team_id)
       const from          = `${programName} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+      const teamSlug      = teamIds.map(id => teamSlugById[id]).find(Boolean) ?? null
+      const signupPageUrl = teamSlug ? `${baseUrl}/volunteer/${teamSlug}` : null
 
       // ── 3a. Find unfilled slots not yet reminded ──────────────────────────────
       const unfilledUnreminded: {
-        slotId:      string
-        roleName:    string
-        open:        number
-        total:       number
-        signupToken: string | null
+        slotId:   string
+        roleName: string
+        open:     number
+        total:    number
       }[] = []
 
       for (const slot of slots) {
@@ -300,11 +311,10 @@ export async function GET(req: NextRequest) {
         if (open > 0 && !slot.reminded_at) {
           const roleBase = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
           unfilledUnreminded.push({
-            slotId:      slot.id,
-            roleName:    slotLabel(roleBase, slot.start_time, slot.end_time),
+            slotId:   slot.id,
+            roleName: slotLabel(roleBase, slot.start_time, slot.end_time),
             open,
-            total:       slot.slot_count,
-            signupToken: slot.signup_token,
+            total:    slot.slot_count,
           })
         }
       }
@@ -337,12 +347,12 @@ export async function GET(req: NextRequest) {
         if (adminEmails.length > 0) {
           const html = buildAdminReminderEmail({
             programName,
-            eventLabel:   label,
-            eventDate:    event.event_date,
+            eventLabel:    label,
+            eventDate:     event.event_date,
             startTime,
             locationName,
-            unfilled:     unfilledUnreminded,
-            baseUrl,
+            unfilled:      unfilledUnreminded,
+            signupPageUrl,
           })
 
           const results = await Promise.all(
