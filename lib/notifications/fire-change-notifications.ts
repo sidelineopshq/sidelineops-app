@@ -105,6 +105,7 @@ export async function fireChangeNotifications({
           groupme_enabled:  team.groupme_enabled,
           groupme_bot_id:   team.groupme_bot_id,
         },
+        programId:   team.program_id,
         programName: program?.name ?? '',
         event: {
           title:              displayTitle,

@@ -6,7 +6,8 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
-import { VolunteerRolesTab, type VolunteerRole, type StandingAssignment, type TabContact } from './VolunteerRolesTab'
+import { VolunteerRolesTab, type VolunteerRole, type StandingAssignment, type TabContact, type TemplateSlot } from './VolunteerRolesTab'
+import type { ExternalSubscriber } from './TeamMembersTab'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
@@ -65,8 +66,9 @@ export default async function TeamSettingsPage({
   const tab = tabParam ?? 'general'
 
   // ── Team Members tab data ──────────────────────────────────────────────────
-  let pendingInvites: PendingInvite[] = []
-  let activeMembers:  ActiveMember[]  = []
+  let pendingInvites:       PendingInvite[]       = []
+  let activeMembers:        ActiveMember[]        = []
+  let externalSubscribers:  ExternalSubscriber[]  = []
 
   if (tab === 'team-members') {
     const svc       = serviceClient()
@@ -148,12 +150,32 @@ export default async function TeamSettingsPage({
     activeMembers = [...memberMap.values()].sort((a, b) =>
       (a.name || a.email).localeCompare(b.name || b.email),
     )
+
+    // External subscribers
+    const { data: extSubsRaw } = await svc
+      .from('external_subscribers')
+      .select('id, name, email, type, team_id, token, opted_in_at, unsubscribed_at')
+      .eq('program_id', programId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+
+    externalSubscribers = (extSubsRaw ?? []).map((r: any) => ({
+      id:              r.id,
+      name:            r.name,
+      email:           r.email,
+      type:            r.type ?? 'other',
+      team_id:         r.team_id ?? null,
+      token:           r.token,
+      opted_in_at:     r.opted_in_at ?? null,
+      unsubscribed_at: r.unsubscribed_at ?? null,
+    }))
   }
 
   // ── Volunteer Roles tab data ───────────────────────────────────────────────
   let volunteerRoles:       VolunteerRole[]       = []
   let standingAssignments:  StandingAssignment[]  = []
   let tabContacts:          TabContact[]          = []
+  let templateSlots:        TemplateSlot[]        = []
 
   if (tab === 'volunteer-roles') {
     const svc        = serviceClient()
@@ -167,8 +189,8 @@ export default async function TeamSettingsPage({
       { name: 'Scoreboard Operator',    description: null },
     ]
 
-    // Fetch roles, standing assignments, and contacts in parallel
-    const [rolesResult, standingResult, contactsResult] = await Promise.all([
+    // Fetch roles, standing assignments, contacts, and template slots in parallel
+    const [rolesResult, standingResult, contactsResult, templateResult] = await Promise.all([
       svc
         .from('volunteer_roles')
         .select('id, name, description, is_active, suppress_reminders')
@@ -193,6 +215,12 @@ export default async function TeamSettingsPage({
             .order('last_name', { ascending: true })
             .order('first_name', { ascending: true })
         : Promise.resolve({ data: [] }),
+      svc
+        .from('volunteer_slot_templates')
+        .select('id, role_id, slot_count, start_time, end_time, notes, volunteer_roles(name)')
+        .eq('program_id', programId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true }),
     ])
 
     // Seed defaults if none exist yet
@@ -234,6 +262,16 @@ export default async function TeamSettingsPage({
       last_name:  c.last_name  ?? null,
       email:      c.email      ?? null,
     })) as TabContact[]
+
+    templateSlots = (templateResult.data ?? []).map((t: any) => ({
+      id:         t.id,
+      role_id:    t.role_id,
+      role_name:  (t.volunteer_roles as any)?.name ?? 'Unknown',
+      slot_count: t.slot_count,
+      start_time: t.start_time ?? null,
+      end_time:   t.end_time   ?? null,
+      notes:      t.notes      ?? null,
+    })) as TemplateSlot[]
   }
 
   return (
@@ -324,6 +362,8 @@ export default async function TeamSettingsPage({
           canManage={canManage}
           currentUserId={user.id}
           canManageTeamSettings={canManageTeamSettings}
+          programId={teams[0]?.program_id ?? ''}
+          externalSubscribers={externalSubscribers}
         />
       )}
 
@@ -351,6 +391,7 @@ export default async function TeamSettingsPage({
           standingAssignments={standingAssignments}
           contacts={tabContacts}
           canManage={canManage}
+          templateSlots={templateSlots}
         />
       )}
 

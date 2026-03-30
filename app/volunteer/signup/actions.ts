@@ -158,10 +158,19 @@ export async function publicSignup(
   if (insertError) return { error: insertError.message }
 
   // Send confirmation email (non-blocking — don't fail signup if email fails)
-  const event    = slot.events as any
-  const program  = event?.programs as any
-  const roleName = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
-  const startTime = slot.start_time ?? event?.default_start_time ?? null
+  const event        = slot.events as any
+  const program      = event?.programs as any
+  const roleBaseName = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
+  const startTime    = slot.start_time ?? event?.default_start_time ?? null
+
+  // Show time range in role label if slot has its own start/end time
+  const roleName = (() => {
+    if (!slot.start_time && !slot.end_time) return roleBaseName
+    const parts: string[] = []
+    if (slot.start_time) parts.push(formatTime(slot.start_time))
+    if (slot.end_time)   parts.push(formatTime(slot.end_time))
+    return `${roleBaseName} (${parts.join(' – ')})`
+  })()
 
   function eventLabel(): string {
     if (event.event_type === 'practice')   return 'Practice'

@@ -9,6 +9,29 @@ import {
   type VolunteerSlot,
 } from '../VolunteerSlotsSection'
 
+type TemplateSlot = {
+  id:         string
+  role_id:    string
+  role_name:  string
+  slot_count: number
+  start_time: string | null
+  end_time:   string | null
+  notes:      string | null
+}
+
+function formatTime(time: string | null): string {
+  if (!time) return ''
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function slotLabel(roleName: string, startTime: string | null, endTime: string | null): string {
+  if (!startTime && !endTime) return roleName
+  const parts = [startTime && formatTime(startTime), endTime && formatTime(endTime)].filter(Boolean)
+  return `${roleName} (${parts.join(' – ')})`
+}
+
 const EVENT_TYPES = [
   { value: 'game',       label: 'Game' },
   { value: 'practice',   label: 'Practice' },
@@ -72,9 +95,11 @@ type TeamTimes = {
 export default function NewEventForm({
   teams,
   volunteerRoles,
+  templateSlots,
 }: {
   teams:           Team[]
   volunteerRoles:  VolunteerRole[]
+  templateSlots:   TemplateSlot[]
 }) {
   const router = useRouter()
 
@@ -96,6 +121,12 @@ export default function NewEventForm({
   const [error, setError]                     = useState<string | null>(null)
   const [volunteerSlots, setVolunteerSlots]   = useState<VolunteerSlot[]>([])
 
+  // Template prompt state: 'idle' | 'prompt' | 'preview' | 'dismissed'
+  const [templateState,   setTemplateState]   = useState<'idle' | 'prompt' | 'preview' | 'dismissed'>('idle')
+  const [tplChecked,      setTplChecked]      = useState<boolean[]>([])
+  // Editable copies of template slots for the preview (keyed by index)
+  const [tplEdits,        setTplEdits]        = useState<VolunteerSlot[]>([])
+
   // Team assignment — all teams selected by default
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(teams.map(t => t.id))
 
@@ -110,6 +141,41 @@ export default function NewEventForm({
 
   const isGameLike   = eventType === 'game' || eventType === 'scrimmage'
   const isTournament = eventType === 'tournament'
+
+  function handleSetIsHome(val: boolean) {
+    setIsHome(val)
+    if (val && templateSlots.length > 0) {
+      // Only show prompt if not already interacted with
+      if (templateState === 'idle') {
+        setTemplateState('prompt')
+      }
+    } else if (!val) {
+      // Toggled OFF — clear any applied template state
+      setTemplateState('idle')
+      setVolunteerSlots([])
+      setTplChecked([])
+      setTplEdits([])
+    }
+  }
+
+  function handleApplyTemplate() {
+    const edits: VolunteerSlot[] = templateSlots.map(ts => ({
+      role_id:    ts.role_id,
+      slot_count: ts.slot_count,
+      start_time: ts.start_time ?? '',
+      end_time:   ts.end_time   ?? '',
+      notes:      ts.notes      ?? '',
+    }))
+    setTplEdits(edits)
+    setTplChecked(templateSlots.map(() => true))
+    setTemplateState('preview')
+  }
+
+  function handleConfirmTemplate() {
+    const confirmed = tplEdits.filter((_, i) => tplChecked[i])
+    setVolunteerSlots(confirmed)
+    setTemplateState('dismissed')
+  }
 
   function toggleTeam(teamId: string) {
     setSelectedTeamIds(prev =>
@@ -255,7 +321,7 @@ export default function NewEventForm({
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={() => setIsHome(true)}
+                      onClick={() => handleSetIsHome(true)}
                       className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors ${
                         isHome
                           ? 'border-green-500 bg-green-500/20 text-green-300'
@@ -266,7 +332,7 @@ export default function NewEventForm({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsHome(false)}
+                      onClick={() => handleSetIsHome(false)}
                       className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-colors ${
                         !isHome
                           ? 'border-amber-500 bg-amber-500/20 text-amber-300'
@@ -406,16 +472,110 @@ export default function NewEventForm({
             {isGameLike && (
               <div>
                 <label className={labelClass}>Volunteer Slots</label>
-                {isHome ? (
-                  <VolunteerSlotsSection
-                    roles={volunteerRoles}
-                    slots={volunteerSlots}
-                    onChange={setVolunteerSlots}
-                  />
-                ) : (
+                {!isHome ? (
                   <p className="text-sm text-slate-500">
                     Volunteer slots are only available for home games.
                   </p>
+                ) : (
+                  <div className="space-y-3">
+
+                    {/* ── Template prompt banner ── */}
+                    {templateState === 'prompt' && (
+                      <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-4">
+                        <p className="text-sm font-semibold text-sky-300 mb-1">
+                          📋 You have a volunteer template set up.
+                        </p>
+                        <p className="text-sm text-slate-300 mb-3">
+                          Apply your standard volunteer slots to this game?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleApplyTemplate}
+                            className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+                          >
+                            Apply Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTemplateState('dismissed')}
+                            className="rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Template preview with checkboxes ── */}
+                    {templateState === 'preview' && (
+                      <div className="rounded-xl border border-white/10 bg-slate-900/80 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-white/10">
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                            Select slots to apply
+                          </p>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {templateSlots.map((ts, i) => (
+                            <div key={ts.id} className="flex items-start gap-3 px-4 py-3">
+                              <input
+                                type="checkbox"
+                                id={`tpl-${i}`}
+                                checked={tplChecked[i] ?? true}
+                                onChange={e => {
+                                  const next = [...tplChecked]
+                                  next[i] = e.target.checked
+                                  setTplChecked(next)
+                                }}
+                                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-700 accent-sky-500"
+                              />
+                              <label htmlFor={`tpl-${i}`} className="flex-1 cursor-pointer">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                  <span className={`text-sm font-medium ${tplChecked[i] !== false ? 'text-white' : 'text-slate-500'}`}>
+                                    {slotLabel(ts.role_name, ts.start_time, ts.end_time)}
+                                  </span>
+                                  <span className="text-xs text-slate-400">
+                                    {tplEdits[i]?.slot_count ?? ts.slot_count}{' '}
+                                    {(tplEdits[i]?.slot_count ?? ts.slot_count) === 1 ? 'volunteer' : 'volunteers'}
+                                  </span>
+                                </div>
+                                {ts.notes && (
+                                  <p className="text-xs text-slate-500 mt-0.5">{ts.notes}</p>
+                                )}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="px-4 py-3 border-t border-white/10 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleConfirmTemplate}
+                            disabled={!tplChecked.some(Boolean)}
+                            className="rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 px-4 py-2 text-xs font-semibold transition-colors"
+                          >
+                            Confirm Selected Slots
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setTemplateState('dismissed'); setVolunteerSlots([]) }}
+                            className="rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Slot section (shown after template dismissed/applied, or when no template) ── */}
+                    {(templateState === 'dismissed' || templateSlots.length === 0) && (
+                      <VolunteerSlotsSection
+                        roles={volunteerRoles}
+                        slots={volunteerSlots}
+                        onChange={setVolunteerSlots}
+                      />
+                    )}
+
+                  </div>
                 )}
               </div>
             )}

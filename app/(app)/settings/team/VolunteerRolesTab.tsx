@@ -11,6 +11,11 @@ import {
   createStandingAssignment,
   removeStandingAssignment,
 } from './actions'
+import {
+  createTemplateSlot,
+  updateTemplateSlot,
+  removeTemplateSlot,
+} from '@/app/actions/volunteers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,10 +43,181 @@ export interface TabContact {
   email:      string | null
 }
 
+export interface TemplateSlot {
+  id:         string
+  role_id:    string
+  role_name:  string
+  slot_count: number
+  start_time: string | null
+  end_time:   string | null
+  notes:      string | null
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const inputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
-const labelClass = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
+const inputClass     = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
+const labelClass     = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
+const timeInputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-sky-500 focus:outline-none"
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatTime(time: string | null): string {
+  if (!time) return ''
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function slotLabel(roleName: string, startTime: string | null, endTime: string | null): string {
+  if (!startTime && !endTime) return roleName
+  const parts = [startTime && formatTime(startTime), endTime && formatTime(endTime)].filter(Boolean)
+  return `${roleName} (${parts.join(' – ')})`
+}
+
+// ── Template Slot Modal ───────────────────────────────────────────────────────
+
+function TemplateSlotModal({
+  programId,
+  activeRoles,
+  initial,
+  onClose,
+  onSaved,
+}: {
+  programId:   string
+  activeRoles: VolunteerRole[]
+  initial?:    TemplateSlot
+  onClose:     () => void
+  onSaved:     () => void
+}) {
+  const [roleId,    setRoleId]    = useState(initial?.role_id    ?? activeRoles[0]?.id ?? '')
+  const [count,     setCount]     = useState(initial?.slot_count ?? 1)
+  const [startTime, setStartTime] = useState(initial?.start_time ?? '')
+  const [endTime,   setEndTime]   = useState(initial?.end_time   ?? '')
+  const [notes,     setNotes]     = useState(initial?.notes      ?? '')
+  const [error,     setError]     = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSave() {
+    if (!roleId) { setError('Please select a role.'); return }
+    if (count < 1) { setError('At least 1 volunteer is required.'); return }
+    setError(null)
+    startTransition(async () => {
+      const data = {
+        role_id:    roleId,
+        slot_count: count,
+        start_time: startTime || undefined,
+        end_time:   endTime   || undefined,
+        notes:      notes.trim() || undefined,
+      }
+      const result = initial
+        ? await updateTemplateSlot(initial.id, data)
+        : await createTemplateSlot(programId, data)
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        onSaved()
+        onClose()
+      }
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold">{initial ? 'Edit Template Slot' : 'Add Template Slot'}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className={labelClass}>Role</label>
+            <select
+              value={roleId}
+              onChange={e => setRoleId(e.target.value)}
+              className={inputClass}
+              style={{ appearance: 'auto' }}
+            >
+              <option value="">Select a role…</option>
+              {activeRoles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Volunteers Needed</label>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={count}
+              onChange={e => setCount(Math.max(1, Number(e.target.value)))}
+              className="w-24 rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white focus:border-sky-500 focus:outline-none text-center"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>
+                Start Time <span className="normal-case font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={e => setStartTime(e.target.value)}
+                className={timeInputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                End Time <span className="normal-case font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={e => setEndTime(e.target.value)}
+                className={timeInputClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Notes <span className="normal-case font-normal text-slate-500">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Any notes for volunteers in this role"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="flex-1 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            {isPending ? 'Saving…' : initial ? 'Save Changes' : 'Add to Template'}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={isPending}
+            className="rounded-xl border border-white/10 hover:bg-white/5 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Add Standing Volunteer Modal ──────────────────────────────────────────────
 
@@ -261,12 +437,14 @@ export function VolunteerRolesTab({
   standingAssignments,
   contacts,
   canManage,
+  templateSlots: initialTemplateSlots,
 }: {
   programId:           string
   roles:               VolunteerRole[]
   standingAssignments: StandingAssignment[]
   contacts:            TabContact[]
   canManage:           boolean
+  templateSlots:       TemplateSlot[]
 }) {
   const router = useRouter()
 
@@ -290,6 +468,20 @@ export function VolunteerRolesTab({
   // ── Standing: remove + modal ─────────────────────────────────────────────
   const [removePending, startRemove]     = useTransition()
   const [showAddModal,  setShowAddModal] = useState(false)
+
+  // ── Template slots ────────────────────────────────────────────────────────
+  const [templateSlots,    setTemplateSlots]    = useState<TemplateSlot[]>(initialTemplateSlots)
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [editingTemplate,  setEditingTemplate]  = useState<TemplateSlot | undefined>(undefined)
+  const [removingTplId,    setRemovingTplId]    = useState<string | null>(null)
+
+  async function handleRemoveTemplate(id: string) {
+    setRemovingTplId(id)
+    await removeTemplateSlot(id)
+    setRemovingTplId(null)
+    setTemplateSlots(prev => prev.filter(s => s.id !== id))
+    router.refresh()
+  }
 
   function openEdit(role: VolunteerRole) {
     setEditingId(role.id)
@@ -361,6 +553,17 @@ export function VolunteerRolesTab({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Template Slot Modal ───────────────────────────────────────────── */}
+      {showTemplateModal && (
+        <TemplateSlotModal
+          programId={programId}
+          activeRoles={activeRoles}
+          initial={editingTemplate}
+          onClose={() => { setShowTemplateModal(false); setEditingTemplate(undefined) }}
+          onSaved={() => { router.refresh() }}
+        />
+      )}
 
       {/* ── Add Standing Volunteer Modal ──────────────────────────────────── */}
       {showAddModal && (
@@ -545,6 +748,83 @@ export function VolunteerRolesTab({
           </div>
         </div>
       )}
+
+      {/* ── Home Game Volunteer Template ────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Home Game Volunteer Template</h2>
+            <p className="text-slate-400 text-xs mt-1">
+              These slots are offered to auto-populate every time a home game is created.
+            </p>
+          </div>
+          {canManage && activeRoles.length > 0 && (
+            <button
+              onClick={() => { setEditingTemplate(undefined); setShowTemplateModal(true) }}
+              className="shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+            >
+              + Add Template Slot
+            </button>
+          )}
+        </div>
+
+        {templateSlots.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-slate-500">
+            No template slots yet.{activeRoles.length === 0 ? ' Add volunteer roles first.' : ''}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide"># Volunteers</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Start Time</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">End Time</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</th>
+                  {canManage && <th className="px-4 py-3" />}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {templateSlots.map(ts => (
+                  <tr key={ts.id}>
+                    <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{ts.role_name}</td>
+                    <td className="px-4 py-3 text-slate-300">{ts.slot_count}</td>
+                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                      {ts.start_time ? formatTime(ts.start_time) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                      {ts.end_time ? formatTime(ts.end_time) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate">
+                      {ts.notes ?? <span className="text-slate-600">—</span>}
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => { setEditingTemplate(ts); setShowTemplateModal(true) }}
+                            className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleRemoveTemplate(ts.id)}
+                            disabled={removingTplId === ts.id}
+                            className="text-xs text-red-400 hover:text-red-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-40"
+                          >
+                            {removingTplId === ts.id ? 'Removing…' : 'Remove'}
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* ── Standing Volunteers ────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">

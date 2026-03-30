@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { sendCoachInvite, resendCoachInvite, revokeCoachInvite, removeCoachAccess } from '@/app/actions/invites'
+import { createExternalSubscriber, resendExternalInvite, removeExternalSubscriber } from './actions'
 
 export type PendingInvite = {
   id:         string
@@ -22,6 +23,17 @@ export type ActiveMember = {
   team_ids:   string[]
 }
 
+export type ExternalSubscriber = {
+  id:              string
+  name:            string
+  email:           string
+  type:            string
+  team_id:         string | null
+  token:           string
+  opted_in_at:     string | null
+  unsubscribed_at: string | null
+}
+
 export function TeamMembersTab({
   teams,
   pendingInvites,
@@ -29,6 +41,8 @@ export function TeamMembersTab({
   canManage,
   currentUserId,
   canManageTeamSettings,
+  programId,
+  externalSubscribers: initialExternalSubscribers,
 }: {
   teams:                { id: string; name: string }[]
   pendingInvites:       PendingInvite[]
@@ -36,6 +50,8 @@ export function TeamMembersTab({
   canManage:            boolean
   currentUserId:        string
   canManageTeamSettings: boolean
+  programId:            string
+  externalSubscribers:  ExternalSubscriber[]
 }) {
   const router = useRouter()
 
@@ -59,6 +75,80 @@ export function TeamMembersTab({
   const [removeTarget,  setRemoveTarget]  = useState<ActiveMember | null>(null)
   const [removingId,    setRemovingId]    = useState<string | null>(null)
   const [memberList,    setMemberList]    = useState<ActiveMember[]>(activeMembers)
+
+  // ── External Subscribers state ────────────────────────────────────────────
+  const [extSubs,          setExtSubs]          = useState<ExternalSubscriber[]>(initialExternalSubscribers)
+  const [showInviteModal,  setShowInviteModal]  = useState(false)
+  const [extName,          setExtName]          = useState('')
+  const [extEmail,         setExtEmail]         = useState('')
+  const [extType,          setExtType]          = useState('other')
+  const [extTeamId,        setExtTeamId]        = useState<string>('')
+  const [extError,         setExtError]         = useState<string | null>(null)
+  const [extSuccess,       setExtSuccess]       = useState(false)
+  const [isCreatingExt,    startCreateExt]      = useTransition()
+  const [resendingExtId,   setResendingExtId]   = useState<string | null>(null)
+  const [removingExtId,    setRemovingExtId]    = useState<string | null>(null)
+  const [extActionError,   setExtActionError]   = useState<string | null>(null)
+  const [extResendSuccess, setExtResendSuccess] = useState<string | null>(null)
+
+  function handleCreateExt() {
+    setExtError(null)
+    setExtSuccess(false)
+    startCreateExt(async () => {
+      const result = await createExternalSubscriber(programId, extTeamId || null, extName, extEmail, extType)
+      if (result?.error) {
+        setExtError(result.error)
+      } else {
+        setExtSuccess(true)
+        setExtName('')
+        setExtEmail('')
+        setExtType('other')
+        setExtTeamId('')
+        router.refresh()
+        setTimeout(() => { setExtSuccess(false); setShowInviteModal(false) }, 3000)
+      }
+    })
+  }
+
+  async function handleResendExt(id: string) {
+    setExtActionError(null)
+    setExtResendSuccess(null)
+    setResendingExtId(id)
+    const result = await resendExternalInvite(id)
+    setResendingExtId(null)
+    if (result?.error) {
+      setExtActionError(result.error)
+    } else {
+      setExtResendSuccess(id)
+      setTimeout(() => setExtResendSuccess(null), 3000)
+    }
+  }
+
+  async function handleRemoveExt(id: string) {
+    setExtActionError(null)
+    setRemovingExtId(id)
+    const result = await removeExternalSubscriber(id)
+    setRemovingExtId(null)
+    if (result?.error) {
+      setExtActionError(result.error)
+    } else {
+      setExtSubs(prev => prev.filter(s => s.id !== id))
+    }
+  }
+
+  function extStatus(sub: ExternalSubscriber) {
+    if (sub.unsubscribed_at) return { label: 'Unsubscribed', color: 'text-red-400' }
+    if (sub.opted_in_at)     return { label: 'Confirmed',    color: 'text-green-400' }
+    return                          { label: 'Pending',      color: 'text-amber-400' }
+  }
+
+  const EXT_TYPES = [
+    { value: 'other',          label: 'Other'           },
+    { value: 'official',       label: 'Game Official'   },
+    { value: 'field_manager',  label: 'Field Manager'   },
+    { value: 'school_staff',   label: 'School Staff'    },
+    { value: 'booster',        label: 'Booster / Admin' },
+  ]
 
   const inputClass  = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
   const labelClass  = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
@@ -345,6 +435,177 @@ export function TeamMembersTab({
           </div>
         )}
       </div>
+
+      {/* ── 4. External Subscribers ──────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">External Subscribers</h2>
+            <p className="text-slate-400 text-xs mt-1">Non-affiliated persons (officials, field staff) who receive schedule change alerts.</p>
+          </div>
+          {canManage && (
+            <button
+              onClick={() => { setShowInviteModal(true); setExtError(null); setExtSuccess(false) }}
+              className="shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+            >
+              Invite Subscriber
+            </button>
+          )}
+        </div>
+
+        {extActionError && (
+          <div className="mx-6 mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            {extActionError}
+          </div>
+        )}
+
+        {extSubs.length === 0 ? (
+          <div className="px-6 py-8 text-center text-slate-500 text-sm">No external subscribers yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5 text-left">
+                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                  {canManage && (
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {extSubs.map(sub => {
+                  const st = extStatus(sub)
+                  const typeLabel = EXT_TYPES.find(t => t.value === sub.type)?.label ?? sub.type
+                  return (
+                    <tr key={sub.id}>
+                      <td className="px-6 py-3 text-white font-medium">{sub.name}</td>
+                      <td className="px-4 py-3 text-slate-400">{sub.email}</td>
+                      <td className="px-4 py-3 text-slate-400">{typeLabel}</td>
+                      <td className={`px-4 py-3 font-medium ${st.color}`}>{st.label}</td>
+                      {canManage && (
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            {!sub.opted_in_at && !sub.unsubscribed_at && (
+                              extResendSuccess === sub.id ? (
+                                <span className="text-xs text-green-400">Resent!</span>
+                              ) : (
+                                <button
+                                  onClick={() => handleResendExt(sub.id)}
+                                  disabled={resendingExtId === sub.id}
+                                  className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors disabled:opacity-40"
+                                >
+                                  {resendingExtId === sub.id ? 'Sending…' : 'Resend Invite'}
+                                </button>
+                              )
+                            )}
+                            <button
+                              onClick={() => handleRemoveExt(sub.id)}
+                              disabled={removingExtId === sub.id}
+                              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                            >
+                              {removingExtId === sub.id ? 'Removing…' : 'Remove'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Invite Subscriber modal ───────────────────────────────────────── */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <h3 className="text-base font-semibold text-white">Invite External Subscriber</h3>
+            <p className="text-sm text-slate-400">They&apos;ll receive an email to confirm their subscription before getting any alerts.</p>
+
+            <div>
+              <label className={labelClass}>Name</label>
+              <input
+                type="text"
+                value={extName}
+                onChange={e => setExtName(e.target.value)}
+                placeholder="Jane Smith"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Email</label>
+              <input
+                type="email"
+                value={extEmail}
+                onChange={e => setExtEmail(e.target.value)}
+                placeholder="jane@example.com"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Type</label>
+              <select
+                value={extType}
+                onChange={e => setExtType(e.target.value)}
+                className={inputClass}
+                style={{ appearance: 'auto' }}
+              >
+                {EXT_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {teams.length > 1 && (
+              <div>
+                <label className={labelClass}>Team (optional)</label>
+                <select
+                  value={extTeamId}
+                  onChange={e => setExtTeamId(e.target.value)}
+                  className={inputClass}
+                  style={{ appearance: 'auto' }}
+                >
+                  <option value="">All Teams</option>
+                  {teams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {extError && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{extError}</div>
+            )}
+            {extSuccess && (
+              <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">Invite sent!</div>
+            )}
+
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                onClick={() => { setShowInviteModal(false); setExtName(''); setExtEmail(''); setExtError(null); setExtSuccess(false) }}
+                disabled={isCreatingExt}
+                className="rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateExt}
+                disabled={isCreatingExt}
+                className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+              >
+                {isCreatingExt ? 'Sending…' : 'Send Invite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Confirmation dialog ───────────────────────────────────────────── */}
       {removeTarget && (

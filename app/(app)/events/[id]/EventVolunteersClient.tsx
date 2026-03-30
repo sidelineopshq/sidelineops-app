@@ -46,6 +46,12 @@ function formatTime(time: string | null): string {
   return `${hour12}:${minuteStr} ${ampm}`
 }
 
+function slotLabel(roleName: string, startTime: string | null, endTime: string | null): string {
+  if (!startTime && !endTime) return roleName
+  const parts = [startTime && formatTime(startTime), endTime && formatTime(endTime)].filter(Boolean)
+  return `${roleName} (${parts.join(' – ')})`
+}
+
 // ── Unassign Confirm Dialog ───────────────────────────────────────────────────
 
 function UnassignDialog({ name, onConfirm, onCancel, loading }: {
@@ -149,7 +155,7 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold">Assign Volunteer</h3>
-            <p className="text-xs text-slate-400 mt-0.5">{slot.role_name}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{slotLabel(slot.role_name, slot.start_time, slot.end_time)}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl leading-none">×</button>
         </div>
@@ -347,16 +353,12 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-white leading-snug">{slot.role_name}</h3>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-400">
-              {slot.start_time && (
-                <span>
-                  {formatTime(slot.start_time)}
-                  {slot.end_time && ` – ${formatTime(slot.end_time)}`}
-                </span>
-              )}
-              {slot.notes && <span>· {slot.notes}</span>}
-            </div>
+            <h3 className="text-base font-bold text-white leading-snug">
+              {slotLabel(slot.role_name, slot.start_time, slot.end_time)}
+            </h3>
+            {slot.notes && (
+              <p className="text-xs text-slate-400 mt-1">{slot.notes}</p>
+            )}
           </div>
           <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${
             isFull

@@ -40,14 +40,34 @@ export default async function NewEventPage() {
   }))
 
   const programId = (teamsData ?? [])[0]?.program_id ?? ''
-  const { data: rolesRaw } = await serviceClient()
-    .from('volunteer_roles')
-    .select('id, name')
-    .eq('program_id', programId)
-    .eq('is_active', true)
-    .order('name', { ascending: true })
+  const svc = serviceClient()
 
-  const volunteerRoles = (rolesRaw ?? []) as { id: string; name: string }[]
+  const [rolesResult, templateResult] = await Promise.all([
+    svc
+      .from('volunteer_roles')
+      .select('id, name')
+      .eq('program_id', programId)
+      .eq('is_active', true)
+      .order('name', { ascending: true }),
+    svc
+      .from('volunteer_slot_templates')
+      .select('id, role_id, slot_count, start_time, end_time, notes, volunteer_roles(name)')
+      .eq('program_id', programId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true }),
+  ])
 
-  return <NewEventForm teams={teams} volunteerRoles={volunteerRoles} />
+  const volunteerRoles = (rolesResult.data ?? []) as { id: string; name: string }[]
+
+  const templateSlots = (templateResult.data ?? []).map((t: any) => ({
+    id:         t.id as string,
+    role_id:    t.role_id as string,
+    role_name:  ((t.volunteer_roles as any)?.name ?? 'Unknown') as string,
+    slot_count: t.slot_count as number,
+    start_time: (t.start_time ?? null) as string | null,
+    end_time:   (t.end_time   ?? null) as string | null,
+    notes:      (t.notes      ?? null) as string | null,
+  }))
+
+  return <NewEventForm teams={teams} volunteerRoles={volunteerRoles} templateSlots={templateSlots} />
 }

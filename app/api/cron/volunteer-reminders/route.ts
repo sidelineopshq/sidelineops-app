@@ -36,6 +36,12 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+function slotLabel(roleName: string, startTime: string | null, endTime: string | null): string {
+  if (!startTime && !endTime) return roleName
+  const parts = [startTime && formatTime(startTime), endTime && formatTime(endTime)].filter(Boolean)
+  return `${roleName} (${parts.join(' – ')})`
+}
+
 function eventLabel(event: {
   event_type: string; title: string | null;
   opponent: string | null; is_home: boolean | null
@@ -292,9 +298,10 @@ export async function GET(req: NextRequest) {
         const activeCount  = assignments.filter(a => a.status !== 'cancelled').length
         const open         = slot.slot_count - activeCount
         if (open > 0 && !slot.reminded_at) {
+          const roleBase = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
           unfilledUnreminded.push({
             slotId:      slot.id,
-            roleName:    (slot.volunteer_roles as any)?.name ?? 'Volunteer',
+            roleName:    slotLabel(roleBase, slot.start_time, slot.end_time),
             open,
             total:       slot.slot_count,
             signupToken: slot.signup_token,
@@ -382,7 +389,8 @@ export async function GET(req: NextRequest) {
       for (const slot of slots) {
         const assignments      = (slot.volunteer_assignments as any[]) ?? []
         const role             = slot.volunteer_roles as any
-        const roleName         = role?.name ?? 'Volunteer'
+        const roleBase         = role?.name ?? 'Volunteer'
+        const roleName         = slotLabel(roleBase, slot.start_time, slot.end_time)
         const slotStart        = slot.start_time ?? startTime
         const suppressReminder = role?.suppress_reminders === true
 

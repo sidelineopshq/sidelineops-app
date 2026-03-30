@@ -78,12 +78,21 @@ export default async function VolunteerSignupPage({
 
   const event      = slot.events as any
   const program    = event?.programs as any
-  const roleName   = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
+  const roleBaseName = (slot.volunteer_roles as any)?.name ?? 'Volunteer'
   const assignments = (slot.volunteer_assignments as any[]) ?? []
   const filled     = assignments.filter(a => a.status !== 'cancelled').length
   const remaining  = slot.slot_count - filled
   const isFull     = remaining <= 0
   const startTime  = slot.start_time ?? event?.default_start_time ?? null
+
+  // Build slot label with time range if available
+  const roleName = (() => {
+    if (!slot.start_time && !slot.end_time) return roleBaseName
+    const parts: string[] = []
+    if (slot.start_time) parts.push(formatTime(slot.start_time))
+    if (slot.end_time)   parts.push(formatTime(slot.end_time))
+    return `${roleBaseName} (${parts.join(' – ')})`
+  })()
 
   return (
     <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-12">
@@ -111,13 +120,10 @@ export default async function VolunteerSignupPage({
             <span className="text-slate-400">Date</span>
             <span className="text-white font-semibold">{formatDate(event.event_date)}</span>
           </div>
-          {startTime && (
+          {startTime && !slot.start_time && (
             <div className="flex justify-between text-sm">
               <span className="text-slate-400">Time</span>
-              <span className="text-white font-semibold">
-                {formatTime(startTime)}
-                {slot.end_time && ` – ${formatTime(slot.end_time)}`}
-              </span>
+              <span className="text-white font-semibold">{formatTime(startTime)}</span>
             </div>
           )}
           {event.location_name && (

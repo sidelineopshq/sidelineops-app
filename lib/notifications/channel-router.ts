@@ -88,12 +88,14 @@ export interface AlertEvent {
  */
 export async function sendChangeAlert({
   team,
+  programId,
   programName,
   event,
   changes,
   contacts,
 }: {
   team:        AlertTeam
+  programId:   string
   programName: string
   event:       AlertEvent
   changes:     ChangeRecord[]
@@ -203,7 +205,71 @@ export async function sendChangeAlert({
     }
   }
 
-  // ── 4. SMS/Twilio ─────────────────────────────────────────────────────────────
+  // ── 4. External Subscribers ───────────────────────────────────────────────────
+  try {
+    const { data: extSubs } = await supabase
+      .from('external_subscribers')
+      .select('id, name, email, token')
+      .eq('program_id', programId)
+      .or(`team_id.eq.${team.id},team_id.is.null`)
+      .not('opted_in_at', 'is', null)
+      .is('unsubscribed_at', null)
+      .eq('is_active', true)
+
+    if (extSubs && extSubs.length > 0) {
+      const resend      = new Resend(process.env.RESEND_API_KEY)
+      const senderLabel = programName || 'SidelineOps'
+      const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+
+      const emailBase = {
+        type:  'Schedule Change' as const,
+        event: {
+          title:       event.title,
+          date:        formattedDate,
+          time:        formatTime(event.default_start_time),
+          location:    event.location_name,
+          teamName:    team.name,
+          programName,
+          teamSlug:    team.slug,
+        },
+        customMessage,
+        appUrl,
+      }
+
+      let sent   = 0
+      let failed = 0
+      const BATCH = 10
+
+      for (let i = 0; i < extSubs.length; i += BATCH) {
+        const results = await Promise.all(
+          extSubs.slice(i, i + BATCH).map(async (sub: { id: string; name: string; email: string; token: string }) => {
+            const unsubscribeUrl = `${appUrl}/external-subscribe/unsubscribe?token=${sub.token}`
+            const html           = buildEventNotificationEmail({ ...emailBase, unsubscribeUrl })
+            return resend.emails.send({ from, to: sub.email, subject, html })
+              .catch(() => ({ error: true }))
+          })
+        )
+        results.forEach(r => ('error' in r && r.error) ? failed++ : sent++)
+      }
+
+      if (sent > 0 || failed > 0) {
+        await supabase.from('notification_log').insert({
+          team_id:           team.id,
+          sent_count:        sent,
+          failed_count:      failed,
+          notification_type: 'external_change_alert',
+          recipient_group:   'external_subscribers',
+          channel:           'email',
+          subject,
+          message:           customMessage,
+        })
+      }
+    }
+  } catch (err) {
+    console.error(`[channel-router] external subscribers channel for team ${team.id}:`, err)
+  }
+
+  // ── 5. SMS/Twilio ─────────────────────────────────────────────────────────────
   // Reserved for a future block.
 }
 

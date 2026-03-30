@@ -16,6 +16,19 @@ const inputClass     = "w-full rounded-xl border border-white/10 bg-slate-800 px
 const labelClass     = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
 const timeInputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
 
+function formatTime(time: string | null): string {
+  if (!time) return ''
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function slotLabel(roleName: string, startTime: string | null, endTime: string | null): string {
+  if (!startTime && !endTime) return roleName
+  const parts = [startTime && formatTime(startTime), endTime && formatTime(endTime)].filter(Boolean)
+  return `${roleName} (${parts.join(' – ')})`
+}
+
 export function VolunteerSlotsSection({
   roles,
   slots,
@@ -80,22 +93,15 @@ export function VolunteerSlotsSection({
         <div className="divide-y divide-white/5 rounded-xl border border-white/10 overflow-hidden">
           {slots.map((slot, i) => {
             const roleName = roles.find(r => r.id === slot.role_id)?.name ?? 'Unknown Role'
-            const timeRange =
-              slot.start_time && slot.end_time   ? `${slot.start_time} – ${slot.end_time}`
-              : slot.start_time                  ? `From ${slot.start_time}`
-              : slot.end_time                    ? `Until ${slot.end_time}`
-              : null
+            const label    = slotLabel(roleName, slot.start_time || null, slot.end_time || null)
             return (
               <div key={i} className="flex items-start justify-between gap-4 px-4 py-3 bg-slate-900">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-white">{roleName}</span>
+                    <span className="text-sm font-medium text-white">{label}</span>
                     <span className="text-xs bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full">
                       {slot.slot_count} {slot.slot_count === 1 ? 'volunteer' : 'volunteers'} needed
                     </span>
-                    {timeRange && (
-                      <span className="text-xs text-slate-400">{timeRange}</span>
-                    )}
                   </div>
                   {slot.notes && (
                     <p className="text-xs text-slate-500 mt-0.5">{slot.notes}</p>
