@@ -184,14 +184,14 @@ export async function createEvent(formData: {
     const { data: standingRaw } = await supabase
       .from('volunteer_standing_assignments')
       .select(`
-        id, role_id, contact_id, volunteer_name, volunteer_email,
+        id, volunteer_role_id, contact_id, volunteer_name, volunteer_email,
         contacts(first_name, last_name, email)
       `)
       .eq('program_id', teamData.program_id)
       .eq('is_active', true)
 
     for (const standing of standingRaw ?? []) {
-      const matchingSlot = insertedSlots.find(s => s.role_id === standing.role_id)
+      const matchingSlot = insertedSlots.find(s => s.role_id === (standing as any).volunteer_role_id)
       if (!matchingSlot) continue
 
       // Check current fill (should be 0 for a new event, but be safe)

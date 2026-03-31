@@ -199,8 +199,8 @@ export default async function TeamSettingsPage({
       svc
         .from('volunteer_standing_assignments')
         .select(`
-          id, role_id, contact_id, volunteer_name, volunteer_email,
-          volunteer_roles(name),
+          id, volunteer_role_id, contact_id, volunteer_name, volunteer_email,
+          volunteer_roles!volunteer_role_id(name),
           contacts(first_name, last_name, email)
         `)
         .eq('program_id', programId)
@@ -248,7 +248,7 @@ export default async function TeamSettingsPage({
       const displayEmail = row.volunteer_email ?? contact?.email ?? null
       return {
         id:            row.id,
-        role_id:       row.role_id,
+        role_id:       row.volunteer_role_id,
         role_name:     (row.volunteer_roles as any)?.name ?? '',
         contact_id:    row.contact_id,
         display_name:  displayName,

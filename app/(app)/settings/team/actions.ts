@@ -191,7 +191,7 @@ export async function createStandingAssignment(
     .from('volunteer_standing_assignments')
     .insert({
       program_id:      programId,
-      role_id:         roleId,
+      volunteer_role_id: roleId,
       contact_id:      data.contact_id      || null,
       volunteer_name:  data.volunteer_name?.trim()  || null,
       volunteer_email: data.volunteer_email?.trim() || null,
