@@ -8,7 +8,7 @@ import { createExternalSubscriber, resendExternalInvite, removeExternalSubscribe
 export type PendingInvite = {
   id:         string
   email:      string
-  role:       'admin' | 'coach'
+  role:       'admin' | 'coach' | 'volunteer_admin'
   team_names: string[]
   created_at: string
   expires_at: string
@@ -57,7 +57,7 @@ export function TeamMembersTab({
 
   // ── Invite form state ──────────────────────────────────────────────────────
   const [email,           setEmail]           = useState('')
-  const [role,            setRole]            = useState<'admin' | 'coach'>('coach')
+  const [role,            setRole]            = useState<'admin' | 'coach' | 'volunteer_admin'>('coach')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(
     teams.length === 1 ? [teams[0].id] : [],
   )
@@ -263,12 +263,13 @@ export function TeamMembersTab({
               <label className={labelClass}>Role</label>
               <select
                 value={role}
-                onChange={e => setRole(e.target.value as 'admin' | 'coach')}
+                onChange={e => setRole(e.target.value as 'admin' | 'coach' | 'volunteer_admin')}
                 className={inputClass}
                 style={{ appearance: 'auto' }}
               >
                 <option value="coach">Coach — can view and manage events</option>
                 <option value="admin">Admin — full team management access</option>
+                <option value="volunteer_admin">Volunteer Admin — can manage volunteers only</option>
               </select>
             </div>
 

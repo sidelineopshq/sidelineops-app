@@ -27,8 +27,6 @@ export default async function PublicSchedulePage({
   const brandSecondary = (team as any).secondary_color ?? '#c8a456'
   const teamLogoUrl    = (team as any).logo_url as string | null
 
-  console.log('[BRANDING] logo_url:', teamLogoUrl, 'primary_color:', brandPrimary)
-
   const { data: program } = await supabase
     .from('programs')
     .select('name, sport, season_year, school_id')

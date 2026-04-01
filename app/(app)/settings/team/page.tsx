@@ -6,7 +6,6 @@ import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
-import { VolunteerRolesTab, type VolunteerRole, type StandingAssignment, type TabContact, type TemplateSlot } from './VolunteerRolesTab'
 import type { ExternalSubscriber } from './TeamMembersTab'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
@@ -18,12 +17,11 @@ function serviceClient() {
 }
 
 const TABS = [
-  { id: 'general',          label: 'General'          },
-  { id: 'appearance',       label: 'Appearance'       },
-  { id: 'notifications',    label: 'Notifications'    },
-  { id: 'team-members',     label: 'Team Members'     },
-  { id: 'manage-teams',     label: 'Manage Teams'     },
-  { id: 'volunteer-roles',  label: 'Volunteer Roles'  },
+  { id: 'general',       label: 'General'       },
+  { id: 'appearance',    label: 'Appearance'    },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'team-members',  label: 'Team Members'  },
+  { id: 'manage-teams',  label: 'Manage Teams'  },
 ]
 
 export default async function TeamSettingsPage({
@@ -171,109 +169,6 @@ export default async function TeamSettingsPage({
     }))
   }
 
-  // ── Volunteer Roles tab data ───────────────────────────────────────────────
-  let volunteerRoles:       VolunteerRole[]       = []
-  let standingAssignments:  StandingAssignment[]  = []
-  let tabContacts:          TabContact[]          = []
-  let templateSlots:        TemplateSlot[]        = []
-
-  if (tab === 'volunteer-roles') {
-    const svc        = serviceClient()
-    const programId  = teams[0]?.program_id ?? ''
-    const allTeamIds = teams.map(t => t.id)
-
-    const DEFAULT_ROLES = [
-      { name: 'Concession Stand',       description: null },
-      { name: 'Gate / Ticket Sales',    description: null },
-      { name: 'Field Setup & Teardown', description: null },
-      { name: 'Scoreboard Operator',    description: null },
-    ]
-
-    // Fetch roles, standing assignments, contacts, and template slots in parallel
-    const [rolesResult, standingResult, contactsResult, templateResult] = await Promise.all([
-      svc
-        .from('volunteer_roles')
-        .select('id, name, description, is_active, suppress_reminders')
-        .eq('program_id', programId)
-        .order('created_at', { ascending: true }),
-      svc
-        .from('volunteer_standing_assignments')
-        .select(`
-          id, volunteer_role_id, contact_id, volunteer_name, volunteer_email,
-          volunteer_roles!volunteer_role_id(name),
-          contacts(first_name, last_name, email)
-        `)
-        .eq('program_id', programId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
-      allTeamIds.length > 0
-        ? svc
-            .from('contacts')
-            .select('id, first_name, last_name, email')
-            .in('team_id', allTeamIds)
-            .is('deleted_at', null)
-            .order('last_name', { ascending: true })
-            .order('first_name', { ascending: true })
-        : Promise.resolve({ data: [] }),
-      svc
-        .from('volunteer_slot_templates')
-        .select('id, volunteer_role_id, slot_count, start_time, end_time, notes, volunteer_roles!volunteer_role_id(name)')
-        .eq('program_id', programId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
-    ])
-
-    // Seed defaults if none exist yet
-    let rolesRaw = rolesResult.data
-    if ((rolesRaw ?? []).length === 0 && programId) {
-      await svc
-        .from('volunteer_roles')
-        .insert(DEFAULT_ROLES.map(r => ({ ...r, program_id: programId, is_active: true })))
-
-      const { data: seeded } = await svc
-        .from('volunteer_roles')
-        .select('id, name, description, is_active, suppress_reminders')
-        .eq('program_id', programId)
-        .order('created_at', { ascending: true })
-
-      rolesRaw = seeded
-    }
-
-    volunteerRoles = (rolesRaw ?? []) as VolunteerRole[]
-
-    standingAssignments = (standingResult.data ?? []).map((row: any) => {
-      const contact = row.contacts as any
-      const displayName  = row.volunteer_name
-        ?? (contact ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : '')
-      const displayEmail = row.volunteer_email ?? contact?.email ?? null
-      return {
-        id:            row.id,
-        role_id:       row.volunteer_role_id,
-        role_name:     (row.volunteer_roles as any)?.name ?? '',
-        contact_id:    row.contact_id,
-        display_name:  displayName,
-        display_email: displayEmail,
-      } satisfies StandingAssignment
-    })
-
-    tabContacts = (contactsResult.data ?? []).map((c: any) => ({
-      id:         c.id,
-      first_name: c.first_name,
-      last_name:  c.last_name  ?? null,
-      email:      c.email      ?? null,
-    })) as TabContact[]
-
-    templateSlots = (templateResult.data ?? []).map((t: any) => ({
-      id:         t.id,
-      role_id:    t.volunteer_role_id,
-      role_name:  (t.volunteer_roles as any)?.name ?? 'Unknown',
-      slot_count: t.slot_count,
-      start_time: t.start_time ?? null,
-      end_time:   t.end_time   ?? null,
-      notes:      t.notes      ?? null,
-    })) as TemplateSlot[]
-  }
-
   return (
     <section className="mx-auto max-w-3xl px-6 py-10">
 
@@ -386,17 +281,22 @@ export default async function TeamSettingsPage({
         />
       )}
 
-      {/* ── Volunteer Roles ───────────────────────────────────────────────────── */}
-      {tab === 'volunteer-roles' && (
-        <VolunteerRolesTab
-          programId={teams[0]?.program_id ?? ''}
-          roles={volunteerRoles}
-          standingAssignments={standingAssignments}
-          contacts={tabContacts}
-          canManage={canManage}
-          templateSlots={templateSlots}
-        />
-      )}
+
+      {/* ── Volunteer settings moved notice ──────────────────────────────────── */}
+      <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 px-6 py-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-white">Volunteer settings have moved.</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Roles, templates, and standing volunteers are now managed in Volunteer Settings.
+          </p>
+        </div>
+        <a
+          href="/volunteers/settings"
+          className="shrink-0 rounded-xl border border-white/20 hover:border-sky-500/40 hover:bg-sky-500/5 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors whitespace-nowrap"
+        >
+          Go to Volunteer Settings →
+        </a>
+      </div>
 
     </section>
   )

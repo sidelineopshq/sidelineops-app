@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   addVolunteerRole,
@@ -15,6 +15,7 @@ import {
   createTemplateSlot,
   updateTemplateSlot,
   removeTemplateSlot,
+  applyTemplateToRemainingGames,
 } from '@/app/actions/volunteers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -51,6 +52,34 @@ export interface TemplateSlot {
   start_time: string | null
   end_time:   string | null
   notes:      string | null
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function Toast({ message, variant = 'success', onDismiss }: {
+  message:  string
+  variant?: 'success' | 'error'
+  onDismiss: () => void
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 5000)
+    return () => clearTimeout(t)
+  }, [onDismiss])
+
+  const isError = variant === 'error'
+  return (
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border bg-slate-900 px-5 py-3 shadow-2xl shadow-black/40 ${
+      isError
+        ? 'border-red-500/30 ring-1 ring-red-500/20'
+        : 'border-green-500/30 ring-1 ring-green-500/20'
+    }`}>
+      <span className={`text-base ${isError ? 'text-red-400' : 'text-green-400'}`}>
+        {isError ? '!' : '✓'}
+      </span>
+      <p className="text-sm font-medium text-slate-100 whitespace-nowrap">{message}</p>
+      <button onClick={onDismiss} className="ml-1 text-slate-500 hover:text-slate-300 text-lg leading-none">×</button>
+    </div>
+  )
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -476,6 +505,12 @@ export function VolunteerRolesTab({
   const [editingTemplate,  setEditingTemplate]  = useState<TemplateSlot | undefined>(undefined)
   const [removingTplId,    setRemovingTplId]    = useState<string | null>(null)
 
+  // ── Apply template ────────────────────────────────────────────────────────
+  const [showApplyConfirm,  setShowApplyConfirm]  = useState(false)
+  const [applyPending,      startApply]           = useTransition()
+  const [applyResult,       setApplyResult]       = useState<{ eventsProcessed: number; slotsAdded: number; slotsSkipped: number } | null>(null)
+  const [applyErrorToast,   setApplyErrorToast]   = useState<string | null>(null)
+
   async function handleRemoveTemplate(id: string) {
     setRemovingTplId(id)
     await removeTemplateSlot(id)
@@ -554,6 +589,59 @@ export function VolunteerRolesTab({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Toasts ───────────────────────────────────────────────────────── */}
+      {applyResult && (
+        <Toast
+          message={`Done — ${applyResult.slotsAdded} slot${applyResult.slotsAdded !== 1 ? 's' : ''} added across ${applyResult.eventsProcessed} game${applyResult.eventsProcessed !== 1 ? 's' : ''}`}
+          onDismiss={() => setApplyResult(null)}
+        />
+      )}
+      {applyErrorToast && (
+        <Toast
+          message={applyErrorToast}
+          variant="error"
+          onDismiss={() => setApplyErrorToast(null)}
+        />
+      )}
+
+      {/* ── Apply template confirmation dialog ───────────────────────────── */}
+      {showApplyConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-3">Apply Template to Remaining Home Games?</h3>
+            <p className="text-sm text-slate-300 mb-5">
+              This will add your volunteer template slots to all upcoming home games. Standing volunteers will be automatically assigned to matching roles. Template slots will be added alongside any existing slots.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
+              <button
+                onClick={() => {
+                  startApply(async () => {
+                    const result = await applyTemplateToRemainingGames(programId)
+                    setShowApplyConfirm(false)
+                    if ('error' in result) {
+                      setApplyErrorToast('Something went wrong. Please try again.')
+                    } else {
+                      setApplyResult(result)
+                    }
+                  })
+                }}
+                disabled={applyPending}
+                className="flex-1 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+              >
+                {applyPending ? 'Applying…' : 'Apply Now'}
+              </button>
+              <button
+                onClick={() => setShowApplyConfirm(false)}
+                disabled={applyPending}
+                className="flex-1 rounded-xl border border-white/10 hover:bg-white/5 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Template Slot Modal ───────────────────────────────────────────── */}
       {showTemplateModal && (
@@ -823,6 +911,25 @@ export function VolunteerRolesTab({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* ── Apply to remaining home games ──────────────────────────────── */}
+        {canManage && templateSlots.length > 0 && (
+          <div className="border-t border-white/10 px-6 py-4">
+            <button
+              onClick={() => setShowApplyConfirm(true)}
+              disabled={applyPending}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/20 hover:border-sky-500/40 hover:bg-sky-500/5 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+              </svg>
+              {applyPending ? 'Applying…' : 'Apply to Remaining Home Games'}
+            </button>
+            <p className="mt-2 text-xs text-slate-500 text-center">
+              Adds all template slots to upcoming home games. Standing volunteers will be auto-assigned to matching roles.
+            </p>
           </div>
         )}
       </div>

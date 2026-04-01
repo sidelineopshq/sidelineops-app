@@ -28,10 +28,6 @@ export default async function AcceptInvitePage({
     .eq('token', token)
     .maybeSingle()
 
-  console.log('[ACCEPT INVITE] token:', token)
-  console.log('[ACCEPT INVITE] invite found:', invite)
-  console.log('[ACCEPT INVITE] error:', inviteError)
-
   if (!invite) {
     return <ErrorPage message="This invitation link is invalid or does not exist." />
   }

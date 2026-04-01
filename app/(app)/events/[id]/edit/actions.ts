@@ -154,8 +154,6 @@ export async function updateEvent(
   // Only touch slots when is_home is true — preserves saved slots if coach
   // temporarily toggles is_home off without saving.
   if (formData.is_home && volunteerSlots !== undefined) {
-    console.log('[SLOTS] Saving slots:', volunteerSlots.length, 'for event:', eventId)
-
     const existingIdsToKeep = (volunteerSlots ?? [])
       .filter(s => s.id)
       .map(s => s.id as string)
@@ -178,7 +176,6 @@ export async function updateEvent(
     // Insert new slots (those without an id)
     const newSlots = (volunteerSlots ?? []).filter(s => !s.id)
     if (newSlots.length > 0) {
-      console.log('[SLOTS] Inserting', newSlots.length, 'new slot(s)')
       const { error: slotErr } = await supabase
         .from('event_volunteer_slots')
         .insert(newSlots.map(s => ({

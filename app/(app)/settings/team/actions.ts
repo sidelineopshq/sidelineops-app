@@ -228,6 +228,154 @@ export async function removeStandingAssignment(standingId: string) {
   return { success: true }
 }
 
+// ── Apply Template to Remaining Home Games ────────────────────────────────────
+
+export async function applyTemplateToRemainingGames(programId: string): Promise<
+  { error: string } | { eventsProcessed: number; slotsAdded: number; slotsSkipped: number }
+> {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await assertProgramManageAccess(user.id, programId))) return { error: 'Not authorized' }
+
+  const service = createServiceClient()
+
+  // 1. Fetch active template slots
+  const { data: templates } = await service
+    .from('volunteer_slot_templates')
+    .select('id, volunteer_role_id, slot_count, start_time, end_time, notes')
+    .eq('program_id', programId)
+    .eq('is_active', true)
+
+  if (!templates?.length) return { error: 'No template slots configured.' }
+
+  // 2. Fetch team IDs for this program
+  const { data: teams } = await service
+    .from('teams')
+    .select('id')
+    .eq('program_id', programId)
+
+  const teamIds = (teams ?? []).map(t => t.id)
+  if (!teamIds.length) return { error: 'No teams found.' }
+
+  // 3. Fetch upcoming home event IDs
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+
+  const { data: eventDetails } = await service
+    .from('event_team_details')
+    .select('event_id')
+    .in('team_id', teamIds)
+
+  const allEventIds = [...new Set((eventDetails ?? []).map(d => d.event_id))]
+  if (!allEventIds.length) return { eventsProcessed: 0, slotsAdded: 0, slotsSkipped: 0 }
+
+  const { data: upcomingEvents } = await service
+    .from('events')
+    .select('id')
+    .in('id', allEventIds)
+    .gte('event_date', today)
+    .eq('is_home', true)
+    .eq('status', 'scheduled')
+
+  if (!upcomingEvents?.length) return { eventsProcessed: 0, slotsAdded: 0, slotsSkipped: 0 }
+
+  // 4. Fetch standing assignments for auto-apply
+  const { data: standingRaw } = await service
+    .from('volunteer_standing_assignments')
+    .select('id, volunteer_role_id, contact_id, volunteer_name, volunteer_email, contacts(first_name, last_name, email)')
+    .eq('program_id', programId)
+    .eq('is_active', true)
+
+  let slotsAdded = 0
+  let slotsSkipped = 0
+
+  // 5. For each event × template, check duplicate and insert
+  for (const event of upcomingEvents) {
+    for (const tpl of templates) {
+      // Null-safe duplicate check
+      let dupQuery = service
+        .from('event_volunteer_slots')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_id', event.id)
+        .eq('role_id', tpl.volunteer_role_id)
+
+      if (tpl.start_time === null) {
+        dupQuery = dupQuery.is('start_time', null)
+      } else {
+        dupQuery = dupQuery.eq('start_time', tpl.start_time)
+      }
+      if (tpl.end_time === null) {
+        dupQuery = dupQuery.is('end_time', null)
+      } else {
+        dupQuery = dupQuery.eq('end_time', tpl.end_time)
+      }
+
+      const { count } = await dupQuery
+
+      if ((count ?? 0) > 0) {
+        slotsSkipped++
+        continue
+      }
+
+      // Insert new slot
+      const { data: newSlot, error: insertErr } = await service
+        .from('event_volunteer_slots')
+        .insert({
+          event_id:   event.id,
+          role_id:    tpl.volunteer_role_id,
+          slot_count: tpl.slot_count,
+          start_time: tpl.start_time,
+          end_time:   tpl.end_time,
+          notes:      tpl.notes,
+        })
+        .select('id, role_id, slot_count')
+        .single()
+
+      if (insertErr || !newSlot) {
+        console.error('[applyTemplate] insert error:', insertErr)
+        continue
+      }
+
+      slotsAdded++
+
+      // Auto-apply standing assignments to this new slot
+      const matchingStanding = (standingRaw ?? []).filter(
+        s => (s as any).volunteer_role_id === newSlot.role_id
+      )
+      for (const standing of matchingStanding) {
+        const { count: filledCount } = await service
+          .from('volunteer_assignments')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_volunteer_slot_id', newSlot.id)
+          .neq('status', 'cancelled')
+
+        if ((filledCount ?? 0) >= newSlot.slot_count) break
+
+        const contact       = (standing as any).contacts as any
+        const volunteerName = standing.volunteer_name
+          ?? (contact ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : null)
+        const volunteerEmail = standing.volunteer_email ?? contact?.email ?? null
+
+        if (!volunteerName) continue
+
+        await service
+          .from('volunteer_assignments')
+          .insert({
+            event_volunteer_slot_id: newSlot.id,
+            contact_id:              standing.contact_id ?? null,
+            volunteer_name:          volunteerName,
+            volunteer_email:         volunteerEmail,
+            status:                  'assigned',
+            signup_source:           'standing',
+          })
+      }
+    }
+  }
+
+  revalidatePath('/settings/team')
+  return { eventsProcessed: upcomingEvents.length, slotsAdded, slotsSkipped }
+}
+
 // ── External Subscribers ──────────────────────────────────────────────────────
 
 function buildExternalInviteEmail({

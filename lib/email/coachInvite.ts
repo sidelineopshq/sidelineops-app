@@ -20,11 +20,11 @@ export function buildCoachInviteEmail({
   teamNames:    string[]
   programName:  string
   sport:        string
-  role:         'admin' | 'coach'
+  role:         'admin' | 'coach' | 'volunteer_admin'
   acceptUrl:    string
 }): string {
   const teamList  = joinTeamNames(teamNames)
-  const roleLabel = role === 'admin' ? 'Admin' : 'Coach'
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'volunteer_admin' ? 'Volunteer Admin' : 'Coach'
 
   return `<!DOCTYPE html>
 <html lang="en">

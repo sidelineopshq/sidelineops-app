@@ -86,18 +86,46 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Determine permissions based on role
-  const isAdmin = invite.role === 'admin'
+  type RolePerms = {
+    can_manage_events:        boolean
+    can_manage_contacts:      boolean
+    can_send_notifications:   boolean
+    can_manage_volunteers:    boolean
+    can_manage_team_settings: boolean
+  }
+
+  const ROLE_PERMS: Record<string, RolePerms> = {
+    admin: {
+      can_manage_events:        true,
+      can_manage_contacts:      true,
+      can_send_notifications:   true,
+      can_manage_volunteers:    true,
+      can_manage_team_settings: true,
+    },
+    coach: {
+      can_manage_events:        true,
+      can_manage_contacts:      true,
+      can_send_notifications:   true,
+      can_manage_volunteers:    true,
+      can_manage_team_settings: false,
+    },
+    volunteer_admin: {
+      can_manage_events:        false,
+      can_manage_contacts:      false,
+      can_send_notifications:   false,
+      can_manage_volunteers:    true,
+      can_manage_team_settings: false,
+    },
+  }
+
+  const perms: RolePerms = ROLE_PERMS[invite.role] ?? ROLE_PERMS.coach
 
   // 3. Insert team_users rows (one per team_id, skip if already exists)
   const teamUserRows = (invite.team_ids as string[]).map((teamId: string) => ({
-    user_id:                  userId,
-    team_id:                  teamId,
-    role:                     invite.role,
-    can_manage_events:        true,
-    can_manage_contacts:      true,
-    can_send_notifications:   true,
-    can_manage_volunteers:    true,
-    can_manage_team_settings: isAdmin,
+    user_id: userId,
+    team_id: teamId,
+    role:    invite.role,
+    ...perms,
   }))
 
   const { error: insertError } = await service

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignVolunteer, unassignVolunteer } from './volunteer-actions'
+import { assignVolunteer, unassignVolunteer, deleteVolunteerSlot, deleteSlotWithAssignments } from './volunteer-actions'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -274,20 +274,63 @@ function AssignModal({ slot, eventId, eventLabel, eventDate, programName, contac
   )
 }
 
+// ── Delete Slot Dialog ────────────────────────────────────────────────────────
+
+function DeleteSlotDialog({ hasAssignments, assignmentCount, onConfirm, onCancel, loading }: {
+  hasAssignments:  boolean
+  assignmentCount: number
+  onConfirm:       () => void
+  onCancel:        () => void
+  loading:         boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-base font-bold text-white mb-2">
+          {hasAssignments ? 'Remove All & Delete Slot?' : 'Delete Slot?'}
+        </h3>
+        <p className="text-sm text-slate-300">
+          {hasAssignments
+            ? `This will remove ${assignmentCount} volunteer${assignmentCount !== 1 ? 's' : ''} and delete the slot. Removed volunteers will receive a cancellation email.`
+            : 'Delete this volunteer slot? This cannot be undone.'}
+        </p>
+        <div className="mt-5 flex gap-3">
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            {loading ? 'Deleting...' : hasAssignments ? 'Remove All & Delete' : 'Delete'}
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 rounded-xl border border-white/10 hover:bg-slate-800 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Slot Card ─────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts, onSlotChange }: {
-  slot:         VolunteerSlot
-  eventId:      string
-  eventLabel:   string
-  eventDate:    string
-  programName:  string
-  contacts:     Contact[]
-  onSlotChange: (slotId: string, assignments: Assignment[]) => void
+function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts, onSlotChange, onSlotDeleted }: {
+  slot:           VolunteerSlot
+  eventId:        string
+  eventLabel:     string
+  eventDate:      string
+  programName:    string
+  contacts:       Contact[]
+  onSlotChange:   (slotId: string, assignments: Assignment[]) => void
+  onSlotDeleted:  (slotId: string) => void
 }) {
   const [assignments, setAssignments]           = useState<Assignment[]>(slot.assignments)
   const [showAssign, setShowAssign]             = useState(false)
   const [unassignTarget, setUnassignTarget]     = useState<Assignment | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isPending, startTransition]            = useTransition()
 
   const filled = assignments.filter(a => a.status !== 'cancelled').length
@@ -309,6 +352,22 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
         onSlotChange(slot.id, next)
       }
       setUnassignTarget(null)
+    })
+  }
+
+  function handleDeleteSlot() {
+    startTransition(async () => {
+      const activeAssignments = assignments.filter(a => a.status !== 'cancelled')
+      let result
+      if (activeAssignments.length === 0) {
+        result = await deleteVolunteerSlot(slot.id, eventId)
+      } else {
+        result = await deleteSlotWithAssignments(slot.id, eventId, programName)
+      }
+      if (!result?.error) {
+        onSlotDeleted(slot.id)
+      }
+      setShowDeleteDialog(false)
     })
   }
 
@@ -334,6 +393,15 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
           onCancel={() => setUnassignTarget(null)}
         />
       )}
+      {showDeleteDialog && (
+        <DeleteSlotDialog
+          hasAssignments={assignments.filter(a => a.status !== 'cancelled').length > 0}
+          assignmentCount={assignments.filter(a => a.status !== 'cancelled').length}
+          onConfirm={handleDeleteSlot}
+          onCancel={() => setShowDeleteDialog(false)}
+          loading={isPending}
+        />
+      )}
 
       <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
         {/* Header */}
@@ -346,13 +414,23 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
               <p className="text-xs text-slate-400 mt-1">{slot.notes}</p>
             )}
           </div>
-          <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${
-            isFull
-              ? 'border-green-500/30 bg-green-500/10 text-green-400'
-              : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-          }`}>
-            {filled} / {total}
-          </span>
+          <div className="shrink-0 flex items-center gap-2">
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
+              isFull
+                ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+            }`}>
+              {filled} / {total}
+            </span>
+            <button
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isPending}
+              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 px-2 py-1 text-xs font-semibold text-red-400 transition-colors disabled:opacity-50"
+              title="Delete slot"
+            >
+              {assignments.filter(a => a.status !== 'cancelled').length > 0 ? 'Remove All & Delete' : 'Delete Slot'}
+            </button>
+          </div>
         </div>
 
         {/* Assignment list */}
@@ -438,6 +516,10 @@ export default function EventVolunteersClient({
     setSlots(prev => prev.map(s => s.id === slotId ? { ...s, assignments } : s))
   }
 
+  function handleSlotDeleted(slotId: string) {
+    setSlots(prev => prev.filter(s => s.id !== slotId))
+  }
+
   function handleCopySignupPage() {
     if (!teamSlug) return
     const url = `${window.location.origin}/volunteer/${teamSlug}`
@@ -518,6 +600,7 @@ export default function EventVolunteersClient({
                 programName={programName}
                 contacts={contacts}
                 onSlotChange={handleSlotChange}
+                onSlotDeleted={handleSlotDeleted}
               />
             ))}
           </div>
