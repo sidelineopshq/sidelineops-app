@@ -25,6 +25,7 @@ export type PublicEvent = {
   location_name:    string | null
   location_address: string | null
   start_time:       string | null
+  team_labels:      string[]
   slots:            PublicSlot[]
   totalOpen:        number
   totalSlots:       number
@@ -257,6 +258,11 @@ export default function VolunteerSignupClient({
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                         {formatDate(event.event_date)}
                       </p>
+                      {event.team_labels.length > 0 && (
+                        <span className="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-semibold">
+                          {event.team_labels.join(' · ')}
+                        </span>
+                      )}
                       {selectedInEvent > 0 && (
                         <span className="rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-semibold">
                           {selectedInEvent} selected
@@ -560,9 +566,16 @@ export default function VolunteerSignupClient({
                   <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 mb-4">
                     {selectedByEvent.map(({ event, slots: slotsForEvent }) => (
                       <div key={event.id} className="px-4 py-3">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
-                          {formatDate(event.event_date)}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                            {formatDate(event.event_date)}
+                          </p>
+                          {event.team_labels.length > 0 && (
+                            <span className="rounded-full bg-slate-100 text-slate-500 px-2 py-0.5 text-xs font-medium">
+                              {event.team_labels.join(' · ')}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm font-semibold text-slate-700 mb-1.5">
                           {eventLabel(event)}
                         </p>

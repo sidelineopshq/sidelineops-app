@@ -29,7 +29,7 @@ export default async function DashboardPage() {
   // Get all team memberships
   const { data: teamUsersRaw } = await supabase
     .from('team_users')
-    .select('role, team_id, can_manage_events, can_send_notifications')
+    .select('role, team_id, can_manage_events, can_send_notifications, can_manage_volunteers')
     .eq('user_id', user.id)
 
   const teamUser = teamUsersRaw?.[0]
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
   const { data: allTeamsData } = await supabase
     .from('teams')
-    .select('id, name, level, slug, program_id, team_schedule_token, programs(sport, schools(name))')
+    .select('id, name, level, slug, program_id, team_schedule_token, primary_color, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('name', { ascending: false })
 
@@ -88,28 +88,94 @@ export default async function DashboardPage() {
 
   const upcomingCount = upcomingEvents?.length ?? 0
 
-  // Volunteer slots for next event
-  const { data: volunteerSlots } = await supabase
-    .from('event_volunteer_slots')
-    .select('id, slot_count, volunteer_assignments(id, status)')
-    .eq('event_id', nextEvent?.id ?? '00000000-0000-0000-0000-000000000000')
+  // ── Volunteer card data ────────────────────────────────────────────────────
+  const canSeeVolunteers = (teamUsersRaw ?? []).some(
+    t => (t as any).can_manage_volunteers || t.role === 'admin' || t.role === 'volunteer_admin'
+  )
 
-  const totalSlots  = volunteerSlots?.reduce((sum, s) => sum + (s.slot_count || 0), 0) ?? 0
-  const filledSlots = volunteerSlots?.reduce((sum, s) => {
-    const active = (s.volunteer_assignments as any[])?.filter(
-      a => a.status === 'assigned' || a.status === 'confirmed'
-    ).length ?? 0
-    return sum + active
-  }, 0) ?? 0
-  const openSlots = totalSlots - filledSlots
+  const primaryColor = (allTeamsData?.[0] as any)?.primary_color ?? '#0ea5e9'
 
-  const nextEventTitle = nextEvent
-    ? nextEvent.event_type === 'practice'
-      ? 'Practice'
-      : nextEvent.opponent
-        ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
-        : nextEvent.title ?? 'Event'
-    : null
+  type VolSlot = {
+    id: string; role_name: string; slot_count: number
+    start_time: string | null; end_time: string | null; filled: number
+  }
+  type VolCard = {
+    event: { id: string; event_date: string; event_type: string; opponent: string | null; title: string | null; start_time: string | null }
+    slots: VolSlot[]; totalSlots: number; filledSlots: number
+  }
+  let volunteerCard: VolCard | null = null
+
+  if (canSeeVolunteers && teamIds.length > 0) {
+    // Find upcoming home events for this user's teams
+    const { data: homeEventRows } = await supabase
+      .from('events')
+      .select(`
+        id, event_date, event_type, opponent, title, is_home,
+        event_team_details!inner(team_id, start_time)
+      `)
+      .in('event_team_details.team_id', teamIds)
+      .eq('is_home', true)
+      .gte('event_date', today)
+      .eq('status', 'scheduled')
+      .order('event_date', { ascending: true })
+      .limit(20)
+
+    const homeEventIds = (homeEventRows ?? []).map(e => e.id)
+
+    if (homeEventIds.length > 0) {
+      // Find which events have volunteer slots
+      const { data: slotEventRows } = await supabase
+        .from('event_volunteer_slots')
+        .select('event_id')
+        .in('event_id', homeEventIds)
+
+      const eventIdWithSlots = homeEventIds.find(id =>
+        (slotEventRows ?? []).some(s => s.event_id === id)
+      )
+
+      if (eventIdWithSlots) {
+        const eventRow = (homeEventRows ?? []).find(e => e.id === eventIdWithSlots) as any
+        const startTime = (eventRow?.event_team_details as any[])?.[0]?.start_time ?? null
+
+        const { data: slotRows } = await supabase
+          .from('event_volunteer_slots')
+          .select(`
+            id, slot_count, start_time, end_time,
+            volunteer_roles(name),
+            volunteer_assignments(id, status)
+          `)
+          .eq('event_id', eventIdWithSlots)
+          .order('created_at', { ascending: true })
+
+        const slots: VolSlot[] = (slotRows ?? []).map(s => ({
+          id:         s.id,
+          role_name:  (s.volunteer_roles as any)?.name ?? 'Volunteer',
+          slot_count: s.slot_count,
+          start_time: s.start_time ?? null,
+          end_time:   s.end_time   ?? null,
+          filled:     ((s.volunteer_assignments as any[]) ?? [])
+            .filter(a => a.status !== 'cancelled').length,
+        }))
+
+        const totalSlots  = slots.reduce((sum, s) => sum + s.slot_count, 0)
+        const filledSlots = slots.reduce((sum, s) => sum + Math.min(s.filled, s.slot_count), 0)
+
+        volunteerCard = {
+          event: {
+            id:         eventRow.id,
+            event_date: eventRow.event_date,
+            event_type: eventRow.event_type,
+            opponent:   eventRow.opponent ?? null,
+            title:      eventRow.title    ?? null,
+            start_time: startTime,
+          },
+          slots,
+          totalSlots,
+          filledSlots,
+        }
+      }
+    }
+  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
 
@@ -153,7 +219,11 @@ export default async function DashboardPage() {
           {nextEvent ? (
             <>
               <h3 className="mt-3 text-xl font-semibold leading-tight">
-                {nextEventTitle}
+                {nextEvent.event_type === 'practice'
+                  ? 'Practice'
+                  : nextEvent.opponent
+                    ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
+                    : nextEvent.title ?? 'Event'}
               </h3>
               <p className="mt-2 text-slate-300">
                 {formatDate(nextEvent.event_date)}
@@ -218,39 +288,114 @@ export default async function DashboardPage() {
           </a>
         </div>
 
-        {/* Volunteer Status */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
-          <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
-            Volunteer Status
-          </p>
-          {totalSlots > 0 ? (
-            <>
-              <h3 className="mt-3 text-xl font-semibold">
-                {openSlots === 0
-                  ? 'Fully Staffed'
-                  : `${openSlots} Open ${openSlots === 1 ? 'Role' : 'Roles'}`}
-              </h3>
-              <p className="mt-2 text-slate-300">
-                {filledSlots} of {totalSlots} slots filled for next event.
-              </p>
-              <div className="mt-3 h-2 rounded-full bg-slate-700">
-                <div
-                  className="h-2 rounded-full bg-green-500 transition-all"
-                  style={{ width: `${(filledSlots / totalSlots) * 100}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <h3 className="mt-3 text-xl font-semibold text-slate-400">
-                No slots set up
-              </h3>
-              <p className="mt-2 text-slate-500 text-sm">
-                Add volunteer roles to your next event.
-              </p>
-            </>
-          )}
-        </div>
+        {/* Volunteers */}
+        {canSeeVolunteers && (
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <a
+                href="/volunteers"
+                className="text-sm font-semibold uppercase tracking-wide text-sky-400 hover:text-sky-300 transition-colors"
+              >
+                Volunteers
+              </a>
+            </div>
+
+            {volunteerCard ? (() => {
+              const { event, slots, totalSlots, filledSlots } = volunteerCard
+              const allFilled = filledSlots >= totalSlots
+              const eventTitle = event.event_type === 'practice'
+                ? 'Practice'
+                : event.opponent
+                  ? `vs ${event.opponent}`
+                  : event.title ?? 'Event'
+              const visibleSlots = slots.slice(0, 4)
+              const hiddenCount  = slots.length - visibleSlots.length
+
+              return (
+                <>
+                  {/* Event info */}
+                  <div className="mb-3">
+                    <p className="text-base font-bold text-white leading-tight">{eventTitle}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {formatDate(event.event_date)}
+                      {event.start_time && ` · ${formatTime(event.start_time)}`}
+                    </p>
+                  </div>
+
+                  {/* Fill summary */}
+                  {allFilled ? (
+                    <p className="text-sm font-semibold text-green-400 mb-3">
+                      ✓ All volunteers confirmed for next game
+                    </p>
+                  ) : (
+                    <p className="text-sm text-slate-300 mb-2">
+                      {filledSlots} of {totalSlots} volunteers confirmed
+                    </p>
+                  )}
+
+                  {/* Progress bar */}
+                  <div className="h-1.5 rounded-full bg-slate-700 mb-4">
+                    <div
+                      className="h-1.5 rounded-full transition-all"
+                      style={{
+                        width: `${totalSlots > 0 ? (filledSlots / totalSlots) * 100 : 0}%`,
+                        backgroundColor: allFilled ? '#22c55e' : primaryColor,
+                      }}
+                    />
+                  </div>
+
+                  {/* Per-slot breakdown */}
+                  <div className="space-y-1.5 flex-1">
+                    {visibleSlots.map(slot => {
+                      const open      = Math.max(0, slot.slot_count - slot.filled)
+                      const slotFull  = open === 0
+                      const timeLabel = slot.start_time
+                        ? slot.end_time
+                          ? ` (${formatTime(slot.start_time)}–${formatTime(slot.end_time)})`
+                          : ` (${formatTime(slot.start_time)})`
+                        : ''
+                      return (
+                        <div key={slot.id} className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-slate-300 truncate min-w-0">
+                            {slot.role_name}{timeLabel}
+                          </p>
+                          <p className={`text-xs font-semibold shrink-0 ${slotFull ? 'text-green-400' : 'text-slate-400'}`}>
+                            {slotFull
+                              ? `${slot.slot_count} of ${slot.slot_count} ✓`
+                              : `${slot.filled} of ${slot.slot_count}`
+                            }
+                          </p>
+                        </div>
+                      )
+                    })}
+                    {hiddenCount > 0 && (
+                      <p className="text-xs text-slate-500">+ {hiddenCount} more slot{hiddenCount !== 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+
+                  <a
+                    href="/volunteers"
+                    className="mt-4 block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-xs font-semibold text-center transition-colors"
+                  >
+                    View All →
+                  </a>
+                </>
+              )
+            })() : (
+              <>
+                <p className="text-slate-400 text-sm flex-1">
+                  No volunteer slots set up for upcoming games.
+                </p>
+                <a
+                  href="/volunteers"
+                  className="mt-4 block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-xs font-semibold text-center transition-colors"
+                >
+                  Set up volunteer slots →
+                </a>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Public Schedule */}
         <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">

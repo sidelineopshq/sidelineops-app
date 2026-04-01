@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { generateVolunteerIcs, type IcsSlot } from '@/lib/utils/generate-ics'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function svc() {
   return createClient(
@@ -76,6 +77,7 @@ export type SignupSlotResult = {
   slotId:          string
   eventDate:       string
   eventLabel:      string
+  teamLabel:       string
   roleName:        string
   startTime:       string | null
   endTime:         string | null
@@ -123,6 +125,23 @@ export async function submitVolunteerSignup(data: {
 
   if (!slotRows || slotRows.length === 0) return { error: 'Invalid slots.' }
 
+  // Fetch team levels for each event so we can label them in the email
+  const eventIds = [...new Set(slotRows.map(s => (s.events as any)?.id).filter(Boolean))]
+  const teamLabelByEvent = new Map<string, string>()
+  if (eventIds.length > 0) {
+    const { data: etdRows } = await service
+      .from('event_team_details')
+      .select('event_id, teams(level)')
+      .in('event_id', eventIds)
+    for (const row of etdRows ?? []) {
+      const level = (row.teams as any)?.level ?? ''
+      const label = formatTeamShortLabel(level)
+      if (!label) continue
+      const existing = teamLabelByEvent.get(row.event_id)
+      teamLabelByEvent.set(row.event_id, existing ? `${existing} · ${label}` : label)
+    }
+  }
+
   const results: SignupSlotResult[] = []
 
   for (const slotRow of slotRows) {
@@ -153,11 +172,14 @@ export async function submitVolunteerSignup(data: {
       .eq('event_volunteer_slot_id', slotRow.id)
       .neq('status', 'cancelled')
 
+    const teamLabel = teamLabelByEvent.get(event?.id ?? '') ?? ''
+
     if ((count ?? 0) >= slotRow.slot_count) {
       results.push({
         slotId:          slotRow.id,
         eventDate:       event?.event_date ?? '',
         eventLabel:      label,
+        teamLabel,
         roleName,
         startTime:       startT,
         endTime:         endT,
@@ -185,6 +207,7 @@ export async function submitVolunteerSignup(data: {
         slotId:          slotRow.id,
         eventDate:       event?.event_date ?? '',
         eventLabel:      label,
+        teamLabel,
         roleName,
         startTime:       startT,
         endTime:         endT,
@@ -199,6 +222,7 @@ export async function submitVolunteerSignup(data: {
       slotId:          slotRow.id,
       eventDate:       event?.event_date ?? '',
       eventLabel:      label,
+      teamLabel,
       roleName,
       startTime:       startT,
       endTime:         endT,
@@ -243,9 +267,12 @@ export async function submitVolunteerSignup(data: {
         const slotLines = slots.map(s =>
           `<p style="margin:2px 0;font-size:14px;color:#e2e8f0;">• ${esc(s.roleName)}</p>`
         ).join('')
+        const teamBadge = slots[0]?.teamLabel
+          ? `<span style="display:inline-block;background:#1e3a5f;color:#93c5fd;font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;margin-left:8px;">${esc(slots[0].teamLabel)}</span>`
+          : ''
         return `<div style="margin-bottom:16px;">
           <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">${esc(formatDate(date))}</p>
-          <p style="margin:0 0 6px;font-size:14px;color:#cbd5e1;font-weight:600;">${esc(slots[0]?.eventLabel ?? '')}</p>
+          <p style="margin:0 0 6px;font-size:14px;color:#cbd5e1;font-weight:600;">${esc(slots[0]?.eventLabel ?? '')}${teamBadge}</p>
           ${slotLines}
         </div>`
       }).join('')

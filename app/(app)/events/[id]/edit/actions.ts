@@ -158,19 +158,31 @@ export async function updateEvent(
       .filter(s => s.id)
       .map(s => s.id as string)
 
-    // Delete slots that were removed from the list
-    if (existingIdsToKeep.length > 0) {
-      // Note: UUIDs must NOT be wrapped in quotes in PostgREST's not.in() filter
+    // Find slots being removed (existed in DB but not in the incoming list)
+    const { data: currentSlots } = await supabase
+      .from('event_volunteer_slots')
+      .select('id')
+      .eq('event_id', eventId)
+
+    const currentSlotIds = (currentSlots ?? []).map(s => s.id as string)
+    const slotIdsToDelete = currentSlotIds.filter(id => !existingIdsToKeep.includes(id))
+
+    if (slotIdsToDelete.length > 0) {
+      // Check for active assignments on slots being deleted
+      const { data: blockedAssignments } = await supabase
+        .from('volunteer_assignments')
+        .select('event_volunteer_slot_id')
+        .in('event_volunteer_slot_id', slotIdsToDelete)
+        .neq('status', 'cancelled')
+
+      if (blockedAssignments && blockedAssignments.length > 0) {
+        return { error: 'Cannot remove a slot that has volunteers assigned. Remove the volunteers first.' }
+      }
+
       await supabase
         .from('event_volunteer_slots')
         .delete()
-        .eq('event_id', eventId)
-        .not('id', 'in', `(${existingIdsToKeep.join(',')})`)
-    } else {
-      await supabase
-        .from('event_volunteer_slots')
-        .delete()
-        .eq('event_id', eventId)
+        .in('id', slotIdsToDelete)
     }
 
     // Insert new slots (those without an id)
