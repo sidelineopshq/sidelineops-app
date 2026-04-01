@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ContactsClient from './ContactsClient'
 
+export const metadata = { title: 'Contacts' }
+
 export default async function ContactsPage() {
   const supabase = await createClient()
 

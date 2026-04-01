@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+
+export const metadata = { title: 'Team Settings' }
 import { NotificationSettingsCard } from '../teams/NotificationSettingsCard'
 import { AppearanceTab } from './AppearanceTab'
 import { GeneralTab } from './GeneralTab'

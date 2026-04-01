@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import ScheduleClient from './ScheduleClient'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
+export const metadata = { title: 'Schedule' }
+
 function serviceClient() {
   return createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

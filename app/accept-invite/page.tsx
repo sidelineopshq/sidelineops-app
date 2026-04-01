@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import AcceptInviteForm from './AcceptInviteForm'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
+export const metadata = { title: 'Accept Invitation' }
+
 function createServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

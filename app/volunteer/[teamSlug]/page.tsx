@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { formatTeamLabel } from '@/lib/utils/team-label'
 import VolunteerSignupClient, { type PublicEvent, type PublicSlot } from './VolunteerSignupClient'
 
+export const metadata = { title: 'Volunteer Sign-Up' }
+
 function serviceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

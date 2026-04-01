@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
+export const metadata = { title: 'Dashboard' }
+
 function formatTime(time: string | null): string {
   if (!time) return ''
   const [hourStr, minuteStr] = time.split(':')

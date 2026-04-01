@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { VolunteerDashboardClient } from './VolunteerDashboardClient'
 import type { HomeGame, SeasonEvent, DashboardContact } from './VolunteerDashboardClient'
 
+export const metadata = { title: 'Volunteers' }
+
 function serviceClient() {
   return createServiceClient2(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
