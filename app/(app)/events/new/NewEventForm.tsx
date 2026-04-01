@@ -10,13 +10,13 @@ import {
 } from '../VolunteerSlotsSection'
 
 type TemplateSlot = {
-  id:         string
-  role_id:    string
-  role_name:  string
-  slot_count: number
-  start_time: string | null
-  end_time:   string | null
-  notes:      string | null
+  id:                string
+  volunteer_role_id: string
+  role_name:         string
+  slot_count:        number
+  start_time:        string | null
+  end_time:          string | null
+  notes:             string | null
 }
 
 function formatTime(time: string | null): string {
@@ -160,8 +160,8 @@ export default function NewEventForm({
 
   function handleApplyTemplate() {
     const edits: VolunteerSlot[] = templateSlots.map(ts => ({
-      role_id:    ts.role_id,
-      slot_count: ts.slot_count,
+      volunteer_role_id: ts.volunteer_role_id,
+      slot_count:        ts.slot_count,
       start_time: ts.start_time ?? '',
       end_time:   ts.end_time   ?? '',
       notes:      ts.notes      ?? '',

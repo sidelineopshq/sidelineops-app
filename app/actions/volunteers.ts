@@ -35,11 +35,11 @@ async function assertProgramManageAccess(userId: string, programId: string): Pro
 export async function createTemplateSlot(
   programId: string,
   data: {
-    role_id:     string
-    slot_count:  number
-    start_time?: string
-    end_time?:   string
-    notes?:      string
+    volunteer_role_id: string
+    slot_count:        number
+    start_time?:       string
+    end_time?:         string
+    notes?:            string
   },
 ) {
   const authClient = await createServerClient()
@@ -52,7 +52,7 @@ export async function createTemplateSlot(
     .from('volunteer_slot_templates')
     .insert({
       program_id:        programId,
-      volunteer_role_id: data.role_id,
+      volunteer_role_id: data.volunteer_role_id,
       slot_count:        data.slot_count,
       start_time:        data.start_time || null,
       end_time:          data.end_time   || null,
@@ -68,11 +68,11 @@ export async function createTemplateSlot(
 export async function updateTemplateSlot(
   slotId: string,
   data: {
-    role_id:     string
-    slot_count:  number
-    start_time?: string
-    end_time?:   string
-    notes?:      string
+    volunteer_role_id: string
+    slot_count:        number
+    start_time?:       string
+    end_time?:         string
+    notes?:            string
   },
 ) {
   const authClient = await createServerClient()
@@ -91,7 +91,7 @@ export async function updateTemplateSlot(
   const { error } = await service
     .from('volunteer_slot_templates')
     .update({
-      volunteer_role_id: data.role_id,
+      volunteer_role_id: data.volunteer_role_id,
       slot_count:        data.slot_count,
       start_time:        data.start_time || null,
       end_time:          data.end_time   || null,
@@ -189,7 +189,7 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
         .from('event_volunteer_slots')
         .select('id', { count: 'exact', head: true })
         .eq('event_id', event.id)
-        .eq('role_id', tpl.volunteer_role_id)
+        .eq('volunteer_role_id', tpl.volunteer_role_id)
 
       if (tpl.start_time === null) {
         dupQuery = dupQuery.is('start_time', null)
@@ -208,14 +208,14 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
       const { data: newSlot, error: insertErr } = await service
         .from('event_volunteer_slots')
         .insert({
-          event_id:   event.id,
-          role_id:    tpl.volunteer_role_id,
-          slot_count: tpl.slot_count,
-          start_time: tpl.start_time,
-          end_time:   tpl.end_time,
-          notes:      tpl.notes,
+          event_id:          event.id,
+          volunteer_role_id: tpl.volunteer_role_id,
+          slot_count:        tpl.slot_count,
+          start_time:        tpl.start_time,
+          end_time:          tpl.end_time,
+          notes:             tpl.notes,
         })
-        .select('id, role_id, slot_count')
+        .select('id, volunteer_role_id, slot_count')
         .single()
 
       if (insertErr || !newSlot) { console.error('[applyTemplate] insert error:', insertErr); continue }
@@ -224,7 +224,7 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
 
       // Auto-apply standing assignments
       const matchingStanding = (standingRaw ?? []).filter(
-        (s: any) => s.volunteer_role_id === newSlot.role_id
+        (s: any) => s.volunteer_role_id === newSlot.volunteer_role_id
       )
       for (const standing of matchingStanding as any[]) {
         const { count: filledCount } = await service
@@ -362,7 +362,7 @@ export async function sendHelpNeededNotification(
     .from('event_volunteer_slots')
     .select(`
       id, slot_count, start_time, end_time,
-      volunteer_roles!role_id(name),
+      volunteer_roles!volunteer_role_id(name),
       volunteer_assignments!event_volunteer_slot_id(id, status)
     `)
     .eq('event_id', eventId)

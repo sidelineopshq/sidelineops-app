@@ -112,8 +112,8 @@ export async function unassignVolunteer(assignmentId: string, eventId: string) {
     .select(`
       id, volunteer_name, volunteer_email,
       event_volunteer_slots!inner(
-        role_id,
-        volunteer_roles!role_id(name),
+        volunteer_role_id,
+        volunteer_roles!volunteer_role_id(name),
         events!inner(event_date, program_id, programs!inner(name))
       )
     `)
@@ -220,8 +220,8 @@ export async function deleteSlotWithAssignments(
   const { data: slot } = await service
     .from('event_volunteer_slots')
     .select(`
-      id, role_id,
-      volunteer_roles!role_id(name),
+      id, volunteer_role_id,
+      volunteer_roles!volunteer_role_id(name),
       events!inner(event_date)
     `)
     .eq('id', slotId)

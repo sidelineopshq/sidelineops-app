@@ -87,7 +87,7 @@ export default async function EventDetailPage({
 
   const slots = (slotsRaw ?? []).map((s: any) => ({
     id:          s.id,
-    role_id:    s.volunteer_roles?.id ?? '',
+    volunteer_role_id: s.volunteer_roles?.id ?? '',
     role_name:  s.volunteer_roles?.name ?? 'Unknown',
     slot_count: s.slot_count,
     start_time: s.start_time,

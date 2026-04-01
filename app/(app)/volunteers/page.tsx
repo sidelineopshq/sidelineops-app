@@ -100,7 +100,7 @@ export default async function VolunteersPage() {
   if (upcomingEventIds.length > 0) {
     const { data: slotsRaw } = await svc
       .from('event_volunteer_slots')
-      .select('id, event_id, role_id, slot_count, start_time, end_time, notes, volunteer_roles!role_id(name)')
+      .select('id, event_id, volunteer_role_id, slot_count, start_time, end_time, notes, volunteer_roles!volunteer_role_id(name)')
       .in('event_id', upcomingEventIds)
 
     const slotIds = (slotsRaw ?? []).map(s => s.id)
@@ -131,9 +131,9 @@ export default async function VolunteersPage() {
       const startTime = etdList.find(e => allTeamIds.includes(e.team_id))?.start_time ?? null
 
       const slots = (slotsByEvent.get(event.id) ?? []).map(s => ({
-        id:          s.id,
-        role_id:     s.role_id,
-        role_name:   (s.volunteer_roles as any)?.name ?? 'Volunteer',
+        id:                s.id,
+        volunteer_role_id: s.volunteer_role_id,
+        role_name:         (s.volunteer_roles as any)?.name ?? 'Volunteer',
         slot_count:  s.slot_count,
         start_time:  s.start_time  ?? null,
         end_time:    s.end_time    ?? null,

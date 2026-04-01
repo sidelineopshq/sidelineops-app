@@ -36,11 +36,11 @@ export async function createEvent(formData: {
     end_time?: string
   }[]
   volunteer_slots?: {
-    role_id:    string
-    slot_count: number
-    start_time?: string
-    end_time?:   string
-    notes?:      string
+    volunteer_role_id: string
+    slot_count:        number
+    start_time?:       string
+    end_time?:         string
+    notes?:            string
   }[]
 }) {
   // Step 1: Auth check
@@ -157,21 +157,21 @@ export async function createEvent(formData: {
   }
 
   // ── Step 6: Insert volunteer slots (home events only) ────────────────────
-  let insertedSlots: { id: string; role_id: string; slot_count: number }[] = []
+  let insertedSlots: { id: string; volunteer_role_id: string; slot_count: number }[] = []
 
   if (formData.is_home && formData.volunteer_slots?.length) {
     const slotRows = formData.volunteer_slots.map(s => ({
-      event_id:   event.id,
-      role_id:    s.role_id,
-      slot_count: s.slot_count,
-      start_time: s.start_time || null,
-      end_time:   s.end_time   || null,
-      notes:      s.notes      || null,
+      event_id:          event.id,
+      volunteer_role_id: s.volunteer_role_id,
+      slot_count:        s.slot_count,
+      start_time:        s.start_time || null,
+      end_time:          s.end_time   || null,
+      notes:             s.notes      || null,
     }))
     const { data: insertedSlotData, error: slotsError } = await supabase
       .from('event_volunteer_slots')
       .insert(slotRows)
-      .select('id, role_id, slot_count')
+      .select('id, volunteer_role_id, slot_count')
     if (slotsError) {
       console.error('[createEvent] volunteer slots error:', slotsError)
     } else {
@@ -191,7 +191,7 @@ export async function createEvent(formData: {
       .eq('is_active', true)
 
     for (const standing of standingRaw ?? []) {
-      const matchingSlot = insertedSlots.find(s => s.role_id === (standing as any).volunteer_role_id)
+      const matchingSlot = insertedSlots.find(s => s.volunteer_role_id === (standing as any).volunteer_role_id)
       if (!matchingSlot) continue
 
       // Check current fill (should be 0 for a new event, but be safe)

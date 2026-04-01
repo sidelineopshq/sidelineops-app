@@ -25,7 +25,7 @@ export type Assignment = {
 
 export type Slot = {
   id: string
-  role_id: string
+  volunteer_role_id: string
   role_name: string
   slot_count: number
   start_time: string | null

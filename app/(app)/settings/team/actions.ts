@@ -297,7 +297,7 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
         .from('event_volunteer_slots')
         .select('id', { count: 'exact', head: true })
         .eq('event_id', event.id)
-        .eq('role_id', tpl.volunteer_role_id)
+        .eq('volunteer_role_id', tpl.volunteer_role_id)
 
       if (tpl.start_time === null) {
         dupQuery = dupQuery.is('start_time', null)
@@ -321,14 +321,14 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
       const { data: newSlot, error: insertErr } = await service
         .from('event_volunteer_slots')
         .insert({
-          event_id:   event.id,
-          role_id:    tpl.volunteer_role_id,
-          slot_count: tpl.slot_count,
-          start_time: tpl.start_time,
-          end_time:   tpl.end_time,
-          notes:      tpl.notes,
+          event_id:          event.id,
+          volunteer_role_id: tpl.volunteer_role_id,
+          slot_count:        tpl.slot_count,
+          start_time:        tpl.start_time,
+          end_time:          tpl.end_time,
+          notes:             tpl.notes,
         })
-        .select('id, role_id, slot_count')
+        .select('id, volunteer_role_id, slot_count')
         .single()
 
       if (insertErr || !newSlot) {
@@ -340,7 +340,7 @@ export async function applyTemplateToRemainingGames(programId: string): Promise<
 
       // Auto-apply standing assignments to this new slot
       const matchingStanding = (standingRaw ?? []).filter(
-        s => (s as any).volunteer_role_id === newSlot.role_id
+        s => (s as any).volunteer_role_id === newSlot.volunteer_role_id
       )
       for (const standing of matchingStanding) {
         const { count: filledCount } = await service

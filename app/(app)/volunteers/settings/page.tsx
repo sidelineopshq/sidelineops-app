@@ -119,9 +119,9 @@ export default async function VolunteerSettingsPage() {
   const standingAssignments: StandingAssignment[] = (standingResult.data ?? []).map((row: any) => {
     const contact = row.contacts as any
     return {
-      id:            row.id,
-      role_id:       row.volunteer_role_id,
-      role_name:     (row.volunteer_roles as any)?.name ?? '',
+      id:                row.id,
+      volunteer_role_id: row.volunteer_role_id,
+      role_name:         (row.volunteer_roles as any)?.name ?? '',
       contact_id:    row.contact_id,
       display_name:  row.volunteer_name ?? (contact ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : ''),
       display_email: row.volunteer_email ?? contact?.email ?? null,
@@ -136,9 +136,9 @@ export default async function VolunteerSettingsPage() {
   }))
 
   const templateSlots: TemplateSlot[] = (templateResult.data ?? []).map((t: any) => ({
-    id:         t.id,
-    role_id:    t.volunteer_role_id,
-    role_name:  (t.volunteer_roles as any)?.name ?? 'Unknown',
+    id:                t.id,
+    volunteer_role_id: t.volunteer_role_id,
+    role_name:         (t.volunteer_roles as any)?.name ?? 'Unknown',
     slot_count: t.slot_count,
     start_time: t.start_time ?? null,
     end_time:   t.end_time   ?? null,

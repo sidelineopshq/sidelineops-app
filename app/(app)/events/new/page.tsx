@@ -60,9 +60,9 @@ export default async function NewEventPage() {
   const volunteerRoles = (rolesResult.data ?? []) as { id: string; name: string }[]
 
   const templateSlots = (templateResult.data ?? []).map((t: any) => ({
-    id:         t.id as string,
-    role_id:    t.volunteer_role_id as string,
-    role_name:  ((t.volunteer_roles as any)?.name ?? 'Unknown') as string,
+    id:                t.id as string,
+    volunteer_role_id: t.volunteer_role_id as string,
+    role_name:         ((t.volunteer_roles as any)?.name ?? 'Unknown') as string,
     slot_count: t.slot_count as number,
     start_time: (t.start_time ?? null) as string | null,
     end_time:   (t.end_time   ?? null) as string | null,

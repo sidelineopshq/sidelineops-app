@@ -29,12 +29,12 @@ export interface VolunteerRole {
 }
 
 export interface StandingAssignment {
-  id:            string
-  role_id:       string
-  role_name:     string
-  contact_id:    string | null
-  display_name:  string
-  display_email: string | null
+  id:               string
+  volunteer_role_id: string
+  role_name:        string
+  contact_id:       string | null
+  display_name:     string
+  display_email:    string | null
 }
 
 export interface TabContact {
@@ -45,13 +45,13 @@ export interface TabContact {
 }
 
 export interface TemplateSlot {
-  id:         string
-  role_id:    string
-  role_name:  string
-  slot_count: number
-  start_time: string | null
-  end_time:   string | null
-  notes:      string | null
+  id:                string
+  volunteer_role_id: string
+  role_name:         string
+  slot_count:        number
+  start_time:        string | null
+  end_time:          string | null
+  notes:             string | null
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ function TemplateSlotModal({
   onClose:     () => void
   onSaved:     () => void
 }) {
-  const [roleId,    setRoleId]    = useState(initial?.role_id    ?? activeRoles[0]?.id ?? '')
+  const [roleId,    setRoleId]    = useState(initial?.volunteer_role_id ?? activeRoles[0]?.id ?? '')
   const [count,     setCount]     = useState(initial?.slot_count ?? 1)
   const [startTime, setStartTime] = useState(initial?.start_time ?? '')
   const [endTime,   setEndTime]   = useState(initial?.end_time   ?? '')
@@ -132,8 +132,8 @@ function TemplateSlotModal({
     setError(null)
     startTransition(async () => {
       const data = {
-        role_id:    roleId,
-        slot_count: count,
+        volunteer_role_id: roleId,
+        slot_count:        count,
         start_time: startTime || undefined,
         end_time:   endTime   || undefined,
         notes:      notes.trim() || undefined,

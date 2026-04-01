@@ -4,12 +4,12 @@ import { useState } from 'react'
 
 export type VolunteerRole = { id: string; name: string }
 export type VolunteerSlot = {
-  id?:        string  // set when loaded from DB (edit form)
-  role_id:    string
-  slot_count: number
-  start_time: string
-  end_time:   string
-  notes:      string
+  id?:               string  // set when loaded from DB (edit form)
+  volunteer_role_id: string
+  slot_count:        number
+  start_time:        string
+  end_time:          string
+  notes:             string
 }
 
 const inputClass     = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
@@ -60,8 +60,8 @@ export function VolunteerSlotsSection({
     if (count < 1) { setFormError('At least 1 volunteer is required'); return }
     setFormError(null)
     onChange([...slots, {
-      role_id:    roleId,
-      slot_count: count,
+      volunteer_role_id: roleId,
+      slot_count:        count,
       start_time: startTime,
       end_time:   endTime,
       notes:      slotNotes,
@@ -92,7 +92,7 @@ export function VolunteerSlotsSection({
       {slots.length > 0 && (
         <div className="divide-y divide-white/5 rounded-xl border border-white/10 overflow-hidden">
           {slots.map((slot, i) => {
-            const roleName = roles.find(r => r.id === slot.role_id)?.name ?? 'Unknown Role'
+            const roleName = roles.find(r => r.id === slot.volunteer_role_id)?.name ?? 'Unknown Role'
             const label    = slotLabel(roleName, slot.start_time || null, slot.end_time || null)
             return (
               <div key={i} className="flex items-start justify-between gap-4 px-4 py-3 bg-slate-900">

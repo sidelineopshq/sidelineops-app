@@ -44,12 +44,12 @@ export async function updateEvent(
     status: string
   }[],
   volunteerSlots?: {
-    id?:        string
-    role_id:    string
-    slot_count: number
-    start_time?: string
-    end_time?:   string
-    notes?:      string
+    id?:               string
+    volunteer_role_id: string
+    slot_count:        number
+    start_time?:       string
+    end_time?:         string
+    notes?:            string
   }[]
 ) {
   const authClient = await createServerClient()
@@ -179,9 +179,9 @@ export async function updateEvent(
       const { error: slotErr } = await supabase
         .from('event_volunteer_slots')
         .insert(newSlots.map(s => ({
-          event_id:   eventId,
-          role_id:    s.role_id,
-          slot_count: s.slot_count,
+          event_id:          eventId,
+          volunteer_role_id: s.volunteer_role_id,
+          slot_count:        s.slot_count,
           start_time: s.start_time || null,
           end_time:   s.end_time   || null,
           notes:      s.notes      || null,

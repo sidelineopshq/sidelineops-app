@@ -74,16 +74,16 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       .order('name', { ascending: true }),
     svc
       .from('event_volunteer_slots')
-      .select('id, role_id, slot_count, start_time, end_time, notes')
+      .select('id, volunteer_role_id, slot_count, start_time, end_time, notes')
       .eq('event_id', id)
       .order('created_at', { ascending: true }),
   ])
 
   const volunteerRoles   = (rolesRaw ?? []) as { id: string; name: string }[]
   const existingSlots    = (existingSlotsRaw ?? []).map(s => ({
-    id:         s.id,
-    role_id:    s.role_id,
-    slot_count: s.slot_count,
+    id:                s.id,
+    volunteer_role_id: s.volunteer_role_id,
+    slot_count:        s.slot_count,
     start_time: s.start_time ?? '',
     end_time:   s.end_time   ?? '',
     notes:      s.notes      ?? '',
