@@ -1,7 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PUBLIC_API_PREFIXES = [
+  '/api/admin/',
+  '/api/cron/',
+  '/api/unsubscribe',
+  '/api/groupme/',
+  '/api/accept-invite',
+  '/api/team/',
+  '/auth/callback',
+]
+
 export default async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip session refresh for routes that handle their own auth
+  if (PUBLIC_API_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
