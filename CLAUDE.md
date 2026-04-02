@@ -17,3 +17,28 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
 
 ### Required environment variables
 `UNSUBSCRIBE_SECRET` and `BASE_URL` must be set in Vercel environment variables. If either is missing, email notifications will fail silently in production.
+
+## Infrastructure Notes
+
+### Middleware
+- Route protection is handled in `proxy.ts` **not** `middleware.ts`
+- When adding new public routes (API routes, public pages) that should bypass auth, add them to `proxy.ts`
+- Public routes that must be excluded from auth:
+  - `/api/admin/create-access-code`
+  - `/api/cron/weekly-digest`
+  - `/api/cron/volunteer-reminders`
+  - `/api/unsubscribe`
+  - `/api/groupme/callback`
+  - `/volunteer/[teamSlug]` (public signup page)
+  - `/accept-invite`
+  - `/external-subscribe/confirm`
+  - `/external-subscribe/unsubscribe`
+  - `/signup`
+  - `/forgot-password`
+  - `/reset-password`
+  - `/auth/callback`
+
+### Environment Variables
+- `ADMIN_SECRET` — required for `/api/admin/create-access-code`
+- Must be added to both `.env.local` and Vercel dashboard
+- Never commit actual secret values to GitHub
