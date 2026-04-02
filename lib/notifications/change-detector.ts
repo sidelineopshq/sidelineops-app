@@ -45,9 +45,16 @@ export interface ChangeRecord {
 }
 
 export interface EventChangeDiff {
-  hasChanges: boolean
-  changes:    ChangeRecord[]
-  isUrgent:   boolean
+  hasChanges:       boolean
+  changes:          ChangeRecord[]
+  isUrgent:         boolean
+  isEventTimeChange: boolean
+}
+
+export interface MealChangeDiff {
+  hasMealChanges: boolean
+  changes:        ChangeRecord[]
+  isCancellation: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +137,8 @@ export function detectEventChanges({
   teamName,
 }: {
   eventDate:     string
-  oldEvent:      EventSnapshot
-  newEvent:      EventSnapshot
+  oldEvent:      EventSnapshot & { meal_required?: boolean }
+  newEvent:      EventSnapshot & { meal_required?: boolean }
   oldTeamDetail: TeamDetailSnapshot
   newTeamDetail: TeamDetailSnapshot
   teamName:      string
@@ -178,7 +185,9 @@ export function detectEventChanges({
 
   // -- event_team_details fields ---------------------------------------------
 
-  if (oldTeamDetail.start_time !== newTeamDetail.start_time) {
+  const startTimeChanged = oldTeamDetail.start_time !== newTeamDetail.start_time
+
+  if (startTimeChanged) {
     changes.push({
       field: 'team_start_time',
       label: `${teamName} Start Time`,
@@ -206,8 +215,54 @@ export function detectEventChanges({
   }
 
   return {
-    hasChanges: changes.length > 0,
+    hasChanges:        changes.length > 0,
     changes,
-    isUrgent:   isUrgentDate(eventDate),
+    isUrgent:          isUrgentDate(eventDate),
+    isEventTimeChange: startTimeChanged && (oldEvent.meal_required === true),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meal change detection
+// ---------------------------------------------------------------------------
+
+export function detectMealChanges(
+  oldEvent: {
+    meal_required: boolean
+    meal_time:     string | null
+    meal_notes:    string | null
+    status:        string
+  },
+  newEvent: {
+    meal_required: boolean
+    meal_time:     string | null
+    meal_notes:    string | null
+    status:        string
+  },
+): MealChangeDiff {
+  const changes: ChangeRecord[] = []
+
+  if (oldEvent.meal_time !== newEvent.meal_time) {
+    changes.push({
+      field: 'meal_time',
+      label: 'Meal Time',
+      from:  oldEvent.meal_time ? formatTime(oldEvent.meal_time) : 'Not set',
+      to:    newEvent.meal_time ? formatTime(newEvent.meal_time) : 'Not set',
+    })
+  }
+
+  if (oldEvent.meal_notes !== newEvent.meal_notes) {
+    changes.push({
+      field: 'meal_notes',
+      label: 'Meal Notes',
+      from:  oldEvent.meal_notes ?? 'None',
+      to:    newEvent.meal_notes ?? 'None',
+    })
+  }
+
+  return {
+    hasMealChanges: changes.length > 0,
+    changes,
+    isCancellation: oldEvent.status !== 'cancelled' && newEvent.status === 'cancelled',
   }
 }
