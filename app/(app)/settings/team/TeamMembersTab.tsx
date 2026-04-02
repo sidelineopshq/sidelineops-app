@@ -225,7 +225,13 @@ export function TeamMembersTab({
   }
 
   function roleLabel(r: string) {
-    return r === 'admin' ? 'Admin' : 'Coach'
+    const labels: Record<string, string> = {
+      admin:            'Admin',
+      coach:            'Coach',
+      volunteer_admin:  'Volunteer Admin',
+      meal_coordinator: 'Meal Coordinator',
+    }
+    return labels[r] ?? r
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────

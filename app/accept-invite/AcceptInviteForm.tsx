@@ -35,7 +35,13 @@ export default function AcceptInviteForm({
   const [error, setError]           = useState<string | null>(null)
 
   const teamList  = joinTeamNames(teamNames)
-  const roleLabel = role === 'admin' ? 'Admin' : 'Coach'
+  const roleLabelMap: Record<string, string> = {
+    admin:            'Admin',
+    coach:            'Coach',
+    volunteer_admin:  'Volunteer Admin',
+    meal_coordinator: 'Meal Coordinator',
+  }
+  const roleLabel = roleLabelMap[role] ?? role
 
   const inputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
   const labelClass = "block text-sm font-semibold text-slate-300 mb-2"
