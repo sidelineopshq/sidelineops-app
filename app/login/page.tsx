@@ -64,6 +64,11 @@ export default function LoginPage() {
               Forgot your password?
             </a>
           </p>
+          <p className="text-center text-sm">
+            <a href="/signup" className="text-gray-400 hover:text-gray-200 transition-colors">
+              Don&apos;t have an account? Request access →
+            </a>
+          </p>
         </div>
       </div>
     </div>
