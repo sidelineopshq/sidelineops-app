@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateEvent, deleteEvent } from './actions'
+import { updateEvent, deleteEvent, updateMealInfo } from './actions'
 import {
   VolunteerSlotsSection,
   type VolunteerRole,
@@ -96,12 +96,14 @@ export default function EditEventForm({
   allTeamDetails,
   volunteerRoles,
   existingSlots,
+  isMealCoordinator = false,
 }: {
-  event:          any
-  teams:          Team[]
-  allTeamDetails: TeamDetail[]
-  volunteerRoles: VolunteerRole[]
-  existingSlots:  VolunteerSlot[]
+  event:              any
+  teams:              Team[]
+  allTeamDetails:     TeamDetail[]
+  volunteerRoles:     VolunteerRole[]
+  existingSlots:      VolunteerSlot[]
+  isMealCoordinator?: boolean
 }) {
   const router = useRouter()
 
@@ -155,6 +157,20 @@ export default function EditEventForm({
         ? { ...a, status: a.status === 'cancelled' ? 'scheduled' : 'cancelled' }
         : a
     ))
+  }
+
+  async function handleMealSave() {
+    setLoading(true)
+    setError(null)
+    const result = await updateMealInfo(event.id, {
+      meal_required: mealRequired,
+      meal_time:     mealRequired && mealTime ? mealTime : null,
+      meal_notes:    mealRequired && mealNotes ? mealNotes : null,
+    })
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+    }
   }
 
   async function handleSave() {
@@ -216,6 +232,81 @@ export default function EditEventForm({
   const inputClass   = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
   const labelClass   = "block text-sm font-semibold text-slate-300 mb-2"
   const timeInputCls = "rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+
+  // ── Meal coordinator: show only meal fields ──────────────────────────────
+  if (isMealCoordinator) {
+    const eventTitle = event.event_type === 'practice'
+      ? 'Practice'
+      : event.opponent
+        ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
+        : event.title ?? 'Event'
+    return (
+      <div className="text-white">
+        <div className="mx-auto max-w-xl px-6 py-8">
+          <div className="mb-6">
+            <button onClick={() => router.back()}
+              className="text-sm text-slate-400 hover:text-white transition-colors">
+              ← Back
+            </button>
+          </div>
+
+          {/* Banner */}
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
+            <p className="text-sm font-semibold text-amber-300">
+              You can only edit meal information for this event.
+            </p>
+          </div>
+
+          {/* Read-only event summary */}
+          <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900 px-5 py-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Event</p>
+            <p className="text-base font-bold text-white">{eventTitle}</p>
+            <p className="text-sm text-slate-400 mt-0.5">{event.event_date}</p>
+          </div>
+
+          {/* Meal fields */}
+          <Card>
+            <Toggle enabled={mealRequired} onChange={setMealRequired}
+              label="Team Meal" description="This event includes a team meal" />
+            {mealRequired && (
+              <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1.5">Meal Time</p>
+                  <input type="time" value={mealTime}
+                    onChange={e => setMealTime(e.target.value)}
+                    className={timeInputCls} />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1.5">Meal Notes</p>
+                  <input type="text" value={mealNotes}
+                    onChange={e => setMealNotes(e.target.value)}
+                    placeholder="e.g. Chick-fil-A, parents provide"
+                    className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm" />
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="mt-4 flex gap-3">
+            <button type="button" onClick={handleMealSave} disabled={loading}
+              className="flex-1 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-6 py-3 text-sm font-semibold transition-colors">
+              {loading ? 'Saving...' : 'Save Meal Info'}
+            </button>
+            <button type="button" onClick={() => router.back()} disabled={loading}
+              className="rounded-xl border border-white/10 hover:bg-slate-800 disabled:opacity-50 px-5 py-3 text-sm font-semibold transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="text-white">

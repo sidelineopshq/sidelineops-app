@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
     can_send_notifications:   boolean
     can_manage_volunteers:    boolean
     can_manage_team_settings: boolean
+    can_manage_meals:         boolean
   }
 
   const ROLE_PERMS: Record<string, RolePerms> = {
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
       can_send_notifications:   true,
       can_manage_volunteers:    true,
       can_manage_team_settings: true,
+      can_manage_meals:         true,
     },
     coach: {
       can_manage_events:        true,
@@ -108,6 +110,7 @@ export async function POST(req: NextRequest) {
       can_send_notifications:   true,
       can_manage_volunteers:    true,
       can_manage_team_settings: false,
+      can_manage_meals:         false,
     },
     volunteer_admin: {
       can_manage_events:        false,
@@ -115,6 +118,15 @@ export async function POST(req: NextRequest) {
       can_send_notifications:   false,
       can_manage_volunteers:    true,
       can_manage_team_settings: false,
+      can_manage_meals:         false,
+    },
+    meal_coordinator: {
+      can_manage_events:        false,
+      can_manage_contacts:      false,
+      can_send_notifications:   false,
+      can_manage_volunteers:    false,
+      can_manage_team_settings: false,
+      can_manage_meals:         true,
     },
   }
 

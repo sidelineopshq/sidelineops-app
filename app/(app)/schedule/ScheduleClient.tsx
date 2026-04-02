@@ -312,7 +312,7 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
 // ── Event Row (List View) ─────────────────────────────────────
 
 function EventRow({ event, childGames, canManageEvents, canSendNotifications,
-  teamId, teams, volunteerSummary, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  teamId, teams, volunteerSummary, userRole, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
   event: any
   childGames: any[]
   canManageEvents: boolean
@@ -320,6 +320,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
   teamId: string
   teams: { id: string; name: string }[]
   volunteerSummary?: { filled: number; total: number }
+  userRole?: string
   onCancelRequest: (event: any) => void
   onTournamentGameAdded: (game: any) => void
   onTournamentGameDeleted: (gameId: string) => void
@@ -461,6 +462,15 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
               className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
             >
               Edit
+            </button>
+          )}
+          {userRole === 'meal_coordinator' && (
+            <button
+              onClick={() => router.push(`/events/${event.id}/edit`)}
+              style={{ padding: '2px 10px' }}
+              className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition-colors"
+            >
+              Edit Meal Info
             </button>
           )}
           {canSendNotifications && (
@@ -677,6 +687,7 @@ export default function ScheduleClient({
   canManageEvents,
   canSendNotifications,
   volunteerSummaryMap = {},
+  userRole = '',
 }: {
   events?: any[]
   childGames?: any[]
@@ -686,6 +697,7 @@ export default function ScheduleClient({
   canManageEvents: boolean
   canSendNotifications: boolean
   volunteerSummaryMap?: Record<string, { filled: number; total: number }>
+  userRole?: string
 }) {
   const router = useRouter()
   const [eventList, setEventList]         = useState(events)
@@ -898,6 +910,7 @@ export default function ScheduleClient({
                     teamId={actionTeamId}
                     teams={teams}
                     volunteerSummary={volunteerSummaryMap[event.id]}
+                    userRole={userRole}
                     onCancelRequest={setCancelTarget}
                     onTournamentGameAdded={handleTournamentGameAdded}
                     onTournamentGameDeleted={handleTournamentGameDeleted}

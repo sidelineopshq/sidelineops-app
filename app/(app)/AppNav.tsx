@@ -8,9 +8,9 @@ const ALL_NAV_ITEMS = [
   { label: 'Dashboard',  href: '/dashboard',  icon: '⚡', hideFor: [] as string[] },
   { label: 'Schedule',   href: '/schedule',   icon: '📅', hideFor: [] },
   { label: 'Volunteers', href: '/volunteers', icon: '🙋', hideFor: [] },
-  { label: 'Roster',     href: '/roster',     icon: '👥', hideFor: ['volunteer_admin'] },
-  { label: 'Messages',   href: '/messages',   icon: '💬', hideFor: ['volunteer_admin'] },
-  { label: 'Contacts',   href: '/contacts',   icon: '👥', hideFor: ['volunteer_admin'] },
+  { label: 'Roster',     href: '/roster',     icon: '👥', hideFor: ['volunteer_admin', 'meal_coordinator'] },
+  { label: 'Messages',   href: '/messages',   icon: '💬', hideFor: ['volunteer_admin', 'meal_coordinator'] },
+  { label: 'Contacts',   href: '/contacts',   icon: '👥', hideFor: ['volunteer_admin', 'meal_coordinator'] },
 ]
 
 function getNavItems(role: string, canManageVolunteers: boolean) {
@@ -183,7 +183,7 @@ export default function AppNav({
                     <span>👤</span>
                     <span>Profile Settings</span>
                   </a>
-                  {canManageEvents && role !== 'volunteer_admin' && (
+                  {canManageEvents && role !== 'volunteer_admin' && role !== 'meal_coordinator' && (
                     <a
                       href="/settings/team"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"

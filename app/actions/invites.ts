@@ -21,7 +21,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function sendCoachInvite(
   email: string,
-  role: 'admin' | 'coach' | 'volunteer_admin',
+  role: 'admin' | 'coach' | 'volunteer_admin' | 'meal_coordinator',
   teamIds: string[],
 ) {
   // 1. Validate inputs
@@ -221,7 +221,7 @@ export async function resendCoachInvite(inviteId: string) {
       teamNames,
       programName: program?.name ?? '',
       sport:       program?.sport ?? '',
-      role:        invite.role as 'admin' | 'coach',
+      role:        invite.role as 'admin' | 'coach' | 'volunteer_admin' | 'meal_coordinator',
       acceptUrl,
     }),
   })

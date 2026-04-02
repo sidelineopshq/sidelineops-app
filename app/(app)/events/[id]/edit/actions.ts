@@ -253,6 +253,46 @@ export async function updateEvent(
   redirect('/schedule')
 }
 
+export async function updateMealInfo(
+  eventId: string,
+  data: {
+    meal_required: boolean
+    meal_time:     string | null
+    meal_notes:    string | null
+  }
+) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Verify user has can_manage_meals permission
+  const { data: teamUsersRaw } = await authClient
+    .from('team_users')
+    .select('can_manage_meals')
+    .eq('user_id', user.id)
+
+  const canManageMeals = (teamUsersRaw ?? []).some(t => (t as any).can_manage_meals)
+  if (!canManageMeals) return { error: 'You do not have permission to edit meal information.' }
+
+  const supabase = createServiceClient()
+
+  const { error } = await supabase
+    .from('events')
+    .update({
+      meal_required: data.meal_required,
+      meal_time:     data.meal_time  || null,
+      meal_notes:    data.meal_notes || null,
+    })
+    .eq('id', eventId)
+
+  if (error) {
+    console.error('[updateMealInfo] error:', error)
+    return { error: 'Failed to save meal information. Please try again.' }
+  }
+
+  redirect('/schedule')
+}
+
 export async function deleteEvent(eventId: string, teamId: string) {
   const authClient = await createServerClient()
   const { data: { user } } = await authClient.auth.getUser()

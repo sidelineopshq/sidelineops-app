@@ -32,9 +32,10 @@ export default async function SchedulePage() {
     )
   }
 
-  const teamIds          = teamUsersRaw.map(t => t.team_id)
-  const canManageEvents  = teamUsersRaw.some(t => t.can_manage_events)
+  const teamIds              = teamUsersRaw.map(t => t.team_id)
+  const canManageEvents      = teamUsersRaw.some(t => t.can_manage_events)
   const canSendNotifications = teamUsersRaw.some(t => t.can_send_notifications)
+  const userRole             = teamUsersRaw[0]?.role ?? ''
 
   const { data: teamsData } = await supabase
     .from('teams')
@@ -172,6 +173,7 @@ export default async function SchedulePage() {
       canManageEvents={canManageEvents}
       canSendNotifications={canSendNotifications}
       volunteerSummaryMap={volunteerSummaryMap}
+      userRole={userRole}
     />
   )
 }

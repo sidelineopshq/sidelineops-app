@@ -21,11 +21,14 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   // Get all team memberships (multi-team safe)
   const { data: teamUsersRaw } = await supabase
     .from('team_users')
-    .select('team_id, can_manage_events')
+    .select('team_id, role, can_manage_events, can_manage_meals')
     .eq('user_id', user.id)
 
-  const teamUser = teamUsersRaw?.find(t => t.can_manage_events) ?? teamUsersRaw?.[0]
-  if (!teamUser?.can_manage_events) redirect('/schedule')
+  const canManageEvents    = (teamUsersRaw ?? []).some(t => t.can_manage_events)
+  const isMealCoordinator  = !canManageEvents &&
+    (teamUsersRaw ?? []).some(t => (t as any).can_manage_meals || t.role === 'meal_coordinator')
+
+  if (!canManageEvents && !isMealCoordinator) redirect('/schedule')
 
   const teamIds = (teamUsersRaw ?? []).map(t => t.team_id)
 
@@ -96,6 +99,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       allTeamDetails={allTeamDetails ?? []}
       volunteerRoles={volunteerRoles}
       existingSlots={existingSlots}
+      isMealCoordinator={isMealCoordinator}
     />
   )
 }
