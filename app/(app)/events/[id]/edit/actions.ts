@@ -8,6 +8,8 @@ import {
   buildDisplayTitle,
   type TeamNotificationInput,
 } from '@/lib/notifications/fire-change-notifications'
+import { detectMealChanges } from '@/lib/notifications/change-detector'
+import { sendMealCoordinatorNotification } from '@/lib/notifications/channel-router'
 import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
@@ -84,7 +86,7 @@ export async function updateEvent(
   const [{ data: oldEventData }, { data: oldTeamDetails }, { data: teamNames }] = await Promise.all([
     supabase
       .from('events')
-      .select('default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home')
+      .select('default_end_time, location_name, location_address, status, event_date, event_type, title, opponent, is_home, meal_required, meal_time, meal_notes, program_id')
       .eq('id', eventId)
       .single(),
     supabase
@@ -248,6 +250,80 @@ export async function updateEvent(
       }),
       teamNotifications,
     })
+
+    // ── Meal coordinator notifications (awaited) ───────────────────────────
+    const mealDiff = detectMealChanges(
+      {
+        meal_required: oldEventData.meal_required ?? false,
+        meal_time:     oldEventData.meal_time      ?? null,
+        meal_notes:    oldEventData.meal_notes     ?? null,
+        status:        oldEventData.status,
+      },
+      {
+        meal_required: formData.meal_required,
+        meal_time:     formData.meal_time  || null,
+        meal_notes:    formData.meal_notes || null,
+        status:        formData.status,
+      },
+    )
+
+    const anyStartTimeChanged = teamAssignments.some(a => {
+      const old = oldTeamDetails?.find(d => d.team_id === a.team_id)
+      return old && old.start_time !== (a.start_time || null)
+    })
+    const isEventTimeChange = anyStartTimeChanged && (oldEventData.meal_required === true)
+
+    if (mealDiff.hasMealChanges || mealDiff.isCancellation || isEventTimeChange) {
+      const { data: prog } = await supabase
+        .from('programs')
+        .select('name')
+        .eq('id', oldEventData.program_id)
+        .single()
+
+      const mealEventDetails = {
+        title: buildDisplayTitle({
+          event_type: formData.event_type,
+          title,
+          opponent:   formData.opponent ?? null,
+          is_home:    formData.is_home  ?? null,
+        }),
+        event_date:    formData.event_date,
+        start_time:    first.start_time || null,
+        meal_time:     formData.meal_time  || null,
+        meal_notes:    formData.meal_notes || null,
+        meal_required: formData.meal_required,
+      }
+
+      if (mealDiff.hasMealChanges) {
+        await sendMealCoordinatorNotification({
+          programId:   oldEventData.program_id,
+          programName: prog?.name ?? '',
+          event:       mealEventDetails,
+          changes:     mealDiff.changes,
+          triggerType: 'meal_change',
+        })
+      }
+
+      if (mealDiff.isCancellation && (oldEventData.meal_required === true)) {
+        await sendMealCoordinatorNotification({
+          programId:   oldEventData.program_id,
+          programName: prog?.name ?? '',
+          event:       mealEventDetails,
+          changes:     [],
+          triggerType: 'event_cancelled',
+        })
+      }
+
+      if (isEventTimeChange) {
+        await sendMealCoordinatorNotification({
+          programId:   oldEventData.program_id,
+          programName: prog?.name ?? '',
+          event:       mealEventDetails,
+          changes:     [],
+          triggerType: 'event_time_change',
+        })
+      }
+    }
   }
 
   redirect('/schedule')

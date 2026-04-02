@@ -237,9 +237,28 @@ export default function EditEventForm({
   if (isMealCoordinator) {
     const eventTitle = event.event_type === 'practice'
       ? 'Practice'
-      : event.opponent
-        ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
-        : event.title ?? 'Event'
+      : event.event_type === 'meeting'
+        ? 'Team Meeting'
+        : event.event_type === 'tournament'
+          ? (event.title ?? 'Tournament')
+          : event.opponent
+            ? `${event.is_home ? 'vs' : '@'} ${event.opponent}`
+            : event.title ?? 'Event'
+
+    const eventTypeLabel: Record<string, string> = {
+      game: 'Game', practice: 'Practice', scrimmage: 'Scrimmage',
+      tournament: 'Tournament', meeting: 'Meeting',
+    }
+
+    function fmt12(t: string | null): string | null {
+      if (!t) return null
+      const [h, m] = t.split(':')
+      const hr = parseInt(h, 10)
+      return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`
+    }
+
+    const startTime = event.default_start_time ? fmt12(event.default_start_time) : null
+
     return (
       <div className="text-white">
         <div className="mx-auto max-w-xl px-6 py-8">
@@ -251,17 +270,53 @@ export default function EditEventForm({
           </div>
 
           {/* Banner */}
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
-            <p className="text-sm font-semibold text-amber-300">
-              You can only edit meal information for this event.
+          <div className="mb-6 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-5 py-4">
+            <p className="text-sm font-semibold text-sky-300">
+              You are viewing this event as Meal Coordinator. You can only edit meal information.
             </p>
           </div>
 
           {/* Read-only event summary */}
-          <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900 px-5 py-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Event</p>
-            <p className="text-base font-bold text-white">{eventTitle}</p>
-            <p className="text-sm text-slate-400 mt-0.5">{event.event_date}</p>
+          <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-white/10 bg-slate-800 px-3 py-0.5 text-xs font-semibold text-slate-300">
+                {eventTypeLabel[event.event_type] ?? event.event_type}
+              </span>
+              {(event.event_type === 'game' || event.event_type === 'scrimmage') && event.is_home !== null && (
+                <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
+                  event.is_home
+                    ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                }`}>
+                  {event.is_home ? 'Home' : 'Away'}
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Event</p>
+              <p className="text-base font-bold text-white">{eventTitle}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Date</p>
+                <p className="text-sm text-slate-300">{event.event_date}</p>
+              </div>
+              {startTime && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Time</p>
+                  <p className="text-sm text-slate-300">{startTime}</p>
+                </div>
+              )}
+            </div>
+            {event.location_name && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Location</p>
+                <p className="text-sm text-slate-300">{event.location_name}</p>
+                {event.location_address && (
+                  <p className="text-xs text-slate-500 mt-0.5">{event.location_address}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Meal fields */}
@@ -278,10 +333,11 @@ export default function EditEventForm({
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 mb-1.5">Meal Notes</p>
-                  <input type="text" value={mealNotes}
+                  <textarea value={mealNotes}
                     onChange={e => setMealNotes(e.target.value)}
+                    rows={3}
                     placeholder="e.g. Chick-fil-A, parents provide"
-                    className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm" />
+                    className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm resize-none" />
                 </div>
               </div>
             )}

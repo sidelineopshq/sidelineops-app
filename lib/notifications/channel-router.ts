@@ -274,6 +274,146 @@ export async function sendChangeAlert({
 }
 
 // =============================================================================
+// sendMealCoordinatorNotification
+// =============================================================================
+
+export interface MealCoordinatorEvent {
+  title:         string
+  event_date:    string
+  start_time:    string | null
+  meal_time:     string | null
+  meal_notes:    string | null
+  meal_required: boolean
+}
+
+/**
+ * Sends a targeted email to all meal coordinators (can_manage_meals = true) for the
+ * given program. Call with `void` on event create; `await` on event update.
+ */
+export async function sendMealCoordinatorNotification({
+  programId,
+  programName,
+  event,
+  changes,
+  triggerType,
+}: {
+  programId:   string
+  programName: string
+  event:       MealCoordinatorEvent
+  changes:     ChangeRecord[]
+  triggerType: 'new_event_with_meal' | 'meal_change' | 'event_cancelled' | 'event_time_change'
+}): Promise<void> {
+  const supabase      = createServiceClient()
+  const appUrl        = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const formattedDate = formatDate(event.event_date)
+
+  // 1. Find all teams in this program
+  const { data: programTeams } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('program_id', programId)
+
+  const teamIds = (programTeams ?? []).map(t => t.id)
+  if (!teamIds.length) return
+
+  // 2. Find users with can_manage_meals on any of those teams (deduplicated)
+  const { data: mealCoordRows } = await supabase
+    .from('team_users')
+    .select('user_id')
+    .in('team_id', teamIds)
+    .eq('can_manage_meals', true)
+
+  const uniqueUserIds = [...new Set((mealCoordRows ?? []).map(r => r.user_id))]
+  if (!uniqueUserIds.length) return
+
+  // 3. Fetch emails
+  const { data: userRows } = await supabase
+    .from('users')
+    .select('id, email')
+    .in('id', uniqueUserIds)
+
+  const recipients = (userRows ?? []).filter(
+    (u): u is typeof u & { email: string } => typeof u.email === 'string' && u.email.length > 0,
+  )
+  if (!recipients.length) return
+
+  // 4. Build email content
+  const subjectMap: Record<string, string> = {
+    new_event_with_meal: `Meal Coordination Needed: ${event.title} — ${formattedDate}`,
+    meal_change:         `Meal Update: ${event.title} — ${formattedDate}`,
+    event_cancelled:     `Event Cancelled: ${event.title} — ${formattedDate}`,
+    event_time_change:   `Start Time Changed: ${event.title} — ${formattedDate}`,
+  }
+  const subject = subjectMap[triggerType]
+
+  const introMap: Record<string, string> = {
+    new_event_with_meal: 'A new event has been scheduled that requires meal coordination.',
+    meal_change:         'Meal details have been updated for this event.',
+    event_cancelled:     'This event has been cancelled.',
+    event_time_change:   'The event start time has been updated. Please review the meal schedule.',
+  }
+
+  const bodyParts: string[] = [introMap[triggerType]]
+
+  if (changes.length > 0) {
+    bodyParts.push('')
+    changes.forEach(c => bodyParts.push(`${c.label}: ${c.from} → ${c.to}`))
+  }
+
+  if (event.meal_time) {
+    bodyParts.push(`\nMeal Time: ${formatTime(event.meal_time) ?? event.meal_time}`)
+  }
+  if (event.meal_notes) {
+    bodyParts.push(`Meal Notes: ${event.meal_notes}`)
+  }
+
+  const customMessage = bodyParts.join('\n')
+
+  const emailType =
+    triggerType === 'event_cancelled'   ? ('Cancellation'   as const) :
+    triggerType === 'event_time_change' ? ('Schedule Change' as const) :
+                                          ('Meal Notice'     as const)
+
+  // 5. Send emails
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const from   = `${programName || 'SidelineOps'} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
+    const BATCH  = 10
+
+    let sent   = 0
+    let failed = 0
+
+    for (let i = 0; i < recipients.length; i += BATCH) {
+      const results = await Promise.all(
+        recipients.slice(i, i + BATCH).map(u => {
+          const html = buildEventNotificationEmail({
+            type:  emailType,
+            event: {
+              title:       event.title,
+              date:        formattedDate,
+              time:        formatTime(event.start_time),
+              location:    null,
+              teamName:    programName,
+              programName,
+              teamSlug:    null,
+            },
+            customMessage,
+            appUrl,
+          })
+          return resend.emails.send({ from, to: u.email, subject, html })
+            .catch(() => ({ error: true }))
+        })
+      )
+      results.forEach(r => ('error' in r && r.error) ? failed++ : sent++)
+    }
+
+    console.log(`[channel-router] meal coordinator notification (${triggerType}): ${sent} sent, ${failed} failed`)
+  } catch (err) {
+    console.error('[channel-router] sendMealCoordinatorNotification:', err)
+  }
+}
+
+// =============================================================================
 // sendNewEventAlert
 // =============================================================================
 

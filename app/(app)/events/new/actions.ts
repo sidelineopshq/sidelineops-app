@@ -3,7 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { sendNewEventAlert } from '@/lib/notifications/channel-router'
+import { sendNewEventAlert, sendMealCoordinatorNotification } from '@/lib/notifications/channel-router'
 import { formatTeamLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
@@ -301,6 +301,27 @@ export async function createEvent(formData: {
             email_unsubscribed: c.email_unsubscribed,
           })),
         })
+      }
+      // Fire meal coordinator notification if meal is required (non-blocking)
+      if (formData.meal_required) {
+        try {
+          await sendMealCoordinatorNotification({
+            programId:   teamData.program_id,
+            programName: program?.name ?? '',
+            event: {
+              title:         title ?? 'Event',
+              event_date:    formData.event_date,
+              start_time:    firstAssignment.start_time || null,
+              meal_time:     formData.meal_time  || null,
+              meal_notes:    formData.meal_notes || null,
+              meal_required: true,
+            },
+            changes:     [],
+            triggerType: 'new_event_with_meal',
+          })
+        } catch (err) {
+          console.error('[createEvent] meal coordinator notification failed:', err)
+        }
       }
     } catch (err) {
       console.error('[createEvent] notification fire failed:', err)
