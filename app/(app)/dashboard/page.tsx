@@ -32,8 +32,11 @@ export default async function DashboardPage() {
     .select('role, team_id, can_manage_events, can_send_notifications, can_manage_volunteers')
     .eq('user_id', user.id)
 
-  const teamUser = teamUsersRaw?.[0]
-  const teamIds  = (teamUsersRaw ?? []).map(t => t.team_id)
+  // New user with no team assignment — send to onboarding
+  if (!teamUsersRaw?.length) redirect('/onboarding')
+
+  const teamUser = teamUsersRaw[0]
+  const teamIds  = teamUsersRaw.map(t => t.team_id)
 
   // Fetch all teams the coach belongs to — order descending by name so
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
