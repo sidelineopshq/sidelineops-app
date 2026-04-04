@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { formatProgramLabel, formatSchoolName } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -23,16 +24,13 @@ function slugify(val: string) {
 }
 
 export interface OnboardingData {
-  schoolName:          string
-  city:                string
-  state:               string
-  sport:               string
-  seasonYear:          number
-  homeLocationName:    string
-  homeLocationAddress: string
-  teamName:            string
-  level:               string
-  teamSlug:            string
+  schoolName:  string
+  city:        string
+  state:       string
+  sport:       string
+  seasonYear:  number
+  level:       string
+  teamSlug:    string
 }
 
 export async function createProgramAndTeam(data: OnboardingData) {
@@ -40,10 +38,11 @@ export async function createProgramAndTeam(data: OnboardingData) {
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) redirect('/login')
 
-  const service      = createServiceClient()
-  const schoolSlug   = slugify(data.schoolName)
+  const service    = createServiceClient()
+  const schoolSlug = slugify(data.schoolName)
 
   // ── 1. School ───────────────────────────────────────────────────────────────
+  // Store school name as entered; formatSchoolName() is for display only.
   const { data: existingSchool } = await service
     .from('schools')
     .select('id')
@@ -69,8 +68,9 @@ export async function createProgramAndTeam(data: OnboardingData) {
   }
 
   // ── 2. Program ──────────────────────────────────────────────────────────────
-  const programSlug = slugify(`${data.sport}-program`)
-  const programName = `${data.sport.trim()} Program`
+  // e.g. "James Clemens Softball"
+  const programName = formatProgramLabel(data.schoolName, data.sport)
+  const programSlug = slugify(programName)
 
   const { data: existingProgram } = await service
     .from('programs')
@@ -85,10 +85,9 @@ export async function createProgramAndTeam(data: OnboardingData) {
     await service
       .from('programs')
       .update({
-        sport:                 data.sport.trim(),
-        season_year:           data.seasonYear,
-        home_location_name:    data.homeLocationName.trim()    || null,
-        home_location_address: data.homeLocationAddress.trim() || null,
+        name:        programName,
+        sport:       data.sport.trim(),
+        season_year: data.seasonYear,
       })
       .eq('id', existingProgram.id)
     programId = existingProgram.id
@@ -96,14 +95,12 @@ export async function createProgramAndTeam(data: OnboardingData) {
     const { data: newProgram, error: programErr } = await service
       .from('programs')
       .insert({
-        school_id:             schoolId,
-        name:                  programName,
-        sport:                 data.sport.trim(),
-        season_year:           data.seasonYear,
-        slug:                  programSlug,
-        is_active:             true,
-        home_location_name:    data.homeLocationName.trim()    || null,
-        home_location_address: data.homeLocationAddress.trim() || null,
+        school_id:   schoolId,
+        name:        programName,
+        sport:       data.sport.trim(),
+        season_year: data.seasonYear,
+        slug:        programSlug,
+        is_active:   true,
       })
       .select('id')
       .single()
@@ -112,6 +109,9 @@ export async function createProgramAndTeam(data: OnboardingData) {
   }
 
   // ── 3. Team ─────────────────────────────────────────────────────────────────
+  // Team name = program name; level differentiates teams within a program.
+  const teamName = programName
+
   const teamSlug = data.teamSlug
     .trim()
     .toLowerCase()
@@ -133,7 +133,7 @@ export async function createProgramAndTeam(data: OnboardingData) {
     .from('teams')
     .insert({
       program_id: programId,
-      name:       data.teamName.trim(),
+      name:       teamName,
       level:      data.level || null,
       slug:       teamSlug,
       sort_order: 1,
@@ -164,7 +164,7 @@ export async function createProgramAndTeam(data: OnboardingData) {
   const { data: billing, error: billingErr } = await service
     .from('billing_accounts')
     .insert({
-      name:          `${data.schoolName.trim()} ${data.sport.trim()}`,
+      name:          programName,
       account_type:  'standard',
       owner_user_id: user.id,
       school_id:     schoolId,

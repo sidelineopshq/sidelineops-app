@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -203,7 +203,12 @@ export default async function DashboardPage() {
         <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-sky-400">
           {program?.sport ?? 'Program'}
         </p>
-        <h2 className="text-3xl font-bold">{program?.name ?? 'Your Team'}</h2>
+        <h2 className="text-3xl font-bold">
+          {formatProgramLabel(
+            (team as any)?.programs?.schools?.name ?? '',
+            (team as any)?.programs?.sport ?? program?.sport ?? '',
+          ) || program?.name || 'Your Team'}
+        </h2>
         {team?.name && (
           <p className="mt-1 text-slate-400 text-sm">
             {formatTeamShortLabel((team as any).level ?? '')} · {teamUser?.role?.replace('_', ' ')}

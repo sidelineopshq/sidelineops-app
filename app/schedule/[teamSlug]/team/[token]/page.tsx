@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -194,10 +195,10 @@ export default async function TeamSchedulePage({
                 className="mb-2"
               />
               <h1 className="text-2xl font-bold text-white">
-                {program?.name ?? team.name}
+                {formatProgramLabel(school?.name ?? '', program?.sport ?? '')}
               </h1>
               <p className="text-slate-400 text-sm mt-0.5">
-                {team.name} · {program?.sport} · {program?.season_year} Season
+                {program?.sport} · {program?.season_year} Season
               </p>
               {school && (
                 <p className="text-slate-500 text-xs mt-0.5">

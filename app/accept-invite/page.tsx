@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import AcceptInviteForm from './AcceptInviteForm'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 export const metadata = { title: 'Accept Invitation' }
 
@@ -65,13 +65,15 @@ export default async function AcceptInvitePage({
     .eq('id', invite.program_id)
     .single()
 
+  const schoolName = (inviteTeams?.[0] as any)?.programs?.schools?.name ?? ''
+
   return (
     <AcceptInviteForm
       token={token}
       email={invite.email}
       role={invite.role as 'admin' | 'coach'}
       teamNames={teamNames}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel(schoolName, program?.sport ?? '') || program?.name || ''}
       sport={program?.sport ?? ''}
       inviterName={inviterName}
     />

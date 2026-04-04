@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { NextResponse } from 'next/server'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 // Escape special characters for ICS format
 function icsEscape(str: string): string {
@@ -109,13 +110,15 @@ export async function GET(
     display_arrival: row.event_team_details?.[0]?.arrival_time || row.default_arrival_time,
   }))
 
+  const programLabel = formatProgramLabel(school?.name ?? '', program?.sport ?? '')
+
   const calendarName = isTeamCalendar
-    ? `${program?.name ?? team.name} - Team Schedule`
-    : `${program?.name ?? team.name} - Game Schedule`
+    ? `${programLabel} - Team Schedule`
+    : `${programLabel} - Game Schedule`
 
   const calendarDescription = isTeamCalendar
-    ? `Full team schedule for ${school?.name ?? ''} ${program?.name ?? team.name} - ${program?.season_year} Season`
-    : `Game schedule for ${school?.name ?? ''} ${program?.name ?? team.name} - ${program?.season_year} Season`
+    ? `Full team schedule for ${programLabel} - ${program?.season_year} Season`
+    : `Game schedule for ${programLabel} - ${program?.season_year} Season`
 
   // Build ICS content
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'

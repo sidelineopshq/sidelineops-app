@@ -591,7 +591,7 @@ export async function sendNewEventAlert({
         .join(' | ')
 
       const textParts: string[] = [
-        `📅 ${team.name} — New Event Added`,
+        `📅 ${programName || team.name} — New Event Added`,
         '',
         `${day} ${formattedDate} · ${eventLabel}`,
       ]

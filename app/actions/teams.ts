@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -13,13 +14,11 @@ function createServiceClient() {
 }
 
 export async function addTeam(
-  name: string,
   level: string,
   slug: string,
   sortOrder: number,
   programId: string,
 ) {
-  if (!name.trim())  return { error: 'Team name is required' }
   if (!slug.trim())  return { error: 'Slug is required' }
   if (!programId)    return { error: 'Program ID is required' }
 
@@ -49,6 +48,19 @@ export async function addTeam(
     }
   }
 
+  // Fetch program + school to compute team name
+  const { data: programRow } = await service
+    .from('programs')
+    .select('sport, schools(name)')
+    .eq('id', programId)
+    .single()
+
+  const schoolName = (programRow as any)?.schools?.name ?? ''
+  const sport      = programRow?.sport ?? ''
+  const teamName   = formatProgramLabel(schoolName, sport)
+
+  if (!teamName) return { error: 'Could not determine team name from program' }
+
   // Sanitize slug
   const trimmedSlug = slug
     .trim()
@@ -73,7 +85,7 @@ export async function addTeam(
     .from('teams')
     .insert({
       program_id: programId,
-      name:       name.trim(),
+      name:       teamName,
       level:      level || null,
       slug:       trimmedSlug,
       sort_order: sortOrder,

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import NotifyClient from './NotifyClient'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 export default async function NotifyPage({
   params,
@@ -60,7 +61,7 @@ export default async function NotifyPage({
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name')
+    .select('name, sport, schools(name)')
     .eq('id', event.program_id)
     .single()
 
@@ -81,7 +82,7 @@ export default async function NotifyPage({
       }}
       teams={teams}
       contacts={contacts ?? []}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel((program as any)?.schools?.name ?? '', (program as any)?.sport ?? '') || program?.name || ''}
       primaryTeamId={primaryTeam?.id ?? null}
       appUrl={process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'}
     />

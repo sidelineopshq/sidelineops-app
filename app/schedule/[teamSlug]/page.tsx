@@ -5,7 +5,7 @@ import PublicScheduleClient, {
   type PublicTeam,
   type PublicChildGame,
 } from './PublicScheduleClient'
-import { formatTeamLabel, formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatProgramLabel, formatProgramLabelWithLevel, formatTeamShortLabel } from '@/lib/utils/team-label'
 
 export default async function PublicSchedulePage({
   params,
@@ -173,10 +173,10 @@ export default async function PublicSchedulePage({
                 )}
               </div>
               <h1 className="text-2xl font-bold text-slate-900">
-                {program?.name ?? team.name}
+                {formatProgramLabel(school?.name ?? '', program?.sport ?? '')}
               </h1>
               <p className="text-slate-500 text-sm mt-0.5">
-                {formatTeamLabel(school?.name ?? '', (team as any).level ?? '', program?.sport ?? '')} · {program?.season_year} Season
+                {formatProgramLabelWithLevel(school?.name ?? '', program?.sport ?? '', (team as any).level ?? '')} · {program?.season_year} Season
               </p>
               {school && (
                 <p className="text-slate-400 text-xs mt-0.5">

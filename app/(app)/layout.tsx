@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppNav from './AppNav'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 export default async function AppLayout({
   children,
@@ -76,7 +76,10 @@ export default async function AppLayout({
           id:   t.id,
           name: formatTeamShortLabel((t as any).level ?? ''),
         }))}
-        programName={program?.name ?? ''}
+        programName={formatProgramLabel(
+            (teamsData?.[0] as any)?.programs?.schools?.name ?? '',
+            program?.sport ?? '',
+          )}
         sport={program?.sport ?? ''}
         role={primaryTeamUser?.role ?? ''}
         canManageEvents={canManageEvents}

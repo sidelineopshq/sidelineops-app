@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { formatTeamLabel, formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatProgramLabel, formatTeamShortLabel } from '@/lib/utils/team-label'
 import VolunteerSignupClient, { type PublicEvent, type PublicSlot } from './VolunteerSignupClient'
 
 export const metadata = { title: 'Volunteer Sign-Up' }
@@ -160,11 +160,7 @@ export default async function VolunteerSignupPage({
     })
   }
 
-  const teamLabel = formatTeamLabel(
-    school?.name ?? '',
-    (team as any).level ?? '',
-    program?.sport ?? '',
-  )
+  const teamLabel = formatProgramLabel(school?.name ?? '', program?.sport ?? '')
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -190,7 +186,7 @@ export default async function VolunteerSignupPage({
             )}
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            {school?.name ? `${school.name} ${program?.sport ?? ''}` : teamLabel} — Volunteer Sign-Up
+            {teamLabel || `${school?.name ?? ''} ${program?.sport ?? ''}`} — Volunteer Sign-Up
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             Select the games and roles you'd like to volunteer for this season

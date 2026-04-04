@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import ScheduleClient from './ScheduleClient'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 export const metadata = { title: 'Schedule' }
 
@@ -169,7 +169,10 @@ export default async function SchedulePage() {
       childGames={childGames}
       teams={teams}
       primaryTeamId={primaryTeamId}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel(
+        (teamsData?.[0] as any)?.programs?.schools?.name ?? '',
+        program?.sport ?? '',
+      ) || program?.name || ''}
       canManageEvents={canManageEvents}
       canSendNotifications={canSendNotifications}
       volunteerSummaryMap={volunteerSummaryMap}

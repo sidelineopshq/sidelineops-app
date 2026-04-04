@@ -3,6 +3,7 @@ import { createClient as createServiceClient2 } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { VolunteerDashboardClient } from './VolunteerDashboardClient'
 import type { HomeGame, SeasonEvent, DashboardContact } from './VolunteerDashboardClient'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 export const metadata = { title: 'Volunteers' }
 
@@ -196,7 +197,10 @@ export default async function VolunteersPage() {
       primaryTeamId={primaryTeamId}
       teamSlug={teamSlug}
       signupToken={signupToken}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel(
+        (teams[0] as any)?.programs?.schools?.name ?? '',
+        program?.sport ?? '',
+      ) || program?.name || ''}
       canManage={canManage}
       homeGames={homeGames}
       seasonEvents={seasonEvents}

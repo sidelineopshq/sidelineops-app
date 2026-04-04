@@ -14,7 +14,6 @@ export type ManageTeam = {
   sort_order: number | null
 }
 
-
 function slugify(val: string) {
   return val
     .toLowerCase()
@@ -27,11 +26,13 @@ function slugify(val: string) {
 export function ManageTeamsTab({
   teams: initialTeams,
   programId,
+  programLabel,
   canManage,
   canManageTeamSettings,
 }: {
   teams:                ManageTeam[]
   programId:            string
+  programLabel:         string
   canManage:            boolean
   canManageTeamSettings: boolean
 }) {
@@ -41,27 +42,25 @@ export function ManageTeamsTab({
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null)
 
   // ── Modal state ────────────────────────────────────────────────────────────
-  const [showModal,  setShowModal]  = useState(false)
-  const [name,       setName]       = useState('')
-  const [level,      setLevel]      = useState('Varsity')
-  const [slug,       setSlug]       = useState('')
+  const [showModal,   setShowModal]   = useState(false)
+  const [level,       setLevel]       = useState('Varsity')
+  const [slug,        setSlug]        = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
-  const [sortOrder,  setSortOrder]  = useState(initialTeams.length + 1)
-  const [modalError, setModalError] = useState<string | null>(null)
-  const [isCreating, startCreate]   = useTransition()
+  const [sortOrder,   setSortOrder]   = useState(initialTeams.length + 1)
+  const [modalError,  setModalError]  = useState<string | null>(null)
+  const [isCreating,  startCreate]    = useTransition()
 
   // ── Toast state ────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<string | null>(null)
 
-  // Auto-generate slug from name (unless user has manually edited it)
+  // Auto-generate slug from program label + level (unless user has manually edited)
   useEffect(() => {
-    if (!slugTouched) {
-      setSlug(slugify(name))
+    if (!slugTouched && programLabel) {
+      setSlug(slugify(`${programLabel} ${level}`))
     }
-  }, [name, slugTouched])
+  }, [programLabel, level, slugTouched])
 
   function openModal() {
-    setName('')
     setLevel('Varsity')
     setSlug('')
     setSlugTouched(false)
@@ -84,7 +83,7 @@ export function ManageTeamsTab({
   function handleCreate() {
     setModalError(null)
     startCreate(async () => {
-      const result = await addTeam(name.trim(), level, slug.trim(), sortOrder, programId)
+      const result = await addTeam(level, slug.trim(), sortOrder, programId)
       if (result?.error) {
         setModalError(result.error)
         return
@@ -100,6 +99,8 @@ export function ManageTeamsTab({
 
   const inputClass = "w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
   const labelClass = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5"
+
+  const previewName = programLabel ? `${programLabel} — ${level}` : level
 
   return (
     <>
@@ -169,19 +170,6 @@ export function ManageTeamsTab({
 
             <h3 className="text-base font-semibold text-white">Add Team</h3>
 
-            {/* Team Name */}
-            <div>
-              <label className={labelClass}>Team Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="James Clemens Softball"
-                className={inputClass}
-                autoFocus
-              />
-            </div>
-
             {/* Level */}
             <div>
               <label className={labelClass}>Level</label>
@@ -190,11 +178,20 @@ export function ManageTeamsTab({
                 onChange={e => setLevel(e.target.value)}
                 className={inputClass}
                 style={{ appearance: 'auto' }}
+                autoFocus
               >
                 {LEVELS.map(l => (
                   <option key={l} value={l}>{l}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Team Name (read-only preview) */}
+            <div>
+              <label className={labelClass}>Team Name (auto-generated)</label>
+              <div className="w-full rounded-xl border border-white/10 bg-slate-700/50 px-4 py-2.5 text-sm text-slate-400">
+                {previewName}
+              </div>
             </div>
 
             {/* Slug */}
@@ -208,7 +205,7 @@ export function ManageTeamsTab({
                   type="text"
                   value={slug}
                   onChange={e => { setSlugTouched(true); setSlug(e.target.value) }}
-                  placeholder="james-clemens-softball"
+                  placeholder="james-clemens-softball-jv"
                   className="flex-1 rounded-r-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
                 />
               </div>
@@ -244,7 +241,7 @@ export function ManageTeamsTab({
               </button>
               <button
                 onClick={handleCreate}
-                disabled={isCreating || !name.trim() || !slug.trim()}
+                disabled={isCreating || !slug.trim()}
                 className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
               >
                 {isCreating ? 'Creating…' : 'Create Team'}

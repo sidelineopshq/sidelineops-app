@@ -10,7 +10,7 @@ import {
 } from '@/lib/notifications/fire-change-notifications'
 import { detectMealChanges } from '@/lib/notifications/change-detector'
 import { sendMealCoordinatorNotification } from '@/lib/notifications/channel-router'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -224,11 +224,7 @@ export async function updateEvent(
         const old  = oldTeamDetails?.find(d => d.team_id === a.team_id)
         if (!old) return null  // new team assignment — no prior state to diff
         const tr   = teamNames?.find(t => t.id === a.team_id) as any
-        const name = tr ? formatTeamLabel(
-          tr.programs?.schools?.name ?? '',
-          tr.level ?? '',
-          tr.programs?.sport ?? '',
-        ) : ''
+        const name = tr ? formatTeamShortLabel(tr.level ?? '') : ''
         return {
           teamId:        a.team_id,
           teamName:      name,

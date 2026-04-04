@@ -5,7 +5,7 @@ import {
   type TeamDetailSnapshot,
 } from './change-detector'
 import { sendChangeAlert } from './channel-router'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -89,24 +89,22 @@ export async function fireChangeNotifications({
 
       if (!team) continue
 
-      const { data: program } = await supabase
-        .from('programs')
-        .select('name')
-        .eq('id', team.program_id)
-        .single()
+      const schoolName   = (team as any).programs?.schools?.name ?? ''
+      const sport        = (team as any).programs?.sport ?? ''
+      const programLabel = formatProgramLabel(schoolName, sport)
 
       // ── Delegate to channel router ────────────────────────────────────────
       await sendChangeAlert({
         team: {
           id:               tn.teamId,
-          name:             formatTeamLabel((team as any).programs?.schools?.name ?? '', (team as any).level ?? '', (team as any).programs?.sport ?? ''),
+          name:             programLabel,
           slug:             team.slug ?? null,
           notify_on_change: team.notify_on_change,
           groupme_enabled:  team.groupme_enabled,
           groupme_bot_id:   team.groupme_bot_id,
         },
         programId:   team.program_id,
-        programName: program?.name ?? '',
+        programName: programLabel,
         event: {
           title:              displayTitle,
           event_date:         eventDate,

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect, notFound } from 'next/navigation'
 import EventVolunteersClient from './EventVolunteersClient'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
   return createSvcClient(
@@ -81,7 +82,7 @@ export default async function EventDetailPage({
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name')
+    .select('name, sport, schools(name)')
     .eq('id', event.program_id)
     .single()
 
@@ -117,7 +118,7 @@ export default async function EventDetailPage({
       eventId={ev.id}
       eventLabel={label}
       eventDate={ev.event_date}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel((program as any)?.schools?.name ?? '', (program as any)?.sport ?? '') || program?.name || ''}
       slots={slots}
       contacts={contacts ?? []}
       teamSlug={teamSlug}

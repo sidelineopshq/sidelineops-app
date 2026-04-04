@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ContactsClient from './ContactsClient'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 export const metadata = { title: 'Contacts' }
 
@@ -26,7 +27,7 @@ export default async function ContactsPage() {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport')
+    .select('name, sport, schools(name)')
     .eq('id', team?.program_id ?? '')
     .single()
 
@@ -65,7 +66,7 @@ export default async function ContactsPage() {
       players={players ?? []}
       teamId={teamUser.team_id}
       teamName={team?.name ?? ''}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel((program as any)?.schools?.name ?? '', program?.sport ?? '') || program?.name || ''}
       canManageContacts={teamUser.can_manage_contacts ?? false}
     />
   )

@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { Resend } from 'resend'
 import { generateUnsubscribeToken } from '@/lib/notifications/unsubscribe-token'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -409,7 +409,7 @@ export async function sendHelpNeededNotification(
   const signupToken      = (team as any)?.volunteer_signup_token ?? null
   const schoolName       = (team as any)?.programs?.schools?.name ?? ''
   const sport            = (team as any)?.programs?.sport          ?? ''
-  const teamLabel        = formatTeamLabel(schoolName, team?.level ?? '', sport)
+  const teamLabel        = formatProgramLabel(schoolName, sport)
 
   // ── 5. Fetch all active contacts with email for this program ────────────────
   const { data: programTeams } = await service
@@ -442,7 +442,7 @@ export async function sendHelpNeededNotification(
     .eq('id', programId)
     .single()
 
-  const programName  = program?.name ?? 'SidelineOps'
+  const programName  = teamLabel || program?.name || 'SidelineOps'
   const from         = `${programName} via SidelineOps <${fromEmail}>`
 
   const opponentLabel  = eventRow.opponent ?? eventRow.title ?? 'Upcoming Game'

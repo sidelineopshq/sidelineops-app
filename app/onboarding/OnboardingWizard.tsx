@@ -3,15 +3,16 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProgramAndTeam } from '@/app/actions/onboarding'
-import { LEVELS } from '@/lib/utils/team-label'
+import { LEVELS, formatProgramLabel, formatSchoolName } from '@/lib/utils/team-label'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const SPORT_SUGGESTIONS = [
+const SPORTS = [
   'Softball', 'Baseball', 'Basketball', 'Football', 'Soccer',
-  'Volleyball', 'Track', 'Swimming', 'Tennis', 'Other',
+  'Volleyball', 'Track & Field', 'Swimming', 'Tennis',
+  'Cross Country', 'Golf', 'Wrestling', 'Lacrosse',
+  'Cheerleading', 'Dance', 'Other',
 ]
-
 
 const US_STATES = [
   ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],
@@ -49,37 +50,31 @@ export default function OnboardingWizard() {
   const [step, setStep] = useState(1)
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [schoolName,  setSchoolName]  = useState('')
-  const [city,        setCity]        = useState('')
-  const [state,       setState]       = useState('')
-  const [sport,               setSport]               = useState('')
-  const [seasonYear,          setSeasonYear]          = useState(new Date().getFullYear())
-  const [homeLocationName,    setHomeLocationName]    = useState('')
-  const [homeLocationAddress, setHomeLocationAddress] = useState('')
-  const [teamName,    setTeamName]    = useState('')
-  const [teamNameTouched, setTeamNameTouched] = useState(false)
-  const [level,       setLevel]       = useState('Varsity')
-  const [teamSlug,    setTeamSlug]    = useState('')
+  const [schoolName, setSchoolName] = useState('')
+  const [city,       setCity]       = useState('')
+  const [state,      setState]      = useState('')
+  const [sport,      setSport]      = useState('')
+  const [seasonYear, setSeasonYear] = useState(new Date().getFullYear())
+  const [level,      setLevel]      = useState('Varsity')
+  const [teamSlug,   setTeamSlug]   = useState('')
   const [teamSlugTouched, setTeamSlugTouched] = useState(false)
 
-  const [step1Error,  setStep1Error]  = useState<string | null>(null)
-  const [step2Error,  setStep2Error]  = useState<string | null>(null)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [isSubmitting, startSubmit]  = useTransition()
+  const [step1Error,   setStep1Error]  = useState<string | null>(null)
+  const [step2Error,   setStep2Error]  = useState<string | null>(null)
+  const [submitError,  setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, startSubmit]   = useTransition()
 
-  // ── Auto-populate team name from school + sport ────────────────────────────
-  useEffect(() => {
-    if (!teamNameTouched && schoolName && sport) {
-      setTeamName(`${schoolName.trim()} ${sport.trim()}`)
-    }
-  }, [schoolName, sport, teamNameTouched])
+  // ── Derived program label ──────────────────────────────────────────────────
+  const programLabel = schoolName && sport
+    ? formatProgramLabel(schoolName, sport)
+    : ''
 
-  // ── Auto-generate team slug from team name ─────────────────────────────────
+  // ── Auto-generate slug from program label + level ──────────────────────────
   useEffect(() => {
-    if (!teamSlugTouched) {
-      setTeamSlug(slugify(teamName))
+    if (!teamSlugTouched && programLabel && level) {
+      setTeamSlug(slugify(`${programLabel} ${level}`))
     }
-  }, [teamName, teamSlugTouched])
+  }, [programLabel, level, teamSlugTouched])
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   function goToStep2() {
@@ -91,7 +86,7 @@ export default function OnboardingWizard() {
   }
 
   function goToStep3() {
-    if (!sport.trim()) { setStep2Error('Sport is required.'); return }
+    if (!sport) { setStep2Error('Please select a program.'); return }
     setStep2Error(null)
     setStep(3)
   }
@@ -101,8 +96,7 @@ export default function OnboardingWizard() {
     startSubmit(async () => {
       const result = await createProgramAndTeam({
         schoolName, city, state, sport, seasonYear,
-        homeLocationName, homeLocationAddress,
-        teamName, level, teamSlug,
+        level, teamSlug,
       })
       if (result?.error) {
         setSubmitError(result.error)
@@ -130,9 +124,9 @@ export default function OnboardingWizard() {
               key={n}
               className={[
                 'h-2 rounded-full transition-all duration-300',
-                n === step       ? 'w-8 bg-sky-500'
-                : n < step       ? 'w-2 bg-sky-500/60'
-                :                  'w-2 bg-slate-700',
+                n === step ? 'w-8 bg-sky-500'
+                : n < step ? 'w-2 bg-sky-500/60'
+                :             'w-2 bg-slate-700',
               ].join(' ')}
             />
           ))}
@@ -178,6 +172,9 @@ export default function OnboardingWizard() {
                 className={inputClass}
                 autoFocus
               />
+              <p className="text-xs text-slate-500 mt-1.5">
+                Enter your school name (e.g. &apos;James Clemens&apos; or &apos;James Clemens High School&apos; — we&apos;ll clean it up)
+              </p>
             </div>
 
             <div>
@@ -228,22 +225,22 @@ export default function OnboardingWizard() {
             </div>
 
             <div>
-              <label className={labelClass}>Sport</label>
-              <input
-                type="text"
+              <label className={labelClass}>Program</label>
+              <select
                 value={sport}
                 onChange={e => setSport(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && goToStep3()}
-                placeholder="Softball"
-                list="sport-suggestions"
                 className={inputClass}
+                style={{ appearance: 'auto' }}
                 autoFocus
-              />
-              <datalist id="sport-suggestions">
-                {SPORT_SUGGESTIONS.map(s => (
-                  <option key={s} value={s} />
+              >
+                <option value="">Select a sport…</option>
+                {SPORTS.map(s => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
-              </datalist>
+              </select>
+              <p className="text-xs text-slate-500 mt-1.5">
+                Select the sport for this program
+              </p>
             </div>
 
             <div>
@@ -258,34 +255,9 @@ export default function OnboardingWizard() {
               />
             </div>
 
-            <div>
-              <label className={labelClass}>
-                Home Field / Facility Name <span className="normal-case font-normal text-slate-500">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={homeLocationName}
-                onChange={e => setHomeLocationName(e.target.value)}
-                placeholder="e.g. JCHS Jetsplex"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>
-                Home Field Address <span className="normal-case font-normal text-slate-500">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={homeLocationAddress}
-                onChange={e => setHomeLocationAddress(e.target.value)}
-                placeholder="e.g. 11306 County Line Rd, Madison, AL 35756"
-                className={inputClass}
-              />
-              <p className="text-xs text-slate-500 mt-1.5">
-                This will be used as the default location for home games. You can always change it per event.
-              </p>
-            </div>
+            <p className="text-xs text-slate-500">
+              You can add your home field location in Team Settings after setup.
+            </p>
 
             {step2Error && (
               <p className="text-sm text-red-400">{step2Error}</p>
@@ -312,17 +284,12 @@ export default function OnboardingWizard() {
               <p className="text-slate-400 text-sm mt-1">You can add more teams later from Team Settings.</p>
             </div>
 
-            <div>
-              <label className={labelClass}>Team Name</label>
-              <input
-                type="text"
-                value={teamName}
-                onChange={e => { setTeamNameTouched(true); setTeamName(e.target.value) }}
-                placeholder="James Clemens Softball"
-                className={inputClass}
-                autoFocus
-              />
-            </div>
+            {programLabel && (
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
+                <p className="text-xs text-slate-400">Your program will be called:</p>
+                <p className="text-sm font-semibold text-white mt-0.5">{programLabel}</p>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Level</label>
@@ -331,6 +298,7 @@ export default function OnboardingWizard() {
                 onChange={e => setLevel(e.target.value)}
                 className={inputClass}
                 style={{ appearance: 'auto' }}
+                autoFocus
               >
                 {LEVELS.map(l => (
                   <option key={l} value={l}>{l}</option>
@@ -348,7 +316,7 @@ export default function OnboardingWizard() {
                   type="text"
                   value={teamSlug}
                   onChange={e => { setTeamSlugTouched(true); setTeamSlug(e.target.value) }}
-                  placeholder="james-clemens-softball"
+                  placeholder="james-clemens-softball-varsity"
                   className="flex-1 rounded-r-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
                 />
               </div>
@@ -369,7 +337,7 @@ export default function OnboardingWizard() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !teamName.trim() || !teamSlug.trim()}
+                disabled={isSubmitting || !teamSlug.trim()}
                 className={btnPrimary}
               >
                 {isSubmitting ? 'Creating…' : 'Create My Team →'}
@@ -382,9 +350,11 @@ export default function OnboardingWizard() {
         {step === 4 && (
           <div className="bg-gray-900 rounded-2xl shadow-xl p-8 text-center space-y-4">
             <div className="text-5xl">🎉</div>
-            <h1 className="text-xl font-bold text-white">You&apos;re all set!</h1>
+            <h1 className="text-xl font-bold text-white">
+              {programLabel ? `${programLabel} is ready!` : "You're all set!"}
+            </h1>
             <p className="text-slate-400 text-sm">
-              Your team is ready. Start by adding your schedule and inviting your coaching staff.
+              Your program is ready. Start by adding your schedule and inviting your coaching staff.
             </p>
 
             <div className="flex flex-col gap-3 pt-2">

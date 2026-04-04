@@ -4,7 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { sendNewEventAlert, sendMealCoordinatorNotification } from '@/lib/notifications/channel-router'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -259,11 +259,16 @@ export async function createEvent(formData: {
 
       if (!teamRecords?.length) return
 
+      // Derive program label from first team's nested join (all teams share a program)
+      const notifSchoolName    = (teamRecords[0] as any)?.programs?.schools?.name ?? ''
+      const notifSport         = (teamRecords[0] as any)?.programs?.sport ?? ''
+      const notifProgramLabel  = formatProgramLabel(notifSchoolName, notifSport) || program?.name || ''
+
       // Build the full assigned-teams list (all teams, shown in every notification)
       const assignedTeams = teamRecords.map(tr => {
         const assignment = formData.team_assignments.find(a => a.team_id === tr.id)
         return {
-          name:       formatTeamLabel((tr as any).programs?.schools?.name ?? '', tr.level ?? '', (tr as any).programs?.sport ?? ''),
+          name:       formatTeamShortLabel(tr.level ?? ''),
           level:      tr.level ?? null,
           start_time: assignment?.start_time || null,
         }
@@ -275,14 +280,14 @@ export async function createEvent(formData: {
         await sendNewEventAlert({
           team: {
             id:               tr.id,
-            name:             formatTeamLabel((tr as any).programs?.schools?.name ?? '', tr.level ?? '', (tr as any).programs?.sport ?? ''),
+            name:             formatTeamShortLabel(tr.level ?? ''),
             level:            tr.level ?? null,
             slug:             tr.slug ?? null,
             notify_on_change: tr.notify_on_change,
             groupme_enabled:  tr.groupme_enabled,
             groupme_bot_id:   tr.groupme_bot_id,
           },
-          programName: program?.name ?? '',
+          programName: notifProgramLabel,
           event: {
             title:           title,
             event_type:      formData.event_type,
@@ -307,7 +312,7 @@ export async function createEvent(formData: {
         try {
           await sendMealCoordinatorNotification({
             programId:   teamData.program_id,
-            programName: program?.name ?? '',
+            programName: notifProgramLabel,
             event: {
               title:         title ?? 'Event',
               event_date:    formData.event_date,

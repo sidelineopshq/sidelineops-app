@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import RosterClient from './RosterClient'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createServiceRoleClient(
@@ -33,7 +34,7 @@ export default async function RosterPage() {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport')
+    .select('name, sport, schools(name)')
     .eq('id', teamsData?.[0]?.program_id ?? '')
     .single()
 
@@ -102,7 +103,7 @@ export default async function RosterPage() {
     <RosterClient
       players={players}
       teams={teams}
-      programName={program?.name ?? ''}
+      programName={formatProgramLabel((program as any)?.schools?.name ?? '', program?.sport ?? '') || program?.name || ''}
       sport={program?.sport ?? ''}
       canManageContacts={canManageContacts}
       joinTokensByTeam={joinTokensByTeam}

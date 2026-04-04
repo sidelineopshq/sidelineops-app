@@ -9,7 +9,7 @@ import { GeneralTab } from './GeneralTab'
 import { TeamMembersTab, type PendingInvite, type ActiveMember } from './TeamMembersTab'
 import { ManageTeamsTab } from './ManageTeamsTab'
 import type { ExternalSubscriber } from './TeamMembersTab'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 function serviceClient() {
   return createServiceClient(
@@ -183,7 +183,10 @@ export default async function TeamSettingsPage({
         </a>
         <h1 className="text-2xl font-bold">Team Settings</h1>
         <p className="text-slate-400 text-sm mt-1">
-          {program?.name ?? 'Your Program'} · {program?.sport}
+          {formatProgramLabel(
+            (teams[0] as any)?.programs?.schools?.name ?? '',
+            program?.sport ?? '',
+          ) || program?.name || 'Your Program'}
         </p>
       </div>
 
@@ -278,6 +281,10 @@ export default async function TeamSettingsPage({
             sort_order: (t as any).sort_order ?? null,
           }))}
           programId={teams[0]?.program_id ?? ''}
+          programLabel={formatProgramLabel(
+            (teams[0] as any)?.programs?.schools?.name ?? '',
+            program?.sport ?? '',
+          )}
           canManage={canManage}
           canManageTeamSettings={canManageTeamSettings}
         />

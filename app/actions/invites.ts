@@ -6,7 +6,7 @@ import { Resend } from 'resend'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { buildCoachInviteEmail } from '@/lib/email/coachInvite'
-import { formatTeamLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 function createServiceClient() {
   return createClient(
@@ -71,11 +71,11 @@ export async function sendCoachInvite(
   if (!teams?.length) return { error: 'Teams not found' }
 
   const programId = teams[0].program_id
-  const teamNames = teams.map(t => formatTeamLabel(
-    (t as any).programs?.schools?.name ?? '',
-    (t as any).level ?? '',
-    (t as any).programs?.sport ?? '',
-  ))
+  const teamNames = teams.map(t => formatTeamShortLabel((t as any).level ?? ''))
+
+  const schoolName    = (teams[0] as any)?.programs?.schools?.name ?? ''
+  const sport         = (teams[0] as any)?.programs?.sport ?? ''
+  const programLabel  = formatProgramLabel(schoolName, sport)
 
   const { data: program } = await service
     .from('programs')
@@ -118,17 +118,18 @@ export async function sendCoachInvite(
   // 6. Send invite email
   const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const acceptUrl = `${baseUrl}/accept-invite?token=${token}`
-  const subject   = `You've been invited to join ${program?.name ?? 'a team'} on SidelineOps`
+  const displayProgram = programLabel || program?.name || 'a team'
+  const subject        = `You've been invited to join ${displayProgram} on SidelineOps`
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error: emailError } = await resend.emails.send({
-    from: `${program?.name ?? 'SidelineOps'} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
+    from: `${programLabel || program?.name || 'SidelineOps'} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
     to:   email,
     subject,
     html: buildCoachInviteEmail({
       inviterName,
       teamNames,
-      programName: program?.name ?? '',
+      programName: displayProgram,
       sport:       program?.sport ?? '',
       role,
       acceptUrl,
@@ -201,25 +202,25 @@ export async function resendCoachInvite(inviteId: string) {
     .from('teams')
     .select('name, level, programs(sport, schools(name))')
     .in('id', invite.team_ids)
-  const teamNames = (teamsForEmail ?? []).map(t => formatTeamLabel(
-    (t as any).programs?.schools?.name ?? '',
-    (t as any).level ?? '',
-    (t as any).programs?.sport ?? '',
-  ))
+  const teamNames = (teamsForEmail ?? []).map(t => formatTeamShortLabel((t as any).level ?? ''))
+
+  const resendSchoolName  = (teamsForEmail?.[0] as any)?.programs?.schools?.name ?? ''
+  const resendSport       = (teamsForEmail?.[0] as any)?.programs?.sport ?? ''
+  const resendProgramLabel = formatProgramLabel(resendSchoolName, resendSport) || program?.name || ''
 
   const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
   const acceptUrl = `${baseUrl}/accept-invite?token=${invite.token}`
-  const subject   = `You've been invited to join ${program?.name ?? 'a team'} on SidelineOps`
+  const subject   = `You've been invited to join ${resendProgramLabel || 'a team'} on SidelineOps`
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error: emailError } = await resend.emails.send({
-    from: `${program?.name ?? 'SidelineOps'} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
+    from: `${resendProgramLabel || 'SidelineOps'} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
     to:   invite.email,
     subject,
     html: buildCoachInviteEmail({
       inviterName,
       teamNames,
-      programName: program?.name ?? '',
+      programName: resendProgramLabel,
       sport:       program?.sport ?? '',
       role:        invite.role as 'admin' | 'coach' | 'volunteer_admin' | 'meal_coordinator',
       acceptUrl,

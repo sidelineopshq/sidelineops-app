@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { setPrimaryTeam } from './actions'
 import { NotificationSettingsCard } from './NotificationSettingsCard'
+import { formatProgramLabel } from '@/lib/utils/team-label'
 
 export default async function TeamSettingsPage() {
   const supabase = await createClient()
@@ -30,7 +31,7 @@ export default async function TeamSettingsPage() {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport')
+    .select('name, sport, schools(name)')
     .eq('id', teams[0]?.program_id ?? '')
     .single()
 
@@ -46,7 +47,7 @@ export default async function TeamSettingsPage() {
         </a>
         <h1 className="text-2xl font-bold">Team Settings</h1>
         <p className="text-slate-400 text-sm mt-1">
-          {program?.name ?? 'Your Program'} · {program?.sport}
+          {formatProgramLabel((program as any)?.schools?.name ?? '', program?.sport ?? '') || program?.name || 'Your Program'}
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 export const dynamic = 'force-dynamic'
 
@@ -233,7 +233,7 @@ export async function GET(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${program?.name ?? team.name} Schedule</title>
+  <title>${formatProgramLabel(school?.name ?? '', program?.sport ?? '')} Schedule</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -363,7 +363,7 @@ export async function GET(
       ${teamLogoUrl ? `<div class="logo-divider"></div><img src="${teamLogoUrl}" alt="${team.name}" class="team-logo" />` : ''}
     </div>
     <div class="header-text">
-      <h2>${program?.name ?? team.name}</h2>
+      <h2>${formatProgramLabel(school?.name ?? '', program?.sport ?? '')}</h2>
       <p>${program?.season_year ?? ''} Season &middot; ${events.length} game${events.length !== 1 ? 's' : ''} remaining</p>
     </div>
   </div>
