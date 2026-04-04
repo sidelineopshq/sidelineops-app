@@ -74,12 +74,14 @@ export async function createAccount({
     .update({ use_count: (accessCode.use_count ?? 0) + 1 })
     .eq('id', accessCode.id)
 
-  // d. Insert into public.users (ignore conflict — user may already exist)
+  // d. Upsert into public.users — always write first_name/last_name so the
+  //    Active Members table shows the correct name even if a DB trigger created
+  //    the row first without that data.
   await supabase
     .from('users')
     .upsert(
       { id: userId, first_name: firstName, last_name: lastName, email },
-      { onConflict: 'id', ignoreDuplicates: true },
+      { onConflict: 'id' },
     )
 
   return { success: true }
