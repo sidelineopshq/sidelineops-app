@@ -22,22 +22,14 @@ export async function createAccount({
   email:     string
   password:  string
 }): Promise<{ error?: string; success?: true }> {
-  console.log('[SIGNUP] Action called with email:', email)
-  console.log('[SIGNUP] First name:', firstName)
-
   const supabase = serviceClient()
 
   // a. Re-validate access code (race-condition protection)
-  console.log('[SIGNUP] Validating access code:', code)
-
-  const { data: accessCode, error: codeError } = await supabase
+  const { data: accessCode } = await supabase
     .from('access_codes')
     .select('id, use_count, max_uses, expires_at, is_active')
     .eq('code', code)
     .maybeSingle()
-
-  console.log('[SIGNUP] Code valid:', !!accessCode)
-  console.log('[SIGNUP] Code error:', JSON.stringify(codeError))
 
   if (
     !accessCode ||
@@ -49,21 +41,14 @@ export async function createAccount({
   }
 
   // b. Sign up via auth
-  const baseUrl = process.env.BASE_URL ?? 'https://sidelineopshq.com'
-
-  console.log('[SIGNUP] Attempting signUp for:', email)
-
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { first_name: firstName, last_name: lastName },
-      emailRedirectTo: `${baseUrl}/auth/callback?next=/onboarding`,
+      emailRedirectTo: `${process.env.BASE_URL}/auth/callback?next=/onboarding`,
     },
   })
-
-  console.log('[SIGNUP] SignUp result:', JSON.stringify(signUpData))
-  console.log('[SIGNUP] SignUp error:', JSON.stringify(signUpError))
 
   if (signUpError) {
     if (

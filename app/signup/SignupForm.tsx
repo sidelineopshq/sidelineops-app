@@ -35,7 +35,6 @@ export default function SignupForm({ code }: { code: string }) {
       return
     }
 
-    console.log('[SIGNUP CLIENT] Form submitted')
     setLoading(true)
     const result = await createAccount({
       code,
