@@ -1044,27 +1044,8 @@ export function VolunteerRolesTab({
                 const timeStr = [ts.start_time && formatTime(ts.start_time), ts.end_time && formatTime(ts.end_time)].filter(Boolean).join(' \u2013 ')
                 return (
                   <div key={ts.id} className="px-4 py-3">
-                    {/* Row 1: role name + edit/delete */}
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium text-white">{ts.role_name}</span>
-                      {canManage && (
-                        <div className="flex shrink-0 items-center gap-3">
-                          <button
-                            onClick={() => { setEditingTemplate(ts); setShowTemplateModal(true) }}
-                            className="text-sm text-slate-400 hover:text-white transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleRemoveTemplate(ts.id)}
-                            disabled={removingTplId === ts.id}
-                            className="text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
-                          >
-                            {removingTplId === ts.id ? '…' : '×'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* Row 1: role name */}
+                    <span className="text-sm font-medium text-white">{ts.role_name}</span>
                     {/* Row 2: count · time range */}
                     <p className="text-sm text-slate-400 mt-0.5">
                       {ts.slot_count} volunteer{ts.slot_count !== 1 ? 's' : ''}
@@ -1073,6 +1054,26 @@ export function VolunteerRolesTab({
                     {/* Row 3: notes */}
                     {ts.notes && (
                       <p className="text-xs text-slate-500 italic mt-0.5">{ts.notes}</p>
+                    )}
+                    {/* Pill buttons */}
+                    {canManage && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <button
+                          onClick={() => { setEditingTemplate(ts); setShowTemplateModal(true) }}
+                          style={{ touchAction: 'manipulation' }}
+                          className="flex-1 min-h-[36px] rounded-full border border-slate-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/5"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleRemoveTemplate(ts.id)}
+                          disabled={removingTplId === ts.id}
+                          style={{ touchAction: 'manipulation' }}
+                          className="flex-1 min-h-[36px] rounded-full border border-red-500 px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+                        >
+                          {removingTplId === ts.id ? 'Removing…' : 'Delete'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )
@@ -1195,19 +1196,8 @@ export function VolunteerRolesTab({
             <div className="block sm:hidden divide-y divide-white/5">
               {standingAssignments.map(sa => (
                 <div key={sa.id} className="px-4 py-3">
-                  {/* Row 1: name + remove */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-white">{sa.display_name}</span>
-                    {canManage && (
-                      <button
-                        onClick={() => handleRemoveStanding(sa.id)}
-                        disabled={removePending}
-                        className="shrink-0 text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+                  {/* Row 1: name */}
+                  <span className="text-sm font-medium text-white">{sa.display_name}</span>
                   {/* Row 2: email */}
                   {sa.display_email && (
                     <p className="text-sm text-slate-400 mt-0.5 break-all">{sa.display_email}</p>
@@ -1218,6 +1208,19 @@ export function VolunteerRolesTab({
                       {sa.role_name}
                     </span>
                   </div>
+                  {/* Pill button */}
+                  {canManage && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => handleRemoveStanding(sa.id)}
+                        disabled={removePending}
+                        style={{ touchAction: 'manipulation' }}
+                        className="w-full min-h-[36px] rounded-full border border-red-500 px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
