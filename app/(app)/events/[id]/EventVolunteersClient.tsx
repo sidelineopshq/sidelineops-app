@@ -403,80 +403,95 @@ function SlotCard({ slot, eventId, eventLabel, eventDate, programName, contacts,
         />
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
+      <div className="rounded-2xl border border-white/10 bg-slate-900 p-3 sm:p-5">
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="min-w-0">
-            <h3 className="text-base font-bold text-white leading-snug">
-              {slotLabel(slot.role_name, slot.start_time, slot.end_time)}
-            </h3>
-            {slot.notes && (
-              <p className="text-xs text-slate-400 mt-1">{slot.notes}</p>
-            )}
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
-            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
+        <div className="mb-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {/* Role name — always on its own line */}
+              <h3 className="text-base font-semibold text-white leading-snug">
+                {slot.role_name}
+              </h3>
+              {/* Time range — separate line below role name */}
+              {(slot.start_time || slot.end_time) && (
+                <p className="text-sm text-slate-400 mt-0.5">
+                  {[slot.start_time && formatTime(slot.start_time), slot.end_time && formatTime(slot.end_time)].filter(Boolean).join(' \u2013 ')}
+                </p>
+              )}
+              {slot.notes && (
+                <p className="text-xs text-slate-500 mt-1">{slot.notes}</p>
+              )}
+            </div>
+            {/* Fill count badge — right of role name */}
+            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${
               isFull
                 ? 'border-green-500/30 bg-green-500/10 text-green-400'
                 : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
             }`}>
-              {filled} / {total}
+              {filled}/{total}
             </span>
+          </div>
+          {/* Delete button — small red text, right-aligned below header */}
+          <div className="mt-1.5 flex justify-end">
             <button
               onClick={() => setShowDeleteDialog(true)}
               disabled={isPending}
-              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 px-2 py-1 text-xs font-semibold text-red-400 transition-colors disabled:opacity-50"
-              title="Delete slot"
+              className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
             >
-              {assignments.filter(a => a.status !== 'cancelled').length > 0 ? 'Remove All & Delete' : 'Delete Slot'}
+              {assignments.filter(a => a.status !== 'cancelled').length > 0 ? 'Remove all & delete' : 'Delete slot'}
             </button>
           </div>
         </div>
 
-        {/* Assignment list */}
-        {assignments.length > 0 && (
-          <ul className="mb-4 space-y-1.5">
-            {assignments.map(a => (
-              <li key={a.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-800/50 px-4 py-2.5">
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-white">{a.volunteer_name}</span>
+        {/* Assignment rows + open slot rows */}
+        <ul className="space-y-1.5">
+          {assignments.map(a => (
+            <li key={a.id} className="rounded-xl border border-white/5 bg-slate-800/50 px-3 py-2">
+              {/* Row 1: name + remove */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-white leading-snug">{a.volunteer_name}</span>
+                <button
+                  onClick={() => setUnassignTarget(a)}
+                  className="shrink-0 text-xs text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+              {/* Row 2: email + source badge */}
+              {(a.volunteer_email || a.signup_source === 'self' || a.signup_source === 'standing') && (
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   {a.volunteer_email && (
-                    <span className="ml-2 text-xs text-slate-400">{a.volunteer_email}</span>
+                    <span className="text-xs text-slate-400 min-w-0 break-all">{a.volunteer_email}</span>
                   )}
                   {a.signup_source === 'self' && (
-                    <span className="ml-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
-                      Self-signed
+                    <span className="shrink-0 rounded-full border border-sky-500/30 px-1.5 py-px text-[10px] font-semibold text-sky-400">
+                      Self
                     </span>
                   )}
                   {a.signup_source === 'standing' && (
-                    <span className="ml-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                    <span className="shrink-0 rounded-full border border-purple-500/30 px-1.5 py-px text-[10px] font-semibold text-purple-400">
                       Standing
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setUnassignTarget(a)}
-                  className="shrink-0 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 px-2 py-1 text-xs font-semibold text-red-400 transition-colors"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+              )}
+            </li>
+          ))}
 
-        {assignments.length === 0 && (
-          <p className="text-xs text-slate-500 mb-4">No volunteers assigned yet.</p>
-        )}
-
-        {!isFull && (
-          <button
-            onClick={() => setShowAssign(true)}
-            className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
-          >
-            + Assign Volunteer
-          </button>
-        )}
+          {/* Open slot rows — one per unfilled position */}
+          {Array.from({ length: Math.max(0, total - filled) }).map((_, i) => (
+            <li key={`open-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-800/30 px-3 py-2.5">
+              <span className="text-sm text-slate-500">Open slot</span>
+              <button
+                onClick={() => setShowAssign(true)}
+                className="shrink-0 rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-1 text-xs font-semibold transition-colors"
+              >
+                + Assign
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </>
   )
@@ -558,17 +573,17 @@ export default function EventVolunteersClient({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-3 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2 mt-3">
             <button
               onClick={() => router.push(`/events/${eventId}/edit`)}
-              className="rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-semibold transition-colors"
+              className="w-full sm:w-auto rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-semibold transition-colors text-center"
             >
               Edit Event
             </button>
             {teamSlug && (
               <button
                 onClick={handleCopySignupPage}
-                className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+                className={`w-full sm:w-auto rounded-xl border px-4 py-2 text-xs font-semibold transition-colors text-center ${
                   copied
                     ? 'border-green-500/30 bg-green-500/10 text-green-400'
                     : 'border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300'
