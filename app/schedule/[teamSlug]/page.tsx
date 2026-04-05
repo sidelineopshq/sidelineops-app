@@ -84,6 +84,7 @@ export default async function PublicSchedulePage({
     .is('parent_event_id', null)
     .eq('status', 'scheduled')
     .eq('is_public', true)
+    .gte('event_date', today)
     .order('event_date', { ascending: true })
 
   const eventIds = (eventRows ?? []).map((e: any) => e.id as string)
