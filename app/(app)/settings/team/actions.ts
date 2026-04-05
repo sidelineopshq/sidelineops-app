@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -508,7 +509,7 @@ export async function createExternalSubscriber(
       .eq('id', programId)
       .single()
 
-    const appUrl       = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+    const appUrl       = getBaseUrl()
     const confirmUrl   = `${appUrl}/external-subscribe/confirm?token=${row.token}`
     const unsubUrl     = `${appUrl}/external-subscribe/unsubscribe?token=${row.token}`
     const programName  = program?.name ?? 'SidelineOps'
@@ -552,7 +553,7 @@ export async function resendExternalInvite(subscriberId: string) {
       .eq('id', sub.program_id)
       .single()
 
-    const appUrl      = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+    const appUrl      = getBaseUrl()
     const confirmUrl  = `${appUrl}/external-subscribe/confirm?token=${sub.token}`
     const unsubUrl    = `${appUrl}/external-subscribe/unsubscribe?token=${sub.token}`
     const programName = program?.name ?? 'SidelineOps'

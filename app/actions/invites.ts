@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { buildCoachInviteEmail } from '@/lib/email/coachInvite'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -116,7 +117,7 @@ export async function sendCoachInvite(
   if (insertError) return { error: insertError.message }
 
   // 6. Send invite email
-  const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const baseUrl   = getBaseUrl()
   const acceptUrl = `${baseUrl}/accept-invite?token=${token}`
   const displayProgram = programLabel || program?.name || 'a team'
   const subject        = `You've been invited to join ${displayProgram} on SidelineOps`
@@ -208,7 +209,7 @@ export async function resendCoachInvite(inviteId: string) {
   const resendSport       = (teamsForEmail?.[0] as any)?.programs?.sport ?? ''
   const resendProgramLabel = formatProgramLabel(resendSchoolName, resendSport) || program?.name || ''
 
-  const baseUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const baseUrl   = getBaseUrl()
   const acceptUrl = `${baseUrl}/accept-invite?token=${invite.token}`
   const subject   = `You've been invited to join ${resendProgramLabel || 'a team'} on SidelineOps`
 

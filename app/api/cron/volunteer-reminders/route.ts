@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient }             from '@supabase/supabase-js'
 import { Resend }                   from 'resend'
+import { getBaseUrl }               from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -211,7 +212,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient()
   const resend   = new Resend(process.env.RESEND_API_KEY)
-  const baseUrl  = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const baseUrl  = getBaseUrl()
   const tomorrow = tomorrowCentral()
 
   const summary = {

@@ -9,6 +9,7 @@ import {
   buildEventNotificationEmail,
   type NotificationType,
 } from '@/lib/email/eventNotification'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -114,7 +115,7 @@ export async function sendNotification(payload: {
   }
 
   // ── Build email ───────────────────────────────────────────────────────────
-  const appUrl   = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl   = getBaseUrl()
   const senderLabel = program?.name ?? ''
   const fromName    = senderLabel ? `${senderLabel} via SidelineOps` : 'SidelineOps'
   const from     = `${fromName} <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`

@@ -19,6 +19,7 @@ import { Resend }                    from 'resend'
 import { buildEventNotificationEmail } from '@/lib/email/eventNotification'
 import { generateUnsubscribeToken }   from './unsubscribe-token'
 import { sendGroupMeMessage }         from './groupme'
+import { getBaseUrl }                 from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -105,7 +106,7 @@ export async function sendChangeAlert({
   if (!team.notify_on_change) return
   if (!changes.length)        return
 
-  const appUrl      = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl      = getBaseUrl()
   const supabase    = createServiceClient()
   const formattedDate = formatDate(event.event_date)
   const subject       = `Schedule Update: ${event.title} — ${formattedDate}`
@@ -304,7 +305,7 @@ export async function sendMealCoordinatorNotification({
   triggerType: 'new_event_with_meal' | 'meal_change' | 'event_cancelled' | 'event_time_change'
 }): Promise<void> {
   const supabase      = createServiceClient()
-  const appUrl        = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl        = getBaseUrl()
   const formattedDate = formatDate(event.event_date)
 
   // 1. Find all teams in this program
@@ -491,7 +492,7 @@ export async function sendNewEventAlert({
   const day = dayLabel(event.event_date)
   if (!day) return
 
-  const appUrl        = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl        = getBaseUrl()
   const supabase      = createServiceClient()
   const formattedDate = formatDate(event.event_date)
   const eventLabel    = buildNewEventLabel(event)

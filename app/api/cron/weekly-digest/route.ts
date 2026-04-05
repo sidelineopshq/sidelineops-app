@@ -3,6 +3,7 @@ import { createClient }                              from '@supabase/supabase-js
 import { Resend }                                    from 'resend'
 import { buildWeeklyDigestEmail, type DigestEvent }  from '@/lib/email/weeklyDigest'
 import { generateUnsubscribeToken }                  from '@/lib/notifications/unsubscribe-token'
+import { getBaseUrl }                                from '@/lib/utils/base-url'
 
 // ── Supabase service client (bypasses RLS — safe here, server-only route) ──
 function createServiceClient() {
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   const supabase  = createServiceClient()
   const resend    = new Resend(process.env.RESEND_API_KEY)
-  const appUrl    = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl    = getBaseUrl()
   const { monday, sunday, label: weekLabel } = comingWeekRange(new Date())
 
   const summary = {

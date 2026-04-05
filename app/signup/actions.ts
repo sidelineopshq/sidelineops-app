@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function serviceClient() {
   return createClient(
@@ -46,7 +47,7 @@ export async function createAccount({
     password,
     options: {
       data: { first_name: firstName, last_name: lastName },
-      emailRedirectTo: `${process.env.BASE_URL}/auth/callback?next=/onboarding`,
+      emailRedirectTo: `${getBaseUrl()}/auth/callback?next=/onboarding`,
     },
   })
 

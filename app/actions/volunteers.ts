@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { Resend } from 'resend'
 import { generateUnsubscribeToken } from '@/lib/notifications/unsubscribe-token'
 import { formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -482,7 +483,7 @@ export async function sendHelpNeededNotification(
   }
 
   // ── 6. Build and send emails ────────────────────────────────────────────────
-  const appUrl    = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl    = getBaseUrl()
   const resend    = new Resend(process.env.RESEND_API_KEY)
   const fromEmail = process.env.NEXT_PUBLIC_FROM_EMAIL!
 

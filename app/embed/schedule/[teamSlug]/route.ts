@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -155,7 +156,7 @@ export async function GET(
   const brandSecondary = (team as any).secondary_color ?? '#1e293b'
   const teamLogoUrl    = (team as any).logo_url as string | null
 
-  const baseUrl       = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const baseUrl       = getBaseUrl()
   const publicPageUrl = `${baseUrl}/schedule/${teamSlug}`
 
   // Build event cards HTML
