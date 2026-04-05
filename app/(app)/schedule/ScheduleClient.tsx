@@ -288,18 +288,16 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
             <div className="flex shrink-0 gap-1.5">
               <button
                 onClick={() => router.push(`/events/${game.id}/edit`)}
-                style={{ padding: '1px 8px' }}
-                className="rounded border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+                className="rounded bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 text-xs font-medium transition-colors"
               >
                 Edit
               </button>
               <button
                 onClick={() => handleDelete(game.id)}
                 disabled={deletingId === game.id}
-                style={{ padding: '1px 8px' }}
-                className="rounded border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors disabled:opacity-50"
+                className="rounded border border-red-500/50 bg-red-500/10 hover:bg-red-500/20 text-red-400 p-1.5 text-xs font-medium transition-colors disabled:opacity-50"
               >
-                {deletingId === game.id ? '...' : '×'}
+                {deletingId === game.id ? '…' : '×'}
               </button>
             </div>
           )}
@@ -440,12 +438,12 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
         )}
 
         {/* Row 5: actions */}
-        <div className="flex justify-end gap-2 pt-2 border-t border-white/5 mt-3">
+        <div className="flex flex-row flex-wrap gap-2 pt-2 border-t border-white/5 mt-3">
           {event.is_tournament && canManageEvents && (
             <button
               onClick={() => setShowAddGame(true)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-gray-900"
+              style={{ background: brandPrimary ? `${brandPrimary}cc` : '#f59e0b' }}
             >
               + Game
             </button>
@@ -453,8 +451,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canManageEvents && volunteerSummary && (
             <button
               onClick={() => router.push(`/events/${event.id}`)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg border border-purple-500/40 bg-purple-500/20 text-purple-300 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-purple-500/30"
             >
               Volunteers
             </button>
@@ -462,8 +459,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canManageEvents && (
             <button
               onClick={() => router.push(`/events/${event.id}/edit`)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 text-sm font-medium transition-colors"
             >
               Edit
             </button>
@@ -471,8 +467,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {userRole === 'meal_coordinator' && (
             <button
               onClick={() => router.push(`/events/${event.id}/edit`)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-300 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-amber-500/30"
             >
               Edit Meal Info
             </button>
@@ -480,8 +475,10 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canSendNotifications && (
             <button
               onClick={() => router.push(`/events/${event.id}/notify`)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border"
+              style={brandPrimary
+                ? { background: `${brandPrimary}33`, color: brandPrimary, borderColor: `${brandPrimary}66` }
+                : { background: 'rgba(14,165,233,0.2)', color: '#7dd3fc', borderColor: 'rgba(14,165,233,0.4)' }}
             >
               Notify
             </button>
@@ -489,8 +486,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canManageEvents && (
             <button
               onClick={() => onCancelRequest(event)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors"
+              className="shrink-0 rounded-lg border border-red-500/50 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 text-sm font-medium transition-colors"
             >
               Cancel
             </button>
@@ -831,19 +827,24 @@ export default function ScheduleClient({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex rounded-xl border border-white/10 overflow-hidden">
+          <div className="flex flex-row items-center gap-3">
+            {/* Segmented List/Calendar toggle */}
+            <div className="flex overflow-hidden rounded-lg border border-white/10">
               <button
                 onClick={() => setView('list')}
-                className={`px-4 py-2 text-sm font-semibold transition-colors ${view !== 'list' && 'bg-slate-900 text-slate-400 hover:text-white'}`}
-                style={view === 'list' ? { background: brandPrimary ?? '#0284c7', color: 'white' } : undefined}
+                className="whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors"
+                style={view === 'list'
+                  ? { background: brandPrimary ?? '#0284c7', color: 'white' }
+                  : { background: '#0f172a', color: '#94a3b8' }}
               >
                 ☰ List
               </button>
               <button
                 onClick={() => setView('calendar')}
-                className={`px-4 py-2 text-sm font-semibold transition-colors ${view !== 'calendar' && 'bg-slate-900 text-slate-400 hover:text-white'}`}
-                style={view === 'calendar' ? { background: brandPrimary ?? '#0284c7', color: 'white' } : undefined}
+                className="whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors"
+                style={view === 'calendar'
+                  ? { background: brandPrimary ?? '#0284c7', color: 'white' }
+                  : { background: '#0f172a', color: '#94a3b8' }}
               >
                 📅 Calendar
               </button>
@@ -852,7 +853,7 @@ export default function ScheduleClient({
             {canManageEvents && (
               <button
                 onClick={() => router.push('/events/new')}
-                className="w-full sm:w-auto rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+                className="w-auto shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
                 style={{ background: brandPrimary ?? '#0284c7' }}
               >
                 + New Event
@@ -866,12 +867,10 @@ export default function ScheduleClient({
           <div className="flex flex-wrap gap-2 mb-6">
             <button
               onClick={() => setActiveTeamId(null)}
-              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                activeTeamId !== null && 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
-              }`}
+              className="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
               style={activeTeamId === null
-                ? { borderColor: brandPrimary ?? '#0284c7', background: `${brandPrimary ?? '#0284c7'}33`, color: brandPrimary ?? '#7dd3fc' }
-                : undefined}
+                ? { background: brandPrimary ?? '#0284c7', color: 'white' }
+                : { background: '#1e293b', color: '#9ca3af' }}
             >
               All Teams
             </button>
@@ -879,12 +878,10 @@ export default function ScheduleClient({
               <button
                 key={team.id}
                 onClick={() => setActiveTeamId(team.id)}
-                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                  activeTeamId !== team.id && 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
-                }`}
+                className="rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
                 style={activeTeamId === team.id
-                  ? { borderColor: brandPrimary ?? '#0284c7', background: `${brandPrimary ?? '#0284c7'}33`, color: brandPrimary ?? '#7dd3fc' }
-                  : undefined}
+                  ? { background: brandPrimary ?? '#0284c7', color: 'white' }
+                  : { background: '#1e293b', color: '#9ca3af' }}
               >
                 {team.name}
               </button>
