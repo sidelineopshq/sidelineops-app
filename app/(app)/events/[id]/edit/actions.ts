@@ -206,6 +206,14 @@ export async function updateEvent(
 
   // ── Fire change notifications (awaited — must complete before redirect) ───
   if (oldEventData) {
+    // Never notify for completed events (new status or pre-existing)
+    if (
+      formData.status === 'completed' ||
+      oldEventData.status === 'completed'
+    ) {
+      redirect('/schedule')
+    }
+
     const oldEventSnap = {
       default_end_time: oldEventData.default_end_time,
       location_name:    oldEventData.location_name,
