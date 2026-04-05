@@ -442,8 +442,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {event.is_tournament && canManageEvents && (
             <button
               onClick={() => setShowAddGame(true)}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-gray-900"
-              style={{ background: brandPrimary ? `${brandPrimary}cc` : '#f59e0b' }}
+              className="shrink-0 rounded-lg border border-slate-500 bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 text-sm font-medium transition-colors"
             >
               + Game
             </button>
@@ -451,7 +450,8 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canManageEvents && volunteerSummary && (
             <button
               onClick={() => router.push(`/events/${event.id}`)}
-              className="shrink-0 rounded-lg border border-purple-500/40 bg-purple-500/20 text-purple-300 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-purple-500/30"
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-colors"
+              style={{ background: brandPrimary ?? '#0284c7' }}
             >
               Volunteers
             </button>
@@ -475,10 +475,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
           {canSendNotifications && (
             <button
               onClick={() => router.push(`/events/${event.id}/notify`)}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border"
-              style={brandPrimary
-                ? { background: `${brandPrimary}33`, color: brandPrimary, borderColor: `${brandPrimary}66` }
-                : { background: 'rgba(14,165,233,0.2)', color: '#7dd3fc', borderColor: 'rgba(14,165,233,0.4)' }}
+              className="shrink-0 rounded-lg border border-white/60 bg-transparent hover:bg-white/10 text-white px-3 py-1.5 text-sm font-medium transition-colors"
             >
               Notify
             </button>
