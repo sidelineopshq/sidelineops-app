@@ -23,7 +23,7 @@ export default async function ContactsPage() {
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, slug, program_id')
+    .select('id, name, slug, program_id, primary_color')
     .eq('id', teamUser.team_id)
     .single()
 
@@ -100,6 +100,7 @@ export default async function ContactsPage() {
       canShowSignupSection={canShowSignupSection}
       signupUrl={signupUrl}
       qrDataUrl={qrDataUrl}
+      brandPrimary={(team as any)?.primary_color ?? null}
     />
   )
 }

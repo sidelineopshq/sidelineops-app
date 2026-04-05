@@ -144,7 +144,17 @@ function roleLabel(type: string): string {
   return map[type] ?? type
 }
 
-function roleBadge(type: string) {
+function roleBadge(type: string, brandPrimary?: string | null) {
+  if (type === 'parent' && brandPrimary) {
+    return (
+      <span
+        className="rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+        style={{ background: `${brandPrimary}33`, borderColor: `${brandPrimary}80`, color: brandPrimary }}
+      >
+        Parent
+      </span>
+    )
+  }
   const map: Record<string, string> = {
     parent:    'bg-sky-500/20 text-sky-300 border-sky-500/30',
     player:    'bg-green-500/20 text-green-300 border-green-500/30',
@@ -319,11 +329,12 @@ function EditContactModal({ contact, players, teamId, onSave, onClose }: {
 
 // ── Contact Row ───────────────────────────────────────────────
 
-function ContactRow({ contact, players, canManage, teamId, onEdit, onDelete }: {
+function ContactRow({ contact, players, canManage, teamId, brandPrimary, onEdit, onDelete }: {
   contact: Contact
   players: Player[]
   canManage: boolean
   teamId: string
+  brandPrimary?: string | null
   onEdit: (c: Contact) => void
   onDelete: (id: string) => void
 }) {
@@ -341,86 +352,80 @@ function ContactRow({ contact, players, canManage, teamId, onEdit, onDelete }: {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 hover:border-white/20 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
 
-        {/* Left: info */}
-        <div className="min-w-0 flex-1">
-          {/* Name + role badge */}
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-sm font-semibold text-white">
-              {contact.last_name}, {contact.first_name}
-            </span>
-            {roleBadge(contact.contact_type)}
-            {contact.sms_consent ? (
-              <span className="rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-0.5 text-xs text-green-400">
-                ✓ SMS
-              </span>
-            ) : (
-              <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-500">
-                No consent
-              </span>
-            )}
-            {contact.email_unsubscribed && (
-              <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
-                Unsubscribed
-              </span>
-            )}
-            {!contact.player_id && contact.contact_type === 'parent' && (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-400">
-                ⚠ Unlinked
-              </span>
-            )}
-          </div>
-
-          {/* Contact details */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-400">
-            <span>{formatPhone(contact.phone)}</span>
-            {contact.email && <span>{contact.email}</span>}
-            {linkedPlayer && (
-              <span className="text-sky-400">
-                → {linkedPlayer.last_name}, {linkedPlayer.first_name}
-                {linkedPlayer.jersey_number ? ` #${linkedPlayer.jersey_number}` : ''}
-              </span>
-            )}
-            <span className="text-slate-600">Signed up {formatDate(contact.created_at)}</span>
-          </div>
-
-          {/* Notes (unlinked player name) */}
-          {contact.notes && (
-            <p className="mt-1.5 text-xs text-amber-400/80 italic">{contact.notes}</p>
-          )}
-        </div>
-
-        {/* Right: actions */}
-        {canManage && (
-          <div className="flex shrink-0 gap-2">
-            {contact.phone && contact.sms_consent && (
-      
-                <a href={`sms:${contact.phone}`}
-                style={{ padding: '2px 10px' }}
-                className="rounded-lg border border-green-500/20 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-semibold transition-colors"
-            >
-                💬 Text
-            </a>
-            )}
-            <button
-              onClick={() => onEdit(contact)}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition-colors"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              style={{ padding: '2px 10px' }}
-              className="rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              {deleting ? '...' : 'Remove'}
-            </button>
-          </div>
+      {/* Name + badges row */}
+      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+        <span className="text-base font-semibold text-white">
+          {contact.last_name}, {contact.first_name}
+        </span>
+        {roleBadge(contact.contact_type, brandPrimary)}
+        {contact.sms_consent ? (
+          <span className="rounded-full border border-green-500/40 bg-green-500/20 px-2 py-0.5 text-xs text-green-400">
+            ✓ SMS
+          </span>
+        ) : (
+          <span className="rounded-full border border-slate-600 bg-slate-700/50 px-2 py-0.5 text-xs text-slate-500">
+            No consent
+          </span>
+        )}
+        {contact.email_unsubscribed && (
+          <span className="rounded-full border border-slate-500 bg-slate-500/20 px-2 py-0.5 text-xs text-slate-400">
+            Unsubscribed
+          </span>
+        )}
+        {!contact.player_id && contact.contact_type === 'parent' && (
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+            ⚠ Unlinked
+          </span>
         )}
       </div>
+
+      {/* Contact details */}
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-400 mb-1">
+        {contact.phone && <span>{formatPhone(contact.phone)}</span>}
+        {contact.email && <span>{contact.email}</span>}
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm mb-1">
+        {linkedPlayer && (
+          <span className="text-sky-400">
+            → {linkedPlayer.last_name}, {linkedPlayer.first_name}
+            {linkedPlayer.jersey_number ? ` #${linkedPlayer.jersey_number}` : ''}
+          </span>
+        )}
+        <span className="text-xs text-slate-600">Signed up {formatDate(contact.created_at)}</span>
+      </div>
+
+      {contact.notes && (
+        <p className="text-xs text-amber-400/80 italic mb-1">{contact.notes}</p>
+      )}
+
+      {/* Action buttons */}
+      {canManage && (
+        <div className="flex flex-row gap-2 mt-2">
+          {contact.phone && contact.sms_consent && (
+            <a
+              href={`sms:${contact.phone}`}
+              className="flex-1 text-center rounded-full border border-green-500 text-green-400 bg-transparent hover:bg-green-500/10 px-3 py-1.5 text-sm font-medium transition-colors min-h-[36px] flex items-center justify-center"
+            >
+              💬 Text
+            </a>
+          )}
+          <button
+            onClick={() => onEdit(contact)}
+            className="flex-1 rounded-full border border-slate-500 text-slate-300 bg-transparent hover:bg-slate-700/50 px-3 py-1.5 text-sm font-medium transition-colors min-h-[36px]"
+          >
+            Edit
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 rounded-full border border-red-500 text-red-400 bg-transparent hover:bg-red-500/10 px-3 py-1.5 text-sm font-medium transition-colors min-h-[36px] disabled:opacity-50"
+          >
+            {deleting ? '…' : 'Remove'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -438,6 +443,7 @@ export default function ContactsClient({
   canShowSignupSection,
   signupUrl,
   qrDataUrl,
+  brandPrimary = null,
 }: {
   contacts: Contact[]
   players: Player[]
@@ -449,6 +455,7 @@ export default function ContactsClient({
   canShowSignupSection: boolean
   signupUrl: string | null
   qrDataUrl: string | null
+  brandPrimary?: string | null
 }) {
   const [contacts, setContacts]       = useState(initialContacts)
   const [editingContact, setEditing]  = useState<Contact | null>(null)
@@ -541,58 +548,59 @@ export default function ContactsClient({
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-5">
-          {/* Search */}
+        <div className="flex flex-col gap-2 mb-5">
+          {/* Row 1: Search (full width) */}
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search name, phone, email..."
-            className="flex-1 min-w-48 rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
+            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+            style={search ? { borderColor: brandPrimary ?? '#0284c7' } : undefined}
           />
 
-          {/* Role filter */}
-          <select
-            value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm text-white focus:border-sky-500 focus:outline-none"
-            style={{ appearance: 'auto' }}
-          >
-            <option value="all">All Roles</option>
-            <option value="parent">Parents</option>
-            <option value="player">Players</option>
-            <option value="volunteer">Volunteers</option>
-            <option value="official">Officials</option>
-          </select>
-
-          {/* Player filter */}
-          <select
-            value={playerFilter}
-            onChange={e => setPlayerFilter(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm text-white focus:border-sky-500 focus:outline-none"
-            style={{ appearance: 'auto' }}
-          >
-            <option value="all">All Players</option>
-            {players.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.last_name}, {p.first_name}
-              </option>
-            ))}
-          </select>
-
-          {/* Unlinked toggle */}
-          {unlinkedCount > 0 && (
-            <button
-              onClick={() => setUnlinkedOnly(!unlinkedOnly)}
-              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                unlinkedOnly
-                  ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
-                  : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white'
-              }`}
+          {/* Row 2: dropdowns + unlinked toggle */}
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value)}
+              className="rounded-xl border bg-slate-900 px-4 py-2 text-sm text-white focus:outline-none transition-colors"
+              style={{ appearance: 'auto', borderColor: roleFilter !== 'all' ? (brandPrimary ?? '#0284c7') : 'rgba(255,255,255,0.1)' }}
             >
-              ⚠ Unlinked ({unlinkedCount})
-            </button>
-          )}
+              <option value="all">All Roles</option>
+              <option value="parent">Parents</option>
+              <option value="player">Players</option>
+              <option value="volunteer">Volunteers</option>
+              <option value="official">Officials</option>
+            </select>
+
+            <select
+              value={playerFilter}
+              onChange={e => setPlayerFilter(e.target.value)}
+              className="rounded-xl border bg-slate-900 px-4 py-2 text-sm text-white focus:outline-none transition-colors"
+              style={{ appearance: 'auto', borderColor: playerFilter !== 'all' ? (brandPrimary ?? '#0284c7') : 'rgba(255,255,255,0.1)' }}
+            >
+              <option value="all">All Players</option>
+              {players.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.last_name}, {p.first_name}
+                </option>
+              ))}
+            </select>
+
+            {unlinkedCount > 0 && (
+              <button
+                onClick={() => setUnlinkedOnly(!unlinkedOnly)}
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                  unlinkedOnly
+                    ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                    : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white'
+                }`}
+              >
+                ⚠ Unlinked ({unlinkedCount})
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Results count */}
@@ -619,6 +627,7 @@ export default function ContactsClient({
                 players={players}
                 canManage={canManageContacts}
                 teamId={teamId}
+                brandPrimary={brandPrimary}
                 onEdit={setEditing}
                 onDelete={handleContactDeleted}
               />
