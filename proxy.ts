@@ -8,6 +8,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/groupme/',
   '/api/accept-invite',
   '/api/team/',
+  '/api/feedback',
   '/auth/callback',
 ]
 

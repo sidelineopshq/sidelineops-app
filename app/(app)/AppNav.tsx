@@ -201,6 +201,13 @@ export default function AppNav({
                   )}
                 </div>
                 <div className="border-t border-white/10 py-1">
+                  <a
+                    href="?feedback=true"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <span>🚩</span>
+                    <span>Report a Problem</span>
+                  </a>
                   <button
                     onClick={handleSignOut}
                     disabled={signingOut}
@@ -264,6 +271,17 @@ export default function AppNav({
                     </a>
                   ))}
                 </nav>
+
+                {/* Report a problem */}
+                <div className="border-t border-white/10 py-1">
+                  <a
+                    href="?feedback=true"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <span>🚩</span>
+                    <span>Report a Problem</span>
+                  </a>
+                </div>
               </div>
             )}
           </div>

@@ -221,13 +221,19 @@ export default async function PublicSchedulePage({
         />
 
         {/* Footer */}
-        <div className="mt-10 pt-6 border-t border-slate-200 text-center">
+        <div className="mt-10 pt-6 border-t border-slate-200 text-center space-y-1">
           <p className="text-xs text-slate-400">
             Powered by{' '}
             <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-700 transition-colors">
               SidelineOps
             </a>
           </p>
+          <a
+            href="?feedback=true"
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            Report a problem
+          </a>
         </div>
       </div>
     </main>
