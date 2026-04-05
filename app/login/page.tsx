@@ -69,6 +69,13 @@ export default function LoginPage() {
               Don&apos;t have an account? Request access →
             </a>
           </p>
+
+          <p className="text-center text-xs text-gray-600 mt-2">
+            By continuing you agree to our{' '}
+            <a href="/legal/terms" className="hover:text-gray-400 underline transition-colors">Terms of Service</a>
+            {' '}and{' '}
+            <a href="/legal/privacy" className="hover:text-gray-400 underline transition-colors">Privacy Policy</a>
+          </p>
         </div>
       </div>
     </div>

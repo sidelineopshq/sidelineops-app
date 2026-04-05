@@ -228,6 +228,13 @@ export default async function PublicSchedulePage({
               SidelineOps
             </a>
           </p>
+          <p className="text-xs text-slate-400">
+            © 2026 SidelineOps
+            {' · '}
+            <a href="/legal/terms" className="hover:text-slate-600 transition-colors">Terms</a>
+            {' · '}
+            <a href="/legal/privacy" className="hover:text-slate-600 transition-colors">Privacy</a>
+          </p>
           <a
             href="?feedback=true"
             className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
