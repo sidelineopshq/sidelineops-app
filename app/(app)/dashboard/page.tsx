@@ -3,6 +3,14 @@ import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
+const ROLE_LABELS: Record<string, string> = {
+  admin:            'Admin',
+  coach:            'Coach',
+  volunteer_admin:  'Volunteer Admin',
+  meal_coordinator: 'Meal Coordinator',
+}
+function roleLabel(r: string) { return ROLE_LABELS[r] ?? r }
+
 export const metadata = { title: 'Dashboard' }
 
 function formatTime(time: string | null): string {
@@ -211,7 +219,7 @@ export default async function DashboardPage() {
         </h2>
         {team?.name && (
           <p className="mt-1 text-slate-400 text-sm">
-            {formatTeamShortLabel((team as any).level ?? '')} · {teamUser?.role?.replace('_', ' ')}
+            {formatTeamShortLabel((team as any).level ?? '')} · {roleLabel(teamUser?.role ?? '')}
           </p>
         )}
       </div>

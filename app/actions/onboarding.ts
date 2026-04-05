@@ -150,7 +150,7 @@ export async function createProgramAndTeam(data: OnboardingData) {
   const { error: tuErr } = await service.from('team_users').insert({
     team_id:                  newTeam.id,
     user_id:                  user.id,
-    role:                     'admin',
+    role:                     'coach',
     can_manage_events:        true,
     can_manage_contacts:      true,
     can_send_notifications:   true,

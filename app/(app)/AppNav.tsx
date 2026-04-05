@@ -4,6 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOut } from './actions'
 
+const ROLE_LABELS: Record<string, string> = {
+  admin:            'Admin',
+  coach:            'Coach',
+  volunteer_admin:  'Volunteer Admin',
+  meal_coordinator: 'Meal Coordinator',
+}
+function roleLabel(r: string) { return ROLE_LABELS[r] ?? r }
+
 const ALL_NAV_ITEMS = [
   { label: 'Dashboard',  href: '/dashboard',  icon: '⚡', hideFor: [] as string[] },
   { label: 'Schedule',   href: '/schedule',   icon: '📅', hideFor: [] },
@@ -150,7 +158,7 @@ export default function AppNav({
           <div className="hidden lg:block text-right">
             <p className="text-xs font-semibold text-white leading-tight">{programName}</p>
             <p className="text-xs text-slate-500 leading-tight">
-              {teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}
+              {teams.map(t => t.name).join(' · ')} · {roleLabel(role)}
             </p>
           </div>
 
@@ -173,7 +181,7 @@ export default function AppNav({
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Team</p>
                   <p className="text-sm text-slate-300">{programName}</p>
-                  <p className="text-xs text-slate-500">{teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-500">{teams.map(t => t.name).join(' · ')} · {roleLabel(role)}</p>
                 </div>
                 <div className="py-1">
                   <a
@@ -236,7 +244,7 @@ export default function AppNav({
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{sport}</p>
                   <p className="text-sm font-semibold text-white mt-0.5">{programName}</p>
-                  <p className="text-xs text-slate-400">{teams.map(t => t.name).join(' · ')} · {role.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-400">{teams.map(t => t.name).join(' · ')} · {roleLabel(role)}</p>
                 </div>
 
                 {/* Nav links */}
