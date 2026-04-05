@@ -295,23 +295,6 @@ export default async function TeamSettingsPage({
         />
       )}
 
-
-      {/* ── Volunteer settings moved notice ──────────────────────────────────── */}
-      <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 px-6 py-5 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-white">Volunteer settings have moved.</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Roles, templates, and standing volunteers are now managed in Volunteer Settings.
-          </p>
-        </div>
-        <a
-          href="/volunteers/settings"
-          className="shrink-0 rounded-xl border border-white/20 hover:border-sky-500/40 hover:bg-sky-500/5 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors whitespace-nowrap"
-        >
-          Go to Volunteer Settings →
-        </a>
-      </div>
-
     </section>
   )
 }
