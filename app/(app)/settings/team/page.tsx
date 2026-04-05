@@ -192,7 +192,10 @@ export default async function TeamSettingsPage({
 
       {/* ── Tab navigation ────────────────────────────────────────────────────── */}
       <div className="relative mb-6">
-        <div className="flex gap-1 border-b border-white/10 overflow-x-auto">
+        <div
+          className="flex gap-1 border-b border-white/10 overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {TABS.map(t => (
             <a
               key={t.id}
@@ -207,8 +210,10 @@ export default async function TeamSettingsPage({
               {t.label}
             </a>
           ))}
+          {/* Right padding so last tab clears the fade */}
+          <span className="shrink-0 w-8" aria-hidden="true" />
         </div>
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-[#0f172a] to-transparent" />
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-slate-950 to-transparent" />
       </div>
 
       {/* ── General ───────────────────────────────────────────────────────────── */}
