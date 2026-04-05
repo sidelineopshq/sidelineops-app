@@ -108,6 +108,11 @@ export async function submitVolunteerSignup(data: {
   if (!email)           return { error: 'Email is required.' }
   if (!slotIds.length)  return { error: 'No slots selected.' }
 
+  console.log('[SIGNUP] Starting signup for slots:', slotIds)
+  console.log('[SIGNUP] Volunteer info:', { name, email })
+  console.log('[SIGNUP] Contact id if found:', contactId ?? null)
+  console.log('[SIGNUP] Service role key present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+
   const service = svc()
 
   // Fetch slot + event details for all selected slots
@@ -190,19 +195,26 @@ export async function submitVolunteerSignup(data: {
       continue
     }
 
-    const { error: insertError } = await service
+    const insertPayload = {
+      event_volunteer_slot_id: slotRow.id,
+      contact_id:              contactId || null,
+      volunteer_name:          name,
+      volunteer_email:         email,
+      status:                  'assigned',
+      signup_source:           'self',
+    }
+    console.log('[SIGNUP] Inserting assignment for slot:', slotRow.id)
+    console.log('[SIGNUP] Insert payload:', JSON.stringify(insertPayload))
+
+    const { data: insertData, error: insertError } = await service
       .from('volunteer_assignments')
-      .insert({
-        event_volunteer_slot_id: slotRow.id,
-        contact_id:              contactId || null,
-        volunteer_name:          name,
-        volunteer_email:         email,
-        status:                  'assigned',
-        signup_source:           'self',
-      })
+      .insert(insertPayload)
+      .select()
+
+    console.log('[SIGNUP] Insert result:', JSON.stringify(insertData))
+    console.log('[SIGNUP] Insert error:', JSON.stringify(insertError))
 
     if (insertError) {
-      console.error('[submitVolunteerSignup] insert error:', insertError)
       results.push({
         slotId:          slotRow.id,
         eventDate:       event?.event_date ?? '',
