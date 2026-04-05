@@ -844,64 +844,62 @@ export function VolunteerRolesTab({
                   </div>
                 ) : (
                   /* ── Read-only row ── */
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-sm font-medium ${role.is_active ? 'text-white' : 'text-slate-500'}`}>
-                            {role.name}
-                          </span>
-                          {!role.is_active && (
-                            <span className="text-xs bg-slate-700/70 text-slate-400 px-2 py-0.5 rounded-full">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                        {role.description && (
-                          <p className={`text-xs mt-0.5 ${role.is_active ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {role.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {canManage && (
-                        <div className="flex shrink-0 gap-1">
-                          <button
-                            onClick={() => openEdit(role)}
-                            disabled={togglePending || suppressPending || !!editingId}
-                            className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-40"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleToggle(role)}
-                            disabled={togglePending || suppressPending || !!editingId}
-                            className={`text-xs transition-colors px-2.5 py-1.5 rounded-lg disabled:opacity-40 ${
-                              role.is_active
-                                ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10'
-                                : 'text-sky-400 hover:text-sky-300 hover:bg-sky-400/10'
-                            }`}
-                          >
-                            {role.is_active ? 'Deactivate' : 'Reactivate'}
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(role)}
-                            disabled={togglePending || suppressPending || !!editingId || deletePending}
-                            className="text-xs text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-400/50 transition-colors px-2.5 py-1.5 rounded-lg disabled:opacity-40"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                  <div className="space-y-2">
+                    {/* Role name + inactive badge */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-base font-semibold ${role.is_active ? 'text-white' : 'text-slate-500'}`}>
+                        {role.name}
+                      </span>
+                      {!role.is_active && (
+                        <span className="text-xs bg-slate-700/70 text-slate-400 px-2 py-0.5 rounded-full">
+                          Inactive
+                        </span>
                       )}
                     </div>
+                    {role.description && (
+                      <p className={`text-xs ${role.is_active ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {role.description}
+                      </p>
+                    )}
+
+                    {/* Action buttons — full-width row below name */}
+                    {canManage && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => openEdit(role)}
+                          disabled={togglePending || suppressPending || !!editingId}
+                          className="text-sm text-slate-400 hover:text-white transition-colors disabled:opacity-40"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleToggle(role)}
+                          disabled={togglePending || suppressPending || !!editingId}
+                          className={`text-sm transition-colors disabled:opacity-40 ${
+                            role.is_active
+                              ? 'text-amber-400 hover:text-amber-300'
+                              : 'text-sky-400 hover:text-sky-300'
+                          }`}
+                        >
+                          {role.is_active ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                        <button
+                          onClick={() => openDeleteConfirm(role)}
+                          disabled={togglePending || suppressPending || !!editingId || deletePending}
+                          className="text-sm text-red-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
 
                     {/* Suppress reminders toggle */}
                     {canManage && (
-                      <div className="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-slate-800/40 px-4 py-3">
+                      <div className="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-slate-800/40 px-3 py-2">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-slate-300">Suppress reminder emails</p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Use this for recurring roles like Announcer where reminders aren't needed.
+                            For recurring roles like Announcer where reminders aren't needed.
                           </p>
                         </div>
                         <button
@@ -970,17 +968,29 @@ export function VolunteerRolesTab({
 
       {/* ── Home Game Volunteer Template ────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Home Game Volunteer Template</h2>
-            <p className="text-slate-400 text-xs mt-1">
-              These slots are offered to auto-populate every time a home game is created.
-            </p>
+        <div className="px-6 py-4 border-b border-white/10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Home Game Volunteer Template</h2>
+              <p className="text-slate-400 text-xs mt-1">
+                These slots auto-populate every time a home game is created.
+              </p>
+            </div>
+            {/* Desktop: button inline in header */}
+            {canManage && activeRoles.length > 0 && (
+              <button
+                onClick={() => { setEditingTemplate(undefined); setShowTemplateModal(true) }}
+                className="hidden sm:block shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+              >
+                + Add Template Slot
+              </button>
+            )}
           </div>
+          {/* Mobile: full-width button below description */}
           {canManage && activeRoles.length > 0 && (
             <button
               onClick={() => { setEditingTemplate(undefined); setShowTemplateModal(true) }}
-              className="shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+              className="sm:hidden mt-3 w-full rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold transition-colors text-center"
             >
               + Add Template Slot
             </button>
@@ -992,56 +1002,100 @@ export function VolunteerRolesTab({
             No template slots yet.{activeRoles.length === 0 ? ' Add volunteer roles first.' : ''}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide"># Volunteers</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Start Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">End Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</th>
-                  {canManage && <th className="px-4 py-3" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {templateSlots.map(ts => (
-                  <tr key={ts.id}>
-                    <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{ts.role_name}</td>
-                    <td className="px-4 py-3 text-slate-300">{ts.slot_count}</td>
-                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                      {ts.start_time ? formatTime(ts.start_time) : <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                      {ts.end_time ? formatTime(ts.end_time) : <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate">
-                      {ts.notes ?? <span className="text-slate-600">—</span>}
-                    </td>
-                    {canManage && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
+          <>
+            {/* Mobile: card layout */}
+            <div className="block sm:hidden divide-y divide-white/5">
+              {templateSlots.map(ts => {
+                const timeStr = [ts.start_time && formatTime(ts.start_time), ts.end_time && formatTime(ts.end_time)].filter(Boolean).join(' \u2013 ')
+                return (
+                  <div key={ts.id} className="px-4 py-3">
+                    {/* Row 1: role name + edit/delete */}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-white">{ts.role_name}</span>
+                      {canManage && (
+                        <div className="flex shrink-0 items-center gap-3">
                           <button
                             onClick={() => { setEditingTemplate(ts); setShowTemplateModal(true) }}
-                            className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5"
+                            className="text-sm text-slate-400 hover:text-white transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleRemoveTemplate(ts.id)}
                             disabled={removingTplId === ts.id}
-                            className="text-xs text-red-400 hover:text-red-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-40"
+                            className="text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
                           >
-                            {removingTplId === ts.id ? 'Removing…' : 'Remove'}
+                            {removingTplId === ts.id ? '…' : '×'}
                           </button>
                         </div>
-                      </td>
+                      )}
+                    </div>
+                    {/* Row 2: count · time range */}
+                    <p className="text-sm text-slate-400 mt-0.5">
+                      {ts.slot_count} volunteer{ts.slot_count !== 1 ? 's' : ''}
+                      {timeStr && ` \u00b7 ${timeStr}`}
+                    </p>
+                    {/* Row 3: notes */}
+                    {ts.notes && (
+                      <p className="text-xs text-slate-500 italic mt-0.5">{ts.notes}</p>
                     )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop: table layout */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide"># Volunteers</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Start Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">End Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</th>
+                    {canManage && <th className="px-4 py-3" />}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {templateSlots.map(ts => (
+                    <tr key={ts.id}>
+                      <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{ts.role_name}</td>
+                      <td className="px-4 py-3 text-slate-300">{ts.slot_count}</td>
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                        {ts.start_time ? formatTime(ts.start_time) : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                        {ts.end_time ? formatTime(ts.end_time) : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate">
+                        {ts.notes ?? <span className="text-slate-600">—</span>}
+                      </td>
+                      {canManage && (
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => { setEditingTemplate(ts); setShowTemplateModal(true) }}
+                              className="text-xs text-slate-400 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/5"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleRemoveTemplate(ts.id)}
+                              disabled={removingTplId === ts.id}
+                              className="text-xs text-red-400 hover:text-red-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-40"
+                            >
+                              {removingTplId === ts.id ? 'Removing…' : 'Remove'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* ── Apply to remaining home games ──────────────────────────────── */}
@@ -1066,17 +1120,29 @@ export function VolunteerRolesTab({
 
       {/* ── Standing Volunteers ────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Standing Volunteers</h2>
-            <p className="text-slate-400 text-xs mt-1">
-              These volunteers are automatically assigned to every home game for their role.
-            </p>
+        <div className="px-6 py-4 border-b border-white/10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Standing Volunteers</h2>
+              <p className="text-slate-400 text-xs mt-1">
+                Auto-assigned to every home game for their role.
+              </p>
+            </div>
+            {/* Desktop: button inline in header */}
+            {canManage && activeRoles.length > 0 && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="hidden sm:block shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+              >
+                + Add Standing Volunteer
+              </button>
+            )}
           </div>
+          {/* Mobile: full-width button below description, above cards */}
           {canManage && activeRoles.length > 0 && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="shrink-0 rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold transition-colors"
+              className="sm:hidden mt-3 w-full rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold transition-colors text-center"
             >
               + Add Standing Volunteer
             </button>
@@ -1089,50 +1155,84 @@ export function VolunteerRolesTab({
             {activeRoles.length === 0 ? ' Add volunteer roles first.' : ''}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Source</th>
-                  {canManage && <th className="px-4 py-3" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {standingAssignments.map(sa => (
-                  <tr key={sa.id}>
-                    <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{sa.display_name}</td>
-                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                      {sa.display_email ?? <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{sa.role_name}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                        sa.contact_id
-                          ? 'border-sky-500/30 bg-sky-500/10 text-sky-400'
-                          : 'border-white/10 bg-slate-800 text-slate-400'
-                      }`}>
-                        {sa.contact_id ? 'Contact' : 'External'}
-                      </span>
-                    </td>
+          <>
+            {/* Mobile: card layout */}
+            <div className="block sm:hidden divide-y divide-white/5">
+              {standingAssignments.map(sa => (
+                <div key={sa.id} className="px-4 py-3">
+                  {/* Row 1: name + remove */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-white">{sa.display_name}</span>
                     {canManage && (
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleRemoveStanding(sa.id)}
-                          disabled={removePending}
-                          className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
-                        >
-                          Remove
-                        </button>
-                      </td>
+                      <button
+                        onClick={() => handleRemoveStanding(sa.id)}
+                        disabled={removePending}
+                        className="shrink-0 text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                      >
+                        Remove
+                      </button>
                     )}
+                  </div>
+                  {/* Row 2: email */}
+                  {sa.display_email && (
+                    <p className="text-sm text-slate-400 mt-0.5 break-all">{sa.display_email}</p>
+                  )}
+                  {/* Row 3: role badge */}
+                  <div className="mt-1">
+                    <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-xs font-semibold text-slate-300">
+                      {sa.role_name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table layout */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Email</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Source</th>
+                    {canManage && <th className="px-4 py-3" />}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {standingAssignments.map(sa => (
+                    <tr key={sa.id}>
+                      <td className="px-6 py-3 font-medium text-white whitespace-nowrap">{sa.display_name}</td>
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                        {sa.display_email ?? <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{sa.role_name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                          sa.contact_id
+                            ? 'border-sky-500/30 bg-sky-500/10 text-sky-400'
+                            : 'border-white/10 bg-slate-800 text-slate-400'
+                        }`}>
+                          {sa.contact_id ? 'Contact' : 'External'}
+                        </span>
+                      </td>
+                      {canManage && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleRemoveStanding(sa.id)}
+                            disabled={removePending}
+                            className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
