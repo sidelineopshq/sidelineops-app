@@ -3,6 +3,101 @@
 import { useState } from 'react'
 import { updateContact, deleteContact } from './actions'
 
+// ── Parent Signup Section ─────────────────────────────────────
+
+function ParentSignupSection({
+  signupUrl,
+  qrDataUrl,
+  teamSlug,
+}: {
+  signupUrl: string | null
+  qrDataUrl: string | null
+  teamSlug: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    if (!signupUrl) return
+    try {
+      await navigator.clipboard.writeText(signupUrl)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = signupUrl
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleDownload() {
+    if (!qrDataUrl) return
+    const link = document.createElement('a')
+    link.download = `${teamSlug || 'team'}-parent-signup-qr.png`
+    link.href = qrDataUrl
+    link.click()
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden mb-8">
+      <div className="px-6 py-4 border-b border-white/10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Parent Sign-Up</h2>
+        <p className="text-slate-400 text-xs mt-1">
+          Share this link or QR code with parents to join the team roster.
+        </p>
+      </div>
+
+      {!signupUrl || !qrDataUrl ? (
+        <div className="px-6 py-5">
+          <p className="text-sm text-slate-400">
+            No signup link available.{' '}
+            <a href="/settings/team" className="text-sky-400 hover:text-sky-300 underline underline-offset-2">
+              Generate one in Team Settings.
+            </a>
+          </p>
+        </div>
+      ) : (
+        <div className="px-6 py-5 flex flex-col sm:flex-row gap-6 items-start">
+          {/* QR code */}
+          <div className="shrink-0">
+            <img
+              src={qrDataUrl}
+              alt="Parent signup QR code"
+              width={160}
+              height={160}
+              className="rounded-xl border border-white/10"
+            />
+          </div>
+
+          {/* URL + buttons */}
+          <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
+            <div className="rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5">
+              <p className="text-xs text-slate-500 mb-0.5">Signup link</p>
+              <p className="text-sm text-slate-300 break-all">{signupUrl}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleCopy}
+                className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold transition-colors"
+              >
+                {copied ? 'Copied!' : 'Copy Link'}
+              </button>
+              <button
+                onClick={handleDownload}
+                className="rounded-xl border border-white/20 hover:border-white/40 hover:bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors"
+              >
+                Download QR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Types ─────────────────────────────────────────────────────
 
 type Contact = {
@@ -337,15 +432,23 @@ export default function ContactsClient({
   players,
   teamId,
   teamName,
+  teamSlug,
   programName,
   canManageContacts,
+  canShowSignupSection,
+  signupUrl,
+  qrDataUrl,
 }: {
   contacts: Contact[]
   players: Player[]
   teamId: string
   teamName: string
+  teamSlug: string
   programName: string
   canManageContacts: boolean
+  canShowSignupSection: boolean
+  signupUrl: string | null
+  qrDataUrl: string | null
 }) {
   const [contacts, setContacts]       = useState(initialContacts)
   const [editingContact, setEditing]  = useState<Contact | null>(null)
@@ -405,6 +508,15 @@ export default function ContactsClient({
           <p className="text-sm text-slate-400">{programName}</p>
           <h1 className="text-2xl font-bold">{teamName} — Contacts</h1>
         </div>
+
+        {/* Parent sign-up QR section */}
+        {canShowSignupSection && (
+          <ParentSignupSection
+            signupUrl={signupUrl}
+            qrDataUrl={qrDataUrl}
+            teamSlug={teamSlug}
+          />
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">

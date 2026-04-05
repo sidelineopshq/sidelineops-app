@@ -17,7 +17,6 @@ const ALL_NAV_ITEMS = [
   { label: 'Schedule',   href: '/schedule',   icon: '📅', hideFor: [] },
   { label: 'Volunteers', href: '/volunteers', icon: '🙋', hideFor: [] },
   { label: 'Roster',     href: '/roster',     icon: '👥', hideFor: ['volunteer_admin', 'meal_coordinator'] },
-  { label: 'Messages',   href: '/messages',   icon: '💬', hideFor: ['volunteer_admin', 'meal_coordinator'] },
   { label: 'Contacts',   href: '/contacts',   icon: '👥', hideFor: ['volunteer_admin', 'meal_coordinator'] },
 ]
 
