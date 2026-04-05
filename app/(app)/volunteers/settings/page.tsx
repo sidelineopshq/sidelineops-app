@@ -11,13 +11,6 @@ function serviceClient() {
   )
 }
 
-const DEFAULT_ROLES = [
-  { name: 'Concession Stand',       description: null },
-  { name: 'Gate / Ticket Sales',    description: null },
-  { name: 'Field Setup & Teardown', description: null },
-  { name: 'Scoreboard Operator',    description: null },
-]
-
 export default async function VolunteerSettingsPage() {
   const supabase = await createClient()
 
@@ -98,23 +91,7 @@ export default async function VolunteerSettingsPage() {
       .order('created_at', { ascending: true }),
   ])
 
-  // Seed default roles if none exist yet
-  let rolesRaw = rolesResult.data
-  if ((rolesRaw ?? []).length === 0) {
-    await svc
-      .from('volunteer_roles')
-      .insert(DEFAULT_ROLES.map(r => ({ ...r, program_id: programId, is_active: true })))
-
-    const { data: seeded } = await svc
-      .from('volunteer_roles')
-      .select('id, name, description, is_active, suppress_reminders')
-      .eq('program_id', programId)
-      .order('created_at', { ascending: true })
-
-    rolesRaw = seeded
-  }
-
-  const volunteerRoles: VolunteerRole[] = (rolesRaw ?? []) as VolunteerRole[]
+  const volunteerRoles: VolunteerRole[] = (rolesResult.data ?? []) as VolunteerRole[]
 
   const standingAssignments: StandingAssignment[] = (standingResult.data ?? []).map((row: any) => {
     const contact = row.contacts as any

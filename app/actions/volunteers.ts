@@ -128,6 +128,56 @@ export async function removeTemplateSlot(slotId: string) {
   return { success: true }
 }
 
+export async function deleteVolunteerRole(roleId: string): Promise<
+  { success: true } | { error: string; count?: number }
+> {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const service = createServiceClient()
+
+  const { data: role } = await service
+    .from('volunteer_roles')
+    .select('program_id')
+    .eq('id', roleId)
+    .single()
+  if (!role) return { error: 'Role not found' }
+  if (!(await assertProgramManageAccess(user.id, role.program_id))) return { error: 'Not authorized' }
+
+  // Collect all event_volunteer_slot ids for this role
+  const { data: evSlots } = await service
+    .from('event_volunteer_slots')
+    .select('id')
+    .eq('volunteer_role_id', roleId)
+  const slotIds = (evSlots ?? []).map(s => s.id)
+
+  // Check for assignments
+  let assignmentCount = 0
+  if (slotIds.length > 0) {
+    const { count } = await service
+      .from('volunteer_assignments')
+      .select('id', { count: 'exact', head: true })
+      .in('event_volunteer_slot_id', slotIds)
+    assignmentCount = count ?? 0
+  }
+
+  if (assignmentCount > 0) {
+    return { error: 'has_assignments', count: assignmentCount }
+  }
+
+  // Delete all related records then the role itself
+  await service.from('volunteer_standing_assignments').delete().eq('volunteer_role_id', roleId)
+  await service.from('volunteer_slot_templates').delete().eq('volunteer_role_id', roleId)
+  if (slotIds.length > 0) {
+    await service.from('event_volunteer_slots').delete().in('id', slotIds)
+  }
+  await service.from('volunteer_roles').delete().eq('id', roleId)
+
+  revalidatePath('/volunteers/settings')
+  return { success: true }
+}
+
 export async function applyTemplateToRemainingGames(programId: string): Promise<
   { error: string } | { eventsProcessed: number; slotsAdded: number; slotsSkipped: number }
 > {

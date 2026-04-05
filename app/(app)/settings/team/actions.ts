@@ -30,6 +30,40 @@ async function assertProgramManageAccess(userId: string, programId: string) {
   return teamUsers?.some(t => t.can_manage_events) ?? false
 }
 
+const DEFAULT_VOLUNTEER_ROLES = [
+  'Concession Stand',
+  'Gate / Ticket Sales',
+  'Field Setup & Teardown',
+  'Scoreboard Operator',
+]
+
+export async function addDefaultVolunteerRoles(programId: string) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await assertProgramManageAccess(user.id, programId))) return { error: 'Not authorized' }
+
+  const service = createServiceClient()
+
+  const { data: existing } = await service
+    .from('volunteer_roles')
+    .select('name')
+    .eq('program_id', programId)
+
+  const existingNames = new Set((existing ?? []).map((r: any) => r.name))
+  const toInsert = DEFAULT_VOLUNTEER_ROLES
+    .filter(name => !existingNames.has(name))
+    .map(name => ({ program_id: programId, name, description: null, is_active: true }))
+
+  if (toInsert.length > 0) {
+    const { error } = await service.from('volunteer_roles').insert(toInsert)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath('/volunteers/settings')
+  return { success: true }
+}
+
 export async function addVolunteerRole(
   programId:   string,
   name:        string,

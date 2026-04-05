@@ -10,12 +10,14 @@ import {
   setSuppressReminders,
   createStandingAssignment,
   removeStandingAssignment,
+  addDefaultVolunteerRoles,
 } from './actions'
 import {
   createTemplateSlot,
   updateTemplateSlot,
   removeTemplateSlot,
   applyTemplateToRemainingGames,
+  deleteVolunteerRole,
 } from '@/app/actions/volunteers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -495,6 +497,18 @@ export function VolunteerRolesTab({
   const [togglePending,   startToggle]   = useTransition()
   const [suppressPending, startSuppress] = useTransition()
 
+  // ── Roles: delete ─────────────────────────────────────────────────────────
+  const [deletingRole,  setDeletingRole]  = useState<VolunteerRole | null>(null)
+  const [deleteError,   setDeleteError]   = useState<string | null>(null)
+  const [deletePending, startDelete]      = useTransition()
+
+  // ── Default roles ─────────────────────────────────────────────────────────
+  const [defaultsPending, startDefaults] = useTransition()
+  const [defaultsError,   setDefaultsError] = useState<string | null>(null)
+
+  // ── General toast ─────────────────────────────────────────────────────────
+  const [roleToast, setRoleToast] = useState<string | null>(null)
+
   // ── Standing: remove + modal ─────────────────────────────────────────────
   const [removePending, startRemove]     = useTransition()
   const [showAddModal,  setShowAddModal] = useState(false)
@@ -585,6 +599,45 @@ export function VolunteerRolesTab({
     })
   }
 
+  function openDeleteConfirm(role: VolunteerRole) {
+    setDeletingRole(role)
+    setDeleteError(null)
+  }
+
+  function handleConfirmDelete() {
+    if (!deletingRole) return
+    startDelete(async () => {
+      const result = await deleteVolunteerRole(deletingRole.id)
+      if ('error' in result) {
+        if (result.error === 'has_assignments') {
+          setDeleteError(
+            `This role has ${result.count ?? 'existing'} volunteer assignment${(result.count ?? 0) !== 1 ? 's' : ''} and cannot be deleted. Deactivate it to hide it from future events.`
+          )
+        } else {
+          setDeleteError(result.error)
+        }
+      } else {
+        const name = deletingRole.name
+        setDeletingRole(null)
+        setDeleteError(null)
+        setRoleToast(`${name} deleted`)
+        router.refresh()
+      }
+    })
+  }
+
+  function handleAddDefaults() {
+    setDefaultsError(null)
+    startDefaults(async () => {
+      const result = await addDefaultVolunteerRoles(programId)
+      if (result?.error) {
+        setDefaultsError(result.error)
+      } else {
+        router.refresh()
+      }
+    })
+  }
+
   const activeRoles = roles.filter(r => r.is_active)
 
   return (
@@ -602,6 +655,12 @@ export function VolunteerRolesTab({
           message={applyErrorToast}
           variant="error"
           onDismiss={() => setApplyErrorToast(null)}
+        />
+      )}
+      {roleToast && (
+        <Toast
+          message={roleToast}
+          onDismiss={() => setRoleToast(null)}
         />
       )}
 
@@ -643,6 +702,53 @@ export function VolunteerRolesTab({
         </div>
       )}
 
+      {/* ── Delete role confirmation dialog ──────────────────────────────── */}
+      {deletingRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+            {deleteError ? (
+              <>
+                <h3 className="text-base font-bold text-white mb-3">Cannot Delete Role</h3>
+                <p className="text-sm text-slate-300 mb-5">{deleteError}</p>
+                <button
+                  onClick={() => { setDeletingRole(null); setDeleteError(null) }}
+                  className="w-full rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2.5 text-sm font-semibold transition-colors"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-base font-bold text-white mb-3">
+                  Delete {deletingRole.name}?
+                </h3>
+                <p className="text-sm text-slate-300 mb-5">
+                  {templateSlots.some(s => s.volunteer_role_id === deletingRole.id)
+                    ? 'This will also remove it from your home game template. This cannot be undone.'
+                    : 'This cannot be undone.'}
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={deletePending}
+                    className="flex-1 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+                  >
+                    {deletePending ? 'Deleting…' : 'Delete'}
+                  </button>
+                  <button
+                    onClick={() => { setDeletingRole(null); setDeleteError(null) }}
+                    disabled={deletePending}
+                    className="flex-1 rounded-xl border border-white/10 hover:bg-white/5 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Template Slot Modal ───────────────────────────────────────────── */}
       {showTemplateModal && (
         <TemplateSlotModal
@@ -673,7 +779,24 @@ export function VolunteerRolesTab({
         </div>
 
         {roles.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">No roles defined yet. Add one below.</p>
+          <div className="px-6 py-6 space-y-4">
+            <p className="text-sm text-slate-400">
+              No volunteer roles yet. Add your first role below, or click{' '}
+              <strong className="text-white">Add Default Roles</strong> to get started with common roles.
+            </p>
+            {canManage && (
+              <div>
+                <button
+                  onClick={handleAddDefaults}
+                  disabled={defaultsPending}
+                  className="rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 disabled:opacity-50 px-4 py-2 text-sm font-semibold text-sky-400 transition-colors"
+                >
+                  {defaultsPending ? 'Adding…' : 'Add Default Roles'}
+                </button>
+                {defaultsError && <p className="mt-2 text-xs text-red-400">{defaultsError}</p>}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="divide-y divide-white/5">
             {roles.map(role => (
@@ -760,6 +883,13 @@ export function VolunteerRolesTab({
                             }`}
                           >
                             {role.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(role)}
+                            disabled={togglePending || suppressPending || !!editingId || deletePending}
+                            className="text-xs text-red-500 hover:text-red-400 border border-red-500/30 hover:border-red-400/50 transition-colors px-2.5 py-1.5 rounded-lg disabled:opacity-40"
+                          >
+                            Delete
                           </button>
                         </div>
                       )}
