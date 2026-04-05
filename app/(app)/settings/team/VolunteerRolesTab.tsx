@@ -862,35 +862,70 @@ export function VolunteerRolesTab({
                       </p>
                     )}
 
-                    {/* Action buttons — full-width row below name */}
+                    {/* Action buttons */}
                     {canManage && (
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => openEdit(role)}
-                          disabled={togglePending || suppressPending || !!editingId}
-                          className="text-sm text-slate-400 hover:text-white transition-colors disabled:opacity-40"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggle(role)}
-                          disabled={togglePending || suppressPending || !!editingId}
-                          className={`text-sm transition-colors disabled:opacity-40 ${
-                            role.is_active
-                              ? 'text-amber-400 hover:text-amber-300'
-                              : 'text-sky-400 hover:text-sky-300'
-                          }`}
-                        >
-                          {role.is_active ? 'Deactivate' : 'Reactivate'}
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(role)}
-                          disabled={togglePending || suppressPending || !!editingId || deletePending}
-                          className="text-sm text-red-500 hover:text-red-400 transition-colors disabled:opacity-40"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <>
+                        {/* Mobile: pill buttons with sufficient tap targets */}
+                        <div className="flex flex-wrap gap-2 mt-2 sm:hidden">
+                          <button
+                            onClick={() => openEdit(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            style={{ touchAction: 'manipulation' }}
+                            className="flex-1 min-h-[36px] rounded-full border border-slate-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/5 disabled:opacity-40"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleToggle(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            style={{ touchAction: 'manipulation' }}
+                            className={`flex-1 min-h-[36px] rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+                              role.is_active
+                                ? 'border-amber-500 text-amber-400 hover:bg-amber-500/10'
+                                : 'border-sky-500 text-sky-400 hover:bg-sky-500/10'
+                            }`}
+                          >
+                            {role.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(role)}
+                            disabled={togglePending || suppressPending || !!editingId || deletePending}
+                            style={{ touchAction: 'manipulation' }}
+                            className="flex-1 min-h-[36px] rounded-full border border-red-500 px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        {/* Desktop: text links */}
+                        <div className="hidden sm:flex items-center gap-3">
+                          <button
+                            onClick={() => openEdit(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            className="text-sm text-slate-400 hover:text-white transition-colors disabled:opacity-40"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleToggle(role)}
+                            disabled={togglePending || suppressPending || !!editingId}
+                            className={`text-sm transition-colors disabled:opacity-40 ${
+                              role.is_active
+                                ? 'text-amber-400 hover:text-amber-300'
+                                : 'text-sky-400 hover:text-sky-300'
+                            }`}
+                          >
+                            {role.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(role)}
+                            disabled={togglePending || suppressPending || !!editingId || deletePending}
+                            className="text-sm text-red-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
                     )}
 
                     {/* Suppress reminders toggle */}
