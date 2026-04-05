@@ -475,124 +475,111 @@ export function VolunteerDashboardClient({
                   className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden"
                 >
                   {/* Card header */}
-                  <div className="px-5 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">
-                          {fmtDate(game.event_date)}
-                          {game.start_time && ` · ${fmt12(game.start_time)}`}
-                          {game.location_name && ` · ${game.location_name}`}
-                        </p>
-                        <p className="text-base font-semibold text-white mt-0.5">
-                          {gameLabel(game)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {total > 0 && (
-                          <span className={[
-                            'text-xs font-semibold px-2.5 py-1 rounded-full',
-                            allFilled
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : filled > 0
-                                ? 'bg-sky-500/20 text-sky-400'
-                                : 'bg-slate-700 text-slate-400',
-                          ].join(' ')}>
-                            {filled}/{total}
-                          </span>
-                        )}
-                        {canManage && (
-                          <button
-                            onClick={() => setExpandedId(expanded ? null : game.id)}
-                            className="text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors px-2 py-1"
-                          >
-                            {expanded ? 'Close' : 'Manage'}
-                          </button>
-                        )}
-                      </div>
+                  <div className="px-4 py-3 sm:px-5 sm:py-4">
+                    {/* Row 1: date · time · location + fill badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-slate-500 font-medium min-w-0 truncate">
+                        {fmtDate(game.event_date)}
+                        {game.start_time && ` · ${fmt12(game.start_time)}`}
+                        {game.location_name && ` · ${game.location_name}`}
+                      </p>
+                      {total > 0 && (
+                        <span className={[
+                          'shrink-0 text-xs font-bold px-2.5 py-0.5 rounded-full border',
+                          allFilled
+                            ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                            : 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+                        ].join(' ')}>
+                          {filled}/{total}
+                        </span>
+                      )}
                     </div>
 
-                    {/* Progress bar */}
+                    {/* Row 2: game label */}
+                    <p className="text-base font-semibold text-white mt-0.5">
+                      {gameLabel(game)}
+                    </p>
+
+                    {/* Row 3: progress bar */}
                     {total > 0 && (
-                      <div className="mt-3">
+                      <div className="mt-2">
                         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                           <div
-                            className={[
-                              'h-full rounded-full transition-all',
-                              allFilled ? 'bg-emerald-500' : 'bg-sky-500',
-                            ].join(' ')}
+                            className={['h-full rounded-full transition-all', allFilled ? 'bg-emerald-500' : 'bg-sky-500'].join(' ')}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                          {game.slots.map(slot => {
-                            const f = slotFilled(slot)
-                            return (
-                              <span key={slot.id} className="text-xs text-slate-500">
-                                {slot.role_name}: {f}/{slot.slot_count}
-                              </span>
-                            )
-                          })}
-                          {game.slots.length === 0 && (
-                            <span className="text-xs text-slate-600">No volunteer slots configured</span>
-                          )}
-                        </div>
                       </div>
                     )}
-                    {total === 0 && (
-                      <p className="mt-2 text-xs text-slate-600">No volunteer slots configured for this game.</p>
+
+                    {/* Row 4: slot summary */}
+                    {game.slots.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                        {game.slots.map(slot => (
+                          <span key={slot.id} className="text-xs text-slate-500">
+                            {slot.role_name}: {slotFilled(slot)}/{slot.slot_count}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-slate-600">No volunteer slots configured.</p>
+                    )}
+
+                    {/* Action buttons — stacked on mobile */}
+                    {canManage && (
+                      <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={() => setExpandedId(expanded ? null : game.id)}
+                          className="w-full sm:w-auto rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors text-center"
+                        >
+                          {expanded ? 'Close' : 'Manage Volunteers'}
+                        </button>
+                        {total > filled && total > 0 && (
+                          <button
+                            onClick={() => handleHelpNeeded(game.id)}
+                            disabled={helpPending[game.id]}
+                            className="w-full sm:w-auto rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 text-xs font-semibold text-amber-400 transition-colors disabled:opacity-50 text-center"
+                          >
+                            {helpPending[game.id] ? 'Sending…' : '⚠ Help Needed'}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
                   {/* Inline manage panel */}
                   {expanded && canManage && (
                     <div className="border-t border-white/10 bg-slate-950/50">
-                      {/* Help needed button */}
-                      {total > filled && total > 0 && (
-                        <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
-                          <p className="text-xs text-slate-500">
-                            {total - filled} open spot{total - filled !== 1 ? 's' : ''} — send a help-needed email to all contacts?
-                          </p>
-                          <button
-                            onClick={() => handleHelpNeeded(game.id)}
-                            disabled={helpPending[game.id]}
-                            className="shrink-0 rounded-xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 px-4 py-1.5 text-xs font-semibold text-amber-400 transition-colors disabled:opacity-50"
-                          >
-                            {helpPending[game.id] ? 'Sending…' : '📣 Send Help Needed'}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Slot list */}
                       {game.slots.length === 0 ? (
-                        <div className="px-5 py-4 text-xs text-slate-500">
+                        <div className="px-4 py-4 text-xs text-slate-500">
                           No slots yet. Apply your template or add slots from the event page.
                         </div>
                       ) : (
                         <div className="divide-y divide-white/5">
                           {game.slots.map(slot => {
-                            const filled = slotFilled(slot)
-                            const open   = slot.slot_count - filled
+                            const slotFill = slotFilled(slot)
+                            const slotFull = slotFill >= slot.slot_count
                             return (
-                              <div key={slot.id} className="px-5 py-3">
-                                <div className="flex items-center justify-between gap-2 mb-2">
-                                  <div>
+                              <div key={slot.id} className="px-3 py-3 sm:px-4">
+                                {/* Slot header */}
+                                <div className="mb-2">
+                                  <div className="flex items-start justify-between gap-2">
                                     <span className="text-sm font-semibold text-white">{slot.role_name}</span>
-                                    {(slot.start_time || slot.end_time) && (
-                                      <span className="text-xs text-slate-500 ml-2">
-                                        {[fmt12(slot.start_time), fmt12(slot.end_time)].filter(Boolean).join('–')}
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-slate-500 ml-2">{filled}/{slot.slot_count} filled</span>
+                                    <span className={[
+                                      'shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold',
+                                      slotFull
+                                        ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                                        : 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+                                    ].join(' ')}>
+                                      {slotFill}/{slot.slot_count}
+                                    </span>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    {open > 0 && (
-                                      <button
-                                        onClick={() => openAssign(slot.id, slot.role_name, game.id)}
-                                        className="text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
-                                      >
-                                        + Add
-                                      </button>
-                                    )}
+                                  {(slot.start_time || slot.end_time) && (
+                                    <p className="text-sm text-slate-400 mt-0.5">
+                                      {[fmt12(slot.start_time), fmt12(slot.end_time)].filter(Boolean).join(' \u2013 ')}
+                                    </p>
+                                  )}
+                                  <div className="mt-1 flex justify-end">
                                     <button
                                       onClick={() => setDeleteSlotCtx({
                                         slotId: slot.id,
@@ -600,44 +587,51 @@ export function VolunteerDashboardClient({
                                         eventId: game.id,
                                         hasAssignments: slot.assignments.length > 0,
                                       })}
-                                      className="text-xs text-slate-600 hover:text-red-400 transition-colors"
+                                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
                                     >
                                       Remove slot
                                     </button>
                                   </div>
                                 </div>
 
-                                {/* Assignments */}
-                                {slot.assignments.length > 0 && (
-                                  <div className="flex flex-col gap-1">
-                                    {slot.assignments.map(a => (
-                                      <div
-                                        key={a.id}
-                                        className="flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-1.5"
-                                      >
-                                        <div>
-                                          <span className="text-sm text-white">{a.volunteer_name}</span>
-                                          {a.volunteer_email && (
-                                            <span className="text-xs text-slate-500 ml-2">{a.volunteer_email}</span>
-                                          )}
-                                        </div>
+                                {/* Assignment + open slot rows */}
+                                <ul className="space-y-1.5">
+                                  {slot.assignments.map(a => (
+                                    <li key={a.id} className="rounded-xl border border-white/5 bg-slate-800/50 px-3 py-2">
+                                      {/* Row 1: name + remove */}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm font-medium text-white leading-snug">{a.volunteer_name}</span>
                                         <button
                                           onClick={() => setRemoveCtx({
                                             assignmentId: a.id,
                                             volunteerName: a.volunteer_name,
                                             eventId: game.id,
                                           })}
-                                          className="text-xs text-slate-600 hover:text-red-400 transition-colors ml-2"
+                                          className="shrink-0 text-xs text-red-400 hover:text-red-300 transition-colors"
                                         >
                                           Remove
                                         </button>
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {slot.assignments.length === 0 && (
-                                  <p className="text-xs text-slate-600 pl-0.5">No volunteers assigned yet.</p>
-                                )}
+                                      {/* Row 2: email */}
+                                      {a.volunteer_email && (
+                                        <p className="text-xs text-slate-400 mt-0.5 break-all">{a.volunteer_email}</p>
+                                      )}
+                                    </li>
+                                  ))}
+
+                                  {/* Open slot rows */}
+                                  {Array.from({ length: Math.max(0, slot.slot_count - slotFill) }).map((_, i) => (
+                                    <li key={`open-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-800/30 px-3 py-2.5">
+                                      <span className="text-sm text-slate-500">Open slot</span>
+                                      <button
+                                        onClick={() => openAssign(slot.id, slot.role_name, game.id)}
+                                        className="shrink-0 rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-1 text-xs font-semibold transition-colors"
+                                      >
+                                        + Assign
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
                             )
                           })}
