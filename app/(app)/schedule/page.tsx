@@ -39,7 +39,7 @@ export default async function SchedulePage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, level, program_id, is_primary, programs(sport, schools(name))')
+    .select('id, name, level, program_id, is_primary, primary_color, secondary_color, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -161,7 +161,9 @@ export default async function SchedulePage() {
     name: formatTeamShortLabel((t as any).level ?? ''),
   }))
   // Primary team is first after ordering by is_primary desc
-  const primaryTeamId = teamsData?.[0]?.id ?? null
+  const primaryTeamId  = teamsData?.[0]?.id ?? null
+  const brandPrimary   = (teamsData?.[0] as any)?.primary_color   ?? null
+  const brandSecondary = (teamsData?.[0] as any)?.secondary_color ?? null
 
   return (
     <ScheduleClient
@@ -177,6 +179,8 @@ export default async function SchedulePage() {
       canSendNotifications={canSendNotifications}
       volunteerSummaryMap={volunteerSummaryMap}
       userRole={userRole}
+      brandPrimary={brandPrimary}
+      brandSecondary={brandSecondary}
     />
   )
 }

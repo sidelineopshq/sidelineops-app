@@ -312,7 +312,7 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
 // ── Event Row (List View) ─────────────────────────────────────
 
 function EventRow({ event, childGames, canManageEvents, canSendNotifications,
-  teamId, teams, volunteerSummary, userRole, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  teamId, teams, volunteerSummary, userRole, brandPrimary, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
   event: any
   childGames: any[]
   canManageEvents: boolean
@@ -321,6 +321,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
   teams: { id: string; name: string }[]
   volunteerSummary?: { filled: number; total: number }
   userRole?: string
+  brandPrimary?: string | null
   onCancelRequest: (event: any) => void
   onTournamentGameAdded: (game: any) => void
   onTournamentGameDeleted: (gameId: string) => void
@@ -343,7 +344,10 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
         />
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 transition-colors hover:border-white/20">
+      <div
+        className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 transition-colors hover:border-white/20 border-l-4"
+        style={{ borderLeftColor: brandPrimary ?? '#0284c7' }}
+      >
 
         {/* Row 1: date + badges */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -581,7 +585,7 @@ function CalendarListView({ events }: { events: any[] }) {
 
 // ── Calendar View (desktop) ───────────────────────────────────
 
-function CalendarView({ events }: { events: any[] }) {
+function CalendarView({ events, brandPrimary }: { events: any[]; brandPrimary?: string | null }) {
   const router = useRouter()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -645,9 +649,10 @@ function CalendarView({ events }: { events: any[] }) {
             <div key={dateStr}
               className={`bg-slate-900 overflow-y-auto p-1.5 ${isPast ? 'opacity-40' : ''}`}
               style={{ height: '110px' }}>
-              <div className={`text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${
-                isToday ? 'bg-sky-500 text-white' : 'text-slate-400'
-              }`}>
+              <div
+                className={`text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-slate-400'}`}
+                style={isToday ? { background: brandPrimary ?? '#0ea5e9' } : undefined}
+              >
                 {day}
               </div>
               <div className="space-y-1">
@@ -688,6 +693,8 @@ export default function ScheduleClient({
   canSendNotifications,
   volunteerSummaryMap = {},
   userRole = '',
+  brandPrimary = null,
+  brandSecondary = null,
 }: {
   events?: any[]
   childGames?: any[]
@@ -698,6 +705,8 @@ export default function ScheduleClient({
   canSendNotifications: boolean
   volunteerSummaryMap?: Record<string, { filled: number; total: number }>
   userRole?: string
+  brandPrimary?: string | null
+  brandSecondary?: string | null
 }) {
   const router = useRouter()
   const [eventList, setEventList]         = useState(events)
@@ -826,17 +835,15 @@ export default function ScheduleClient({
             <div className="flex rounded-xl border border-white/10 overflow-hidden">
               <button
                 onClick={() => setView('list')}
-                className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                  view === 'list' ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 text-sm font-semibold transition-colors ${view !== 'list' && 'bg-slate-900 text-slate-400 hover:text-white'}`}
+                style={view === 'list' ? { background: brandPrimary ?? '#0284c7', color: 'white' } : undefined}
               >
                 ☰ List
               </button>
               <button
                 onClick={() => setView('calendar')}
-                className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                  view === 'calendar' ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 text-sm font-semibold transition-colors ${view !== 'calendar' && 'bg-slate-900 text-slate-400 hover:text-white'}`}
+                style={view === 'calendar' ? { background: brandPrimary ?? '#0284c7', color: 'white' } : undefined}
               >
                 📅 Calendar
               </button>
@@ -845,7 +852,8 @@ export default function ScheduleClient({
             {canManageEvents && (
               <button
                 onClick={() => router.push('/events/new')}
-                className="rounded-xl bg-sky-600 hover:bg-sky-500 px-5 py-2.5 text-sm font-semibold transition-colors"
+                className="w-full sm:w-auto rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+                style={{ background: brandPrimary ?? '#0284c7' }}
               >
                 + New Event
               </button>
@@ -855,14 +863,15 @@ export default function ScheduleClient({
 
         {/* Team filter tabs — only shown when coaching multiple teams */}
         {teams.length > 1 && (
-          <div className="flex gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
             <button
               onClick={() => setActiveTeamId(null)}
               className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                activeTeamId === null
-                  ? 'border-sky-500 bg-sky-500/20 text-sky-300'
-                  : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
+                activeTeamId !== null && 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
               }`}
+              style={activeTeamId === null
+                ? { borderColor: brandPrimary ?? '#0284c7', background: `${brandPrimary ?? '#0284c7'}33`, color: brandPrimary ?? '#7dd3fc' }
+                : undefined}
             >
               All Teams
             </button>
@@ -871,10 +880,11 @@ export default function ScheduleClient({
                 key={team.id}
                 onClick={() => setActiveTeamId(team.id)}
                 className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                  activeTeamId === team.id
-                    ? 'border-sky-500 bg-sky-500/20 text-sky-300'
-                    : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
+                  activeTeamId !== team.id && 'border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/30'
                 }`}
+                style={activeTeamId === team.id
+                  ? { borderColor: brandPrimary ?? '#0284c7', background: `${brandPrimary ?? '#0284c7'}33`, color: brandPrimary ?? '#7dd3fc' }
+                  : undefined}
               >
                 {team.name}
               </button>
@@ -892,7 +902,8 @@ export default function ScheduleClient({
                 {canManageEvents && (
                   <button
                     onClick={() => router.push('/events/new')}
-                    className="mt-6 rounded-xl bg-sky-600 hover:bg-sky-500 px-6 py-2.5 text-sm font-semibold transition-colors"
+                    className="mt-6 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-colors"
+                    style={{ background: brandPrimary ?? '#0284c7' }}
                   >
                     + New Event
                   </button>
@@ -911,6 +922,7 @@ export default function ScheduleClient({
                     teams={teams}
                     volunteerSummary={volunteerSummaryMap[event.id]}
                     userRole={userRole}
+                    brandPrimary={brandPrimary}
                     onCancelRequest={setCancelTarget}
                     onTournamentGameAdded={handleTournamentGameAdded}
                     onTournamentGameDeleted={handleTournamentGameDeleted}
@@ -925,10 +937,10 @@ export default function ScheduleClient({
         {view === 'calendar' && mounted && (
           isMobile
             ? <CalendarListView events={allEventsForCalendar} />
-            : <CalendarView events={allEventsForCalendar} />
+            : <CalendarView events={allEventsForCalendar} brandPrimary={brandPrimary} />
         )}
         {view === 'calendar' && !mounted && (
-          <CalendarView events={allEventsForCalendar} />
+          <CalendarView events={allEventsForCalendar} brandPrimary={brandPrimary} />
         )}
 
       </div>
