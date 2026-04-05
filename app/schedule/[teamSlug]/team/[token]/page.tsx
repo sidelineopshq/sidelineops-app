@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -364,7 +365,7 @@ export default async function TeamSchedulePage({
         <div className="mt-10 pt-6 border-t border-white/5 text-center">
           <p className="text-xs text-slate-600">
             Powered by{' '}
-            <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-400 transition-colors">
+            <a href={getBaseUrl()} className="text-slate-500 hover:text-slate-400 transition-colors">
               SidelineOps
             </a>
           </p>

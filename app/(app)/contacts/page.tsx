@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import ContactsClient from './ContactsClient'
 import { formatProgramLabel } from '@/lib/utils/team-label'
 import QRCode from 'qrcode'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 export const metadata = { title: 'Contacts' }
 
@@ -70,7 +71,7 @@ export default async function ContactsPage() {
     .limit(1)
     .maybeSingle()
 
-  const baseUrl = process.env.BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const baseUrl = getBaseUrl()
   const joinToken = joinTokenRow?.token ?? null
   const signupUrl = joinToken ? `${baseUrl}/join/${joinToken}` : null
   const qrDataUrl = signupUrl
