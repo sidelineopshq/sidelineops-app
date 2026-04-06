@@ -154,7 +154,7 @@ function AddTournamentGameModal({ tournament, defaultTeamId, teams, onClose, onA
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold">Add Tournament Game</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">×</button>
@@ -166,12 +166,12 @@ function AddTournamentGameModal({ tournament, defaultTeamId, teams, onClose, onA
         <div className="space-y-3">
           {/* Team selector — only shown when coach manages multiple teams */}
           {teams.length > 1 && (
-            <div>
+            <div className="w-full">
               <label className="block text-xs font-semibold text-slate-400 mb-1">Team</label>
               <select
                 value={selectedTeamId}
                 onChange={e => setSelectedTeamId(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+                className="block w-full min-w-0 rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
                 style={{ appearance: 'auto' }}
               >
                 {teams.map(t => (
@@ -180,35 +180,35 @@ function AddTournamentGameModal({ tournament, defaultTeamId, teams, onClose, onA
               </select>
             </div>
           )}
-          <div>
+          <div className="w-full">
             <label className="block text-xs font-semibold text-slate-400 mb-1">Opponent</label>
             <input
               type="text"
               value={opponent}
               onChange={e => setOpponent(e.target.value)}
               placeholder="e.g. Sparkman"
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
+              className="block w-full min-w-0 rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
             />
           </div>
-          <div>
+          <div className="w-full overflow-hidden">
             <label className="block text-xs font-semibold text-slate-400 mb-1">Date</label>
             <input
               type="date"
               value={gameDate}
               onChange={e => setGameDate(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+              className="block w-full min-w-0 appearance-none rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
             />
           </div>
-          <div>
+          <div className="w-full overflow-hidden">
             <label className="block text-xs font-semibold text-slate-400 mb-1">Start Time</label>
             <input
               type="time"
               value={startTime}
               onChange={e => setStartTime(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
+              className="block w-full min-w-0 appearance-none rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white focus:border-sky-500 focus:outline-none text-sm"
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-xs font-semibold text-slate-400 mb-1">
               Location / Field <span className="text-slate-500 font-normal">(optional)</span>
             </label>
@@ -217,7 +217,7 @@ function AddTournamentGameModal({ tournament, defaultTeamId, teams, onClose, onA
               value={locationName}
               onChange={e => setLocationName(e.target.value)}
               placeholder="e.g. Field 2, Diamond A"
-              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
+              className="block w-full min-w-0 rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm"
             />
           </div>
         </div>

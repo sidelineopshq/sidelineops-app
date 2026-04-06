@@ -21,9 +21,6 @@ export default function PrivacyPage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
           <p className="text-sm text-slate-400">Last updated: April 2026</p>
-          <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
-            <strong>Note:</strong> This is a placeholder document for the beta period. It should be reviewed by a qualified attorney before public launch.
-          </div>
         </div>
 
         <div className="space-y-10 text-slate-300 leading-relaxed">
