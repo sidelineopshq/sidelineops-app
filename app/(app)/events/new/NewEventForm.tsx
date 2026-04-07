@@ -184,10 +184,21 @@ export default function NewEventForm({
   }
 
   function updateTeamTime(teamId: string, field: keyof TeamTimes, value: string) {
-    setTeamTimes(prev => ({
-      ...prev,
-      [teamId]: { ...prev[teamId], [field]: value },
-    }))
+    setTeamTimes(prev => {
+      const updated: Record<string, TeamTimes> = {
+        ...prev,
+        [teamId]: { ...prev[teamId], [field]: value },
+      }
+      // Auto-populate secondary teams for practice events
+      if (eventType === 'practice' && teamId === teams[0]?.id && value) {
+        for (const team of teams.slice(1)) {
+          if (selectedTeamIds.includes(team.id) && !updated[team.id][field]) {
+            updated[team.id] = { ...updated[team.id], [field]: value }
+          }
+        }
+      }
+      return updated
+    })
   }
 
   async function handleSubmit() {
@@ -392,34 +403,44 @@ export default function NewEventForm({
                       </div>
 
                       {selected && (
-                        <div className="flex flex-wrap gap-4 pl-7">
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">Start</p>
-                            <input
-                              type="time"
-                              value={times.start_time}
-                              onChange={e => updateTeamTime(team.id, 'start_time', e.target.value)}
-                              className={timeInputClass}
-                            />
+                        <div className="pl-7">
+                          <div className="flex flex-wrap gap-4">
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">Start</p>
+                              <input
+                                type="time"
+                                step="300"
+                                value={times.start_time}
+                                onChange={e => updateTeamTime(team.id, 'start_time', e.target.value)}
+                                className={timeInputClass}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">Arrival</p>
+                              <input
+                                type="time"
+                                step="300"
+                                value={times.arrival_time}
+                                onChange={e => updateTeamTime(team.id, 'arrival_time', e.target.value)}
+                                className={timeInputClass}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">End</p>
+                              <input
+                                type="time"
+                                step="300"
+                                value={times.end_time}
+                                onChange={e => updateTeamTime(team.id, 'end_time', e.target.value)}
+                                className={timeInputClass}
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">Arrival</p>
-                            <input
-                              type="time"
-                              value={times.arrival_time}
-                              onChange={e => updateTeamTime(team.id, 'arrival_time', e.target.value)}
-                              className={timeInputClass}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">End</p>
-                            <input
-                              type="time"
-                              value={times.end_time}
-                              onChange={e => updateTeamTime(team.id, 'end_time', e.target.value)}
-                              className={timeInputClass}
-                            />
-                          </div>
+                          {eventType === 'practice' && team.id === teams[0]?.id && teams.length > 1 && (
+                            <p className="mt-1.5 text-xs text-slate-600">
+                              Other team times will auto-fill from these values if empty
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -626,6 +647,7 @@ export default function NewEventForm({
                     <p className="text-xs text-slate-400 mb-1.5">Meal Time</p>
                     <input
                       type="time"
+                      step="300"
                       value={mealTime}
                       onChange={e => setMealTime(e.target.value)}
                       className={timeInputClass}

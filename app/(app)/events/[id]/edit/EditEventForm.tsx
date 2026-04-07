@@ -146,9 +146,27 @@ export default function EditEventForm({
   const isTournament = eventType === 'tournament'
 
   function updateAssignment(teamId: string, field: keyof TeamAssignment, value: string | boolean) {
-    setTeamAssignments(prev => prev.map(a =>
-      a.team_id === teamId ? { ...a, [field]: value } : a
-    ))
+    const timeFields = ['start_time', 'arrival_time', 'end_time'] as const
+    type TimeField = typeof timeFields[number]
+
+    setTeamAssignments(prev => {
+      const updated = prev.map(a => a.team_id === teamId ? { ...a, [field]: value } : a)
+      // Auto-populate secondary teams for practice events
+      if (
+        eventType === 'practice' &&
+        typeof value === 'string' && value &&
+        timeFields.includes(field as TimeField) &&
+        teamId === prev[0]?.team_id
+      ) {
+        return updated.map(a => {
+          if (a.team_id !== teamId && a.assigned && !a[field as TimeField]) {
+            return { ...a, [field]: value }
+          }
+          return a
+        })
+      }
+      return updated
+    })
   }
 
   function toggleTeamStatus(teamId: string) {
@@ -327,7 +345,7 @@ export default function EditEventForm({
               <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
                 <div>
                   <p className="text-xs text-slate-400 mb-1.5">Meal Time</p>
-                  <input type="time" value={mealTime}
+                  <input type="time" step="300" value={mealTime}
                     onChange={e => setMealTime(e.target.value)}
                     className={timeInputCls} />
                 </div>
@@ -561,25 +579,32 @@ export default function EditEventForm({
 
                       {/* Per-team times — only visible when assigned and not cancelled */}
                       {assignment.assigned && !isCancelled && (
-                        <div className="flex flex-wrap gap-4 pl-7">
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">Start</p>
-                            <input type="time" value={assignment.start_time}
-                              onChange={e => updateAssignment(assignment.team_id, 'start_time', e.target.value)}
-                              className={timeInputCls} />
+                        <div className="pl-7">
+                          <div className="flex flex-wrap gap-4">
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">Start</p>
+                              <input type="time" step="300" value={assignment.start_time}
+                                onChange={e => updateAssignment(assignment.team_id, 'start_time', e.target.value)}
+                                className={timeInputCls} />
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">Arrival</p>
+                              <input type="time" step="300" value={assignment.arrival_time}
+                                onChange={e => updateAssignment(assignment.team_id, 'arrival_time', e.target.value)}
+                                className={timeInputCls} />
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-400 mb-1.5">End</p>
+                              <input type="time" step="300" value={assignment.end_time}
+                                onChange={e => updateAssignment(assignment.team_id, 'end_time', e.target.value)}
+                                className={timeInputCls} />
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">Arrival</p>
-                            <input type="time" value={assignment.arrival_time}
-                              onChange={e => updateAssignment(assignment.team_id, 'arrival_time', e.target.value)}
-                              className={timeInputCls} />
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-400 mb-1.5">End</p>
-                            <input type="time" value={assignment.end_time}
-                              onChange={e => updateAssignment(assignment.team_id, 'end_time', e.target.value)}
-                              className={timeInputCls} />
-                          </div>
+                          {eventType === 'practice' && assignment.team_id === teamAssignments[0]?.team_id && teamAssignments.filter(a => a.assigned).length > 1 && (
+                            <p className="mt-1.5 text-xs text-slate-600">
+                              Other team times will auto-fill from these values if empty
+                            </p>
+                          )}
                         </div>
                       )}
 

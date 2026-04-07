@@ -156,13 +156,13 @@ export function VolunteerSlotsSection({
               <label className={labelClass}>
                 Start Time <span className="normal-case font-normal text-slate-500">(optional)</span>
               </label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={timeInputClass} />
+              <input type="time" step="300" value={startTime} onChange={e => setStartTime(e.target.value)} className={timeInputClass} />
             </div>
             <div className="flex-1">
               <label className={labelClass}>
                 End Time <span className="normal-case font-normal text-slate-500">(optional)</span>
               </label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={timeInputClass} />
+              <input type="time" step="300" value={endTime} onChange={e => setEndTime(e.target.value)} className={timeInputClass} />
             </div>
           </div>
 
