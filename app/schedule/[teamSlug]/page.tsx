@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PublicScheduleClient, {
   type PublicEvent,
@@ -7,13 +7,21 @@ import PublicScheduleClient, {
 } from './PublicScheduleClient'
 import { formatProgramLabel, formatProgramLabelWithLevel, formatTeamShortLabel } from '@/lib/utils/team-label'
 
+// Service role client — public page, no user session, bypasses RLS safely
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
+
 export default async function PublicSchedulePage({
   params,
 }: {
   params: Promise<{ teamSlug: string }>
 }) {
   const { teamSlug } = await params
-  const supabase     = await createClient()
+  const supabase     = svc()
 
   const { data: team } = await supabase
     .from('teams')

@@ -21,7 +21,8 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
 ## Infrastructure Notes
 
 ### Middleware
-- Route protection is handled in `proxy.ts` **not** `middleware.ts`
+- `middleware.ts` at the project root re-exports from `proxy.ts`. All public route configuration lives in `proxy.ts`. Next.js requires the file to be named `middleware.ts` to be recognized as middleware.
+- Route protection is handled in `proxy.ts` — edit that file, not `middleware.ts`
 - When adding new public routes (API routes, public pages) that should bypass auth, add them to `proxy.ts`
 - Public routes that must be excluded from auth (defined as `PUBLIC_PREFIXES` in `proxy.ts`):
   - `/schedule/` — public schedule pages
