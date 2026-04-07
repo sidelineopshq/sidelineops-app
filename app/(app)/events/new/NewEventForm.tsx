@@ -190,9 +190,9 @@ export default function NewEventForm({
         [teamId]: { ...prev[teamId], [field]: value },
       }
       // Auto-populate secondary teams for practice events
-      if (eventType === 'practice' && teamId === teams[0]?.id && value) {
+      if (eventType === 'practice' && teamId === teams[0]?.id) {
         for (const team of teams.slice(1)) {
-          if (selectedTeamIds.includes(team.id) && !updated[team.id][field]) {
+          if (selectedTeamIds.includes(team.id)) {
             updated[team.id] = { ...updated[team.id], [field]: value }
           }
         }
@@ -438,7 +438,7 @@ export default function NewEventForm({
                           </div>
                           {eventType === 'practice' && team.id === teams[0]?.id && teams.length > 1 && (
                             <p className="mt-1.5 text-xs text-slate-600">
-                              Other team times will auto-fill from these values if empty
+                              Other team times will follow these values
                             </p>
                           )}
                         </div>

@@ -159,7 +159,7 @@ export default function EditEventForm({
         teamId === prev[0]?.team_id
       ) {
         return updated.map(a => {
-          if (a.team_id !== teamId && a.assigned && !a[field as TimeField]) {
+          if (a.team_id !== teamId && a.assigned) {
             return { ...a, [field]: value }
           }
           return a
@@ -602,7 +602,7 @@ export default function EditEventForm({
                           </div>
                           {eventType === 'practice' && assignment.team_id === teamAssignments[0]?.team_id && teamAssignments.filter(a => a.assigned).length > 1 && (
                             <p className="mt-1.5 text-xs text-slate-600">
-                              Other team times will auto-fill from these values if empty
+                              Other team times will follow these values
                             </p>
                           )}
                         </div>
