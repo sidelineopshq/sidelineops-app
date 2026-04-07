@@ -238,8 +238,8 @@ export async function createEvent(formData: {
       const isUrgent = formData.event_date === _centralToday || formData.event_date === _centralTomorrow
       if (!isUrgent) return
 
-      // Fetch program (shared) + all team records + all contacts in parallel
-      const [{ data: program }, { data: teamRecords }, { data: allContacts }] = await Promise.all([
+      // Fetch program (shared) + all team records + contact_teams in parallel
+      const [{ data: program }, { data: teamRecords }, { data: ctRows }] = await Promise.all([
         supabase
           .from('programs')
           .select('name')
@@ -250,12 +250,28 @@ export async function createEvent(formData: {
           .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, programs(sport, schools(name))')
           .in('id', selectedTeamIds),
         supabase
-          .from('contacts')
-          .select('id, first_name, email, email_unsubscribed, team_id')
-          .in('team_id', selectedTeamIds)
-          .is('deleted_at', null)
-          .not('email', 'is', null),
+          .from('contact_teams')
+          .select('contact_id, team_id')
+          .in('team_id', selectedTeamIds),
       ])
+
+      // Build per-team contact ID map from contact_teams
+      const ctByTeam = new Map<string, string[]>()
+      for (const { contact_id, team_id } of ctRows ?? []) {
+        if (!ctByTeam.has(team_id)) ctByTeam.set(team_id, [])
+        ctByTeam.get(team_id)!.push(contact_id)
+      }
+      const allCtContactIds = [...new Set((ctRows ?? []).map((r: any) => r.contact_id))]
+
+      // Fetch contacts: legacy (contacts.team_id) + program-join (contact_teams)
+      const contactsBuilder = supabase
+        .from('contacts')
+        .select('id, first_name, email, email_unsubscribed, team_id')
+        .is('deleted_at', null)
+        .not('email', 'is', null)
+      const { data: allContacts } = allCtContactIds.length > 0
+        ? await contactsBuilder.or(`team_id.in.(${selectedTeamIds.join(',')}),id.in.(${allCtContactIds.join(',')})`)
+        : await contactsBuilder.in('team_id', selectedTeamIds)
 
       if (!teamRecords?.length) return
 
@@ -276,7 +292,8 @@ export async function createEvent(formData: {
 
       // Fire once per team — each team gets its own contacts + channel config
       for (const tr of teamRecords) {
-        const teamContacts = (allContacts ?? []).filter(c => c.team_id === tr.id)
+        const ctTeamIds = new Set(ctByTeam.get(tr.id) ?? [])
+        const teamContacts = (allContacts ?? []).filter(c => c.team_id === tr.id || ctTeamIds.has(c.id))
         await sendNewEventAlert({
           team: {
             id:               tr.id,

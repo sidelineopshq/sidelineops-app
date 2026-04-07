@@ -134,13 +134,21 @@ export async function GET(req: NextRequest) {
       }
 
       // ── Fetch contacts with email addresses ────────────────────────────────
-      const { data: contacts } = await supabase
+      // Include both legacy (contacts.team_id) and program-join (contact_teams) contacts
+      const { data: ctRows } = await supabase
+        .from('contact_teams')
+        .select('contact_id')
+        .eq('team_id', team.id)
+      const ctContactIds = (ctRows ?? []).map((r: any) => r.contact_id)
+      const contactsBuilder = supabase
         .from('contacts')
         .select('id, email')
-        .eq('team_id', team.id)
         .is('deleted_at', null)
         .eq('email_unsubscribed', false)
         .not('email', 'is', null)
+      const { data: contacts } = ctContactIds.length > 0
+        ? await contactsBuilder.or(`team_id.eq.${team.id},id.in.(${ctContactIds.join(',')})`)
+        : await contactsBuilder.eq('team_id', team.id)
 
       const withEmail = (contacts ?? []).filter(
         (c): c is typeof c & { email: string } => typeof c.email === 'string' && c.email.length > 0,

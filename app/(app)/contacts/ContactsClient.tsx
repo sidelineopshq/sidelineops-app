@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { updateContact, deleteContact } from './actions'
+import { regenerateProgramJoinToken } from '@/app/join/[programSlug]/actions'
 
 // ── Parent Signup Section ─────────────────────────────────────
 
@@ -9,12 +11,23 @@ function ParentSignupSection({
   signupUrl,
   qrDataUrl,
   teamSlug,
+  teamId,
+  programId,
+  programSlug,
+  canManage,
 }: {
   signupUrl: string | null
   qrDataUrl: string | null
   teamSlug: string
+  teamId: string
+  programId: string
+  programSlug: string | null
+  canManage: boolean
 }) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied]         = useState(false)
+  const [regenerating, setRegen]    = useState(false)
+  const [regenError, setRegenError] = useState<string | null>(null)
+  const router = useRouter()
 
   async function handleCopy() {
     if (!signupUrl) return
@@ -40,22 +53,58 @@ function ParentSignupSection({
     link.click()
   }
 
+  async function handleRegenerate() {
+    if (!confirm('Regenerating the link will invalidate the current QR code and URL. Parents with the old link will not be able to sign up. Continue?')) return
+    setRegen(true)
+    setRegenError(null)
+    const result = await regenerateProgramJoinToken(programId, teamId)
+    if (result.error) {
+      setRegenError(result.error)
+      setRegen(false)
+      return
+    }
+    router.refresh()
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden mb-8">
-      <div className="px-6 py-4 border-b border-white/10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Parent Sign-Up</h2>
-        <p className="text-slate-400 text-xs mt-1">
-          Share this link or QR code with parents to join the team roster.
-        </p>
+      <div className="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Parent Sign-Up</h2>
+          <p className="text-slate-400 text-xs mt-1">
+            Share this link or QR code with parents to join the program roster.
+          </p>
+        </div>
+        {canManage && (
+          <button
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="shrink-0 rounded-xl border border-white/10 hover:border-white/20 hover:bg-slate-800 disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          >
+            {regenerating ? 'Regenerating…' : 'Regenerate Link'}
+          </button>
+        )}
       </div>
+
+      {regenError && (
+        <div className="px-6 pt-3">
+          <p className="text-xs text-red-400">{regenError}</p>
+        </div>
+      )}
 
       {!signupUrl || !qrDataUrl ? (
         <div className="px-6 py-5">
           <p className="text-sm text-slate-400">
-            No signup link available.{' '}
-            <a href="/settings/team" className="text-sky-400 hover:text-sky-300 underline underline-offset-2">
-              Generate one in Team Settings.
-            </a>
+            No signup link active.{' '}
+            {canManage && (
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="text-sky-400 hover:text-sky-300 underline underline-offset-2 disabled:opacity-50"
+              >
+                {regenerating ? 'Generating…' : 'Generate one now.'}
+              </button>
+            )}
           </p>
         </div>
       ) : (
@@ -375,7 +424,7 @@ function ContactRow({ contact, players, canManage, teamId, brandPrimary, onEdit,
         )}
         {!contact.player_id && contact.contact_type === 'parent' && (
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-            ⚠ Unlinked
+            ⚠ Needs Assignment
           </span>
         )}
       </div>
@@ -438,6 +487,8 @@ export default function ContactsClient({
   teamId,
   teamName,
   teamSlug,
+  programId,
+  programSlug,
   programName,
   canManageContacts,
   canShowSignupSection,
@@ -450,6 +501,8 @@ export default function ContactsClient({
   teamId: string
   teamName: string
   teamSlug: string
+  programId: string
+  programSlug: string | null
   programName: string
   canManageContacts: boolean
   canShowSignupSection: boolean
@@ -522,6 +575,10 @@ export default function ContactsClient({
             signupUrl={signupUrl}
             qrDataUrl={qrDataUrl}
             teamSlug={teamSlug}
+            teamId={teamId}
+            programId={programId}
+            programSlug={programSlug}
+            canManage={canManageContacts}
           />
         )}
 
@@ -597,7 +654,7 @@ export default function ContactsClient({
                     : 'border-white/10 bg-slate-900 text-slate-400 hover:text-white'
                 }`}
               >
-                ⚠ Unlinked ({unlinkedCount})
+                ⚠ Needs Assignment ({unlinkedCount})
               </button>
             )}
           </div>

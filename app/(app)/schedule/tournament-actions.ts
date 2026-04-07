@@ -99,7 +99,7 @@ export async function addTournamentGame(formData: {
       const _centralTomorrow = new Date(_now.getTime() + 86400000)
         .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
       const isUrgent = formData.event_date === _centralToday || formData.event_date === _centralTomorrow
-      const [{ data: team }, { data: program }, { data: contacts }] = await Promise.all([
+      const [{ data: team }, { data: program }, { data: ctRows }] = await Promise.all([
         supabase
           .from('teams')
           .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id')
@@ -111,12 +111,21 @@ export async function addTournamentGame(formData: {
           .eq('id', teamData.program_id)
           .single(),
         supabase
-          .from('contacts')
-          .select('id, first_name, email, email_unsubscribed')
-          .eq('team_id', formData.team_id)
-          .is('deleted_at', null)
-          .not('email', 'is', null),
+          .from('contact_teams')
+          .select('contact_id')
+          .eq('team_id', formData.team_id),
       ])
+
+      // Fetch contacts: legacy (contacts.team_id) + program-join (contact_teams)
+      const ctContactIds = (ctRows ?? []).map((r: any) => r.contact_id)
+      const contactsBuilder = supabase
+        .from('contacts')
+        .select('id, first_name, email, email_unsubscribed')
+        .is('deleted_at', null)
+        .not('email', 'is', null)
+      const { data: contacts } = ctContactIds.length > 0
+        ? await contactsBuilder.or(`team_id.eq.${formData.team_id},id.in.(${ctContactIds.join(',')})`)
+        : await contactsBuilder.eq('team_id', formData.team_id)
 
       if (!team) return
 

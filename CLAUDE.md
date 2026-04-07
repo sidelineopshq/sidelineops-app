@@ -37,8 +37,23 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
   - `/forgot-password`
   - `/reset-password`
   - `/auth/callback`
+  - `/join/[programSlug]` (public parent signup page)
 
 ### Environment Variables
 - `ADMIN_SECRET` — required for `/api/admin/create-access-code`
 - Must be added to both `.env.local` and Vercel dashboard
 - Never commit actual secret values to GitHub
+
+## Parent Signup Architecture
+
+### Program-level signup (current)
+- Parents sign up at `/join/[programSlug]?t=[token]` — one link per **program**, not per team
+- The join token lives on `programs.join_token` + `programs.join_token_enabled` + `programs.slug`
+- Contacts created via signup have `team_id = null`; they are linked to teams via the `contact_teams` junction table
+- Player selection during signup upserts rows into `contact_teams` for each team the player belongs to (checks both `players.team_id` and `player_teams.team_id`)
+- Token regeneration: `regenerateProgramJoinToken()` in `app/join/[programSlug]/actions.ts` — requires coach/admin role
+
+### Notification queries
+All notification contact fetches must include **both** legacy contacts (`contacts.team_id = X`) and program-join contacts (`contact_teams.team_id = X`). Pattern used in `fire-change-notifications.ts`, `events/new/actions.ts`, `schedule/tournament-actions.ts`, and `api/cron/weekly-digest/route.ts`:
+1. Fetch `contact_teams` for the teamId(s) to get contact IDs
+2. Query contacts with `.or('team_id.eq.X,id.in.(...)')`

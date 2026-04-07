@@ -72,20 +72,29 @@ export async function fireChangeNotifications({
 
       if (!diff.hasChanges || !diff.isUrgent) continue
 
-      // ── Fetch team (with channel config) + contacts + program in parallel ─
-      const [{ data: team }, { data: contacts }] = await Promise.all([
+      // ── Fetch team (with channel config) + contact_teams + program in parallel ─
+      const [{ data: team }, { data: ctRows }] = await Promise.all([
         supabase
           .from('teams')
           .select('name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, program_id, programs(sport, schools(name))')
           .eq('id', tn.teamId)
           .single(),
         supabase
-          .from('contacts')
-          .select('id, first_name, email, sms_consent, email_unsubscribed')
-          .eq('team_id', tn.teamId)
-          .is('deleted_at', null)
-          .or('email.not.is.null,sms_consent.eq.true'),
+          .from('contact_teams')
+          .select('contact_id')
+          .eq('team_id', tn.teamId),
       ])
+
+      // Fetch contacts: legacy (contacts.team_id) + program-join (contact_teams)
+      const ctContactIds = (ctRows ?? []).map(r => r.contact_id)
+      const contactsBuilder = supabase
+        .from('contacts')
+        .select('id, first_name, email, sms_consent, email_unsubscribed')
+        .is('deleted_at', null)
+        .or('email.not.is.null,sms_consent.eq.true')
+      const { data: contacts } = ctContactIds.length > 0
+        ? await contactsBuilder.or(`team_id.eq.${tn.teamId},id.in.(${ctContactIds.join(',')})`)
+        : await contactsBuilder.eq('team_id', tn.teamId)
 
       if (!team) continue
 

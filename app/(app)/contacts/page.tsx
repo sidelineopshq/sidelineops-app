@@ -29,12 +29,19 @@ export default async function ContactsPage() {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport, schools(name)')
+    .select('id, name, sport, slug, join_token, join_token_enabled, schools(name)')
     .eq('id', team?.program_id ?? '')
     .single()
 
-  // Fetch all active contacts for this team
-  const { data: contacts } = await supabase
+  // Fetch contact_teams to include program-join contacts (team_id = null)
+  const { data: ctRows } = await supabase
+    .from('contact_teams')
+    .select('contact_id')
+    .eq('team_id', teamUser.team_id)
+  const ctContactIds = (ctRows ?? []).map((r: any) => r.contact_id)
+
+  // Fetch all active contacts for this team (legacy team_id + program-join via contact_teams)
+  const contactsBuilder = supabase
     .from('contacts')
     .select(`
       id,
@@ -49,10 +56,13 @@ export default async function ContactsPage() {
       notes,
       email_unsubscribed
     `)
-    .eq('team_id', teamUser.team_id)
     .is('deleted_at', null)
     .order('last_name', { ascending: true })
     .order('first_name', { ascending: true })
+
+  const { data: contacts } = ctContactIds.length > 0
+    ? await contactsBuilder.or(`team_id.eq.${teamUser.team_id},id.in.(${ctContactIds.join(',')})`)
+    : await contactsBuilder.eq('team_id', teamUser.team_id)
 
   // Fetch players for the "linked to" display and filter dropdown
   const { data: players } = await supabase
@@ -62,18 +72,14 @@ export default async function ContactsPage() {
     .eq('is_active', true)
     .order('last_name', { ascending: true })
 
-  // Fetch active join token for QR code
-  const { data: joinTokenRow } = await supabase
-    .from('team_join_tokens')
-    .select('token')
-    .eq('team_id', teamUser.team_id)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle()
-
   const baseUrl = getBaseUrl()
-  const joinToken = joinTokenRow?.token ?? null
-  const signupUrl = joinToken ? `${baseUrl}/join/${joinToken}` : null
+  const joinToken = (program as any)?.join_token_enabled && (program as any)?.join_token
+    ? (program as any).join_token
+    : null
+  const programSlug = (program as any)?.slug ?? null
+  const signupUrl = (joinToken && programSlug)
+    ? `${baseUrl}/join/${programSlug}?t=${joinToken}`
+    : null
   const qrDataUrl = signupUrl
     ? await QRCode.toDataURL(signupUrl, {
         width: 160,
@@ -95,6 +101,8 @@ export default async function ContactsPage() {
       teamId={teamUser.team_id}
       teamName={team?.name ?? ''}
       teamSlug={team?.slug ?? ''}
+      programId={(program as any)?.id ?? ''}
+      programSlug={programSlug}
       programName={formatProgramLabel((program as any)?.schools?.name ?? '', program?.sport ?? '') || program?.name || ''}
       canManageContacts={teamUser.can_manage_contacts ?? false}
       canShowSignupSection={canShowSignupSection}

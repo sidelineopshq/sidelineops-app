@@ -10,6 +10,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/team/',
   '/api/feedback',
   '/auth/callback',
+  '/join/',
 ]
 
 export default async function proxy(request: NextRequest) {
