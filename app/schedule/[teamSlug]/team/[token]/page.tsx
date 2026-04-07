@@ -1,7 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { formatProgramLabel } from '@/lib/utils/team-label'
 import { getBaseUrl } from '@/lib/utils/base-url'
+
+// Service role client — public page, no user session, bypasses RLS safely
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -55,7 +63,7 @@ export default async function TeamSchedulePage({
   params: Promise<{ teamSlug: string; token: string }>
 }) {
   const { teamSlug, token } = await params
-  const supabase = await createClient()
+  const supabase = svc()
 
   const { data: team } = await supabase
     .from('teams')

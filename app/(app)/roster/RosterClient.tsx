@@ -326,7 +326,7 @@ function JoinLinkCard({ team, initialToken, isPrimary }: {
   const [generating, setGenerating] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
   const joinUrl = token ? `${baseUrl}/join/${token}` : null
 
   async function handleGenerate() {

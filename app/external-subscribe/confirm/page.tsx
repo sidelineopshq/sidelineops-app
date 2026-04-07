@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound }     from 'next/navigation'
+import { getBaseUrl }   from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createClient(
@@ -39,7 +40,7 @@ export default async function ConfirmSubscriptionPage({
   if (!sub || !sub.is_active) notFound()
 
   const programName   = (sub as any).programs?.name ?? 'SidelineOps'
-  const appUrl        = process.env.BASE_URL ?? 'https://sidelineopshq.com'
+  const appUrl        = getBaseUrl()
   const unsubscribeUrl = `${appUrl}/external-subscribe/unsubscribe?token=${token}`
 
   const alreadyConfirmed   = !!sub.opted_in_at && !sub.unsubscribed_at

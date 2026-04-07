@@ -153,7 +153,7 @@ export function VolunteerDashboardClient({
   seasonEvents: SeasonEvent[]
   contacts: DashboardContact[]
 }) {
-  const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl    = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
   const baseUrl   = typeof window !== 'undefined' ? window.location.origin : appUrl
 
   // ── State ──────────────────────────────────────────────────────────────────

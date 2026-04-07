@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import NotifyClient from './NotifyClient'
 import { formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 export default async function NotifyPage({
   params,
@@ -84,7 +85,7 @@ export default async function NotifyPage({
       contacts={contacts ?? []}
       programName={formatProgramLabel((program as any)?.schools?.name ?? '', (program as any)?.sport ?? '') || program?.name || ''}
       primaryTeamId={primaryTeam?.id ?? null}
-      appUrl={process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'}
+      appUrl={getBaseUrl()}
     />
   )
 }

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 const ROLE_LABELS: Record<string, string> = {
   admin:            'Admin',
@@ -188,7 +189,7 @@ export default async function DashboardPage() {
     }
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sidelineopshq.com'
+  const appUrl = getBaseUrl()
 
   // Build public + team schedule URLs for every team
   const teamLinks = (allTeamsData ?? [])
