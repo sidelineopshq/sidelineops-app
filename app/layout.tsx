@@ -20,8 +20,9 @@ export const metadata: Metadata = {
   },
   description: 'Team operations platform for high school athletic programs',
   icons: {
-    icon:  '/sidelineops-favicon.ico',
-    apple: '/sidelineops-logo-cropped.png',
+    icon:     '/sidelineops-favicon.ico',
+    shortcut: '/sidelineops-favicon.ico',
+    apple:    '/sidelineops-logo-cropped.png',
   },
 };
 
