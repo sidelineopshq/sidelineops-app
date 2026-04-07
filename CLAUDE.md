@@ -23,21 +23,18 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
 ### Middleware
 - Route protection is handled in `proxy.ts` **not** `middleware.ts`
 - When adding new public routes (API routes, public pages) that should bypass auth, add them to `proxy.ts`
-- Public routes that must be excluded from auth:
-  - `/api/admin/create-access-code`
-  - `/api/cron/weekly-digest`
-  - `/api/cron/volunteer-reminders`
-  - `/api/unsubscribe`
-  - `/api/groupme/callback`
-  - `/volunteer/[teamSlug]` (public signup page)
-  - `/accept-invite`
-  - `/external-subscribe/confirm`
-  - `/external-subscribe/unsubscribe`
-  - `/signup`
-  - `/forgot-password`
-  - `/reset-password`
-  - `/auth/callback`
-  - `/join/[programSlug]` (public parent signup page)
+- Public routes that must be excluded from auth (defined as `PUBLIC_PREFIXES` in `proxy.ts`):
+  - `/schedule/` — public schedule pages
+  - `/embed/` — embedded widget (handled separately for iframe headers)
+  - `/join/` — program parent signup
+  - `/volunteer/` — public volunteer signup
+  - `/accept-invite` — coach invite acceptance
+  - `/external-subscribe/` — external subscriber flow
+  - `/unsubscribe` — email unsubscribe page
+  - `/signup`, `/login`, `/forgot-password`, `/reset-password` — auth pages
+  - `/auth/` — auth callbacks
+  - `/legal/` — terms and privacy pages
+  - `/api/cron/`, `/api/admin/`, `/api/feedback`, `/api/unsubscribe`, `/api/groupme/`, `/api/accept-invite`, `/api/team/` — public API routes
 
 ### Environment Variables
 - `ADMIN_SECRET` — required for `/api/admin/create-access-code`

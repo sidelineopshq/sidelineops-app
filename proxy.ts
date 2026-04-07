@@ -1,23 +1,44 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_API_PREFIXES = [
-  '/api/admin/',
+const PUBLIC_PREFIXES = [
+  // Public page routes
+  '/schedule/',
+  '/embed/',
+  '/join/',
+  '/volunteer/',
+  '/accept-invite',
+  '/external-subscribe/',
+  '/unsubscribe',
+  '/signup',
+  '/login',
+  '/forgot-password',
+  '/reset-password',
+  '/auth/',
+  '/legal/',
+  // Public API routes
   '/api/cron/',
+  '/api/admin/',
+  '/api/feedback',
   '/api/unsubscribe',
   '/api/groupme/',
   '/api/accept-invite',
   '/api/team/',
-  '/api/feedback',
-  '/auth/callback',
-  '/join/',
 ]
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Skip session refresh for routes that handle their own auth
-  if (PUBLIC_API_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+  // Embed routes: public + must have iframe headers
+  if (pathname.startsWith('/embed/')) {
+    const response = NextResponse.next()
+    response.headers.set('X-Frame-Options', 'ALLOWALL')
+    response.headers.set('Content-Security-Policy', "frame-ancestors *")
+    return response
+  }
+
+  // Skip session refresh for all other public routes
+  if (PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
     return NextResponse.next()
   }
 
@@ -43,18 +64,6 @@ export default async function proxy(request: NextRequest) {
   )
 
   await supabase.auth.getUser()
-
-  // Set iframe headers on both request and response for embed routes
-  if (request.nextUrl.pathname.startsWith('/embed/')) {
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('Content-Security-Policy', "frame-ancestors *")
-    
-    supabaseResponse = NextResponse.next({
-      request: { headers: requestHeaders },
-    })
-    supabaseResponse.headers.set('X-Frame-Options', 'ALLOWALL')
-    supabaseResponse.headers.set('Content-Security-Policy', "frame-ancestors *")
-  }
 
   return supabaseResponse
 }
