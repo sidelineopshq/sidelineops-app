@@ -168,12 +168,12 @@ export default function OnboardingWizard() {
                 value={schoolName}
                 onChange={e => setSchoolName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && goToStep2()}
-                placeholder="James Clemens High School"
+                placeholder="e.g. Lincoln High School"
                 className={inputClass}
                 autoFocus
               />
               <p className="text-xs text-slate-500 mt-1.5">
-                Enter your school name (e.g. &apos;James Clemens&apos; or &apos;James Clemens High School&apos; — we&apos;ll clean it up)
+                Enter your school name (e.g. &apos;Lincoln High&apos; or &apos;Lincoln High School&apos; — we&apos;ll clean it up)
               </p>
             </div>
 
@@ -316,7 +316,7 @@ export default function OnboardingWizard() {
                   type="text"
                   value={teamSlug}
                   onChange={e => { setTeamSlugTouched(true); setTeamSlug(e.target.value) }}
-                  placeholder="james-clemens-softball-varsity"
+                  placeholder="lincoln-softball-varsity"
                   className="flex-1 rounded-r-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
                 />
               </div>

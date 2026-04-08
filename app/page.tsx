@@ -27,7 +27,7 @@ export default function Home() {
           <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-sky-400">
             Team
           </p>
-          <h2 className="text-3xl font-bold">James Clemens Softball</h2>
+          <h2 className="text-3xl font-bold">Lincoln Softball</h2>
           <p className="mt-2 text-slate-300">
             This is the initial SidelineOps dashboard shell. Next, you’ll build
             schedule management, notifications, and volunteer coordination.

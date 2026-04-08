@@ -68,7 +68,7 @@ export async function createProgramAndTeam(data: OnboardingData) {
   }
 
   // ── 2. Program ──────────────────────────────────────────────────────────────
-  // e.g. "James Clemens Softball"
+  // e.g. "Lincoln Softball"
   const programName = formatProgramLabel(data.schoolName, data.sport)
   const programSlug = slugify(programName)
 

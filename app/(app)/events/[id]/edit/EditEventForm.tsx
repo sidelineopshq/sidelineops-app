@@ -626,7 +626,7 @@ export default function EditEventForm({
                 <label className={labelClass}>Location Name</label>
                 <input type="text" value={locationName}
                   onChange={e => setLocationName(e.target.value)}
-                  placeholder="e.g. JCHS Softball Field" className={inputClass} />
+                  placeholder="e.g. Memorial Field" className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>

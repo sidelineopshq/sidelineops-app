@@ -205,7 +205,7 @@ export function ManageTeamsTab({
                   type="text"
                   value={slug}
                   onChange={e => { setSlugTouched(true); setSlug(e.target.value) }}
-                  placeholder="james-clemens-softball-jv"
+                  placeholder="lincoln-softball-jv"
                   className="flex-1 rounded-r-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none"
                 />
               </div>

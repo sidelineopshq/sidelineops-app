@@ -457,7 +457,7 @@ export default function NewEventForm({
                   type="text"
                   value={locationName}
                   onChange={e => setLocationName(e.target.value)}
-                  placeholder="e.g. JCHS Softball Field"
+                  placeholder="e.g. Memorial Field"
                   className={inputClass}
                 />
               </div>

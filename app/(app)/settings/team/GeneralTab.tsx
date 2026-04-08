@@ -177,7 +177,7 @@ function HomeLocationSection({
             type="text"
             value={locName}
             onChange={e => setLocName(e.target.value)}
-            placeholder="e.g. JCHS Jetsplex"
+            placeholder="e.g. Memorial Field"
             className={inputClass}
             disabled={!canManage}
           />
@@ -191,7 +191,7 @@ function HomeLocationSection({
             type="text"
             value={locAddress}
             onChange={e => setLocAddress(e.target.value)}
-            placeholder="e.g. 11306 County Line Rd, Madison, AL 35756"
+            placeholder="e.g. 123 Main Street, Springfield, IL 62701"
             className={inputClass}
             disabled={!canManage}
           />

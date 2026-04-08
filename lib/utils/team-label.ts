@@ -5,10 +5,10 @@ export type Level = typeof LEVELS[number]
  * Strips common school-type suffixes for cleaner display names.
  *
  * @example
- * formatSchoolName("James Clemens High School") // "James Clemens"
- * formatSchoolName("James Clemens HS")           // "James Clemens"
+ * formatSchoolName("Lincoln High School") // "Lincoln High"
+ * formatSchoolName("Lincoln High HS")           // "Lincoln High"
  * formatSchoolName("Discovery Middle School")    // "Discovery"
- * formatSchoolName("James Clemens")              // "James Clemens"
+ * formatSchoolName("Lincoln High")              // "Lincoln High"
  */
 export function formatSchoolName(schoolName: string): string {
   return schoolName
@@ -24,8 +24,8 @@ export function formatSchoolName(schoolName: string): string {
  * shown separately or irrelevant.
  *
  * @example
- * formatProgramLabel("James Clemens High School", "Softball")
- * // "James Clemens Softball"
+ * formatProgramLabel("Lincoln High School", "Softball")
+ * // "Lincoln High Softball"
  */
 export function formatProgramLabel(schoolName: string, sport: string): string {
   return [formatSchoolName(schoolName), sport].filter(Boolean).join(' ')
@@ -36,8 +36,8 @@ export function formatProgramLabel(schoolName: string, sport: string): string {
  * Use for page titles and headers where both program and team context are needed.
  *
  * @example
- * formatProgramLabelWithLevel("James Clemens High School", "Softball", "Varsity")
- * // "James Clemens Softball — Varsity"
+ * formatProgramLabelWithLevel("Lincoln High School", "Softball", "Varsity")
+ * // "Lincoln High Softball — Varsity"
  */
 export function formatProgramLabelWithLevel(
   schoolName: string,
@@ -53,8 +53,8 @@ export function formatProgramLabelWithLevel(
  * exceeds maxLength characters.
  *
  * @example
- * formatDisplayName("James Clemens High School", "Softball")
- * // "James Clemens Softball" (22 chars, fits default 20? → "James Clemens")
+ * formatDisplayName("Lincoln High School", "Softball")
+ * // "Lincoln High Softball" (22 chars, fits default 20? → "Lincoln High")
  * formatDisplayName("JC", "Softball")
  * // "JC Softball"
  */
@@ -72,8 +72,8 @@ export function formatDisplayName(
  * Format: "[School] [Sport] — [Level]"
  *
  * @example
- * formatTeamLabel("James Clemens High School", "Varsity", "Softball")
- * // "James Clemens Softball — Varsity"
+ * formatTeamLabel("Lincoln High School", "Varsity", "Softball")
+ * // "Lincoln High Softball — Varsity"
  */
 export function formatTeamLabel(
   schoolName: string,
