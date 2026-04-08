@@ -323,7 +323,7 @@ export default function NewEventForm({
                     type="text"
                     value={opponent}
                     onChange={e => setOpponent(e.target.value)}
-                    placeholder="e.g. Bob Jones High School"
+                    placeholder="e.g. Riverside High School"
                     className={inputClass}
                   />
                 </div>

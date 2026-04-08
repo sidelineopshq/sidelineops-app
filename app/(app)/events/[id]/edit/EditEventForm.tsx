@@ -492,7 +492,7 @@ export default function EditEventForm({
                   </label>
                   <input type="text" value={opponent}
                     onChange={e => setOpponent(e.target.value)}
-                    placeholder="e.g. Bob Jones High School" className={inputClass} />
+                    placeholder="e.g. Riverside High School" className={inputClass} />
                 </div>
                 <div>
                   <label className={labelClass}>Home or Away</label>
