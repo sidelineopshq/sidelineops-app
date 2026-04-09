@@ -96,6 +96,8 @@ export async function joinProgram(data: {
   }
 
   // ── Link to player and contact_teams ────────────────────────────────────────
+  let uniqueTeamIds: string[] = []
+
   if (data.playerId) {
     // Set player_id on contact
     await supabase
@@ -113,16 +115,27 @@ export async function joinProgram(data: {
       playerRow?.team_id,
       ...((playerTeamRows ?? []).map((r: any) => r.team_id)),
     ].filter(Boolean) as string[]
-    const uniqueTeamIds = [...new Set(rawTeamIds)]
+    uniqueTeamIds = [...new Set(rawTeamIds)]
+  }
 
-    if (uniqueTeamIds.length > 0) {
-      await supabase
-        .from('contact_teams')
-        .upsert(
-          uniqueTeamIds.map(tid => ({ contact_id: contactId, team_id: tid })),
-          { onConflict: 'contact_id,team_id' },
-        )
-    }
+  // Fallback: if no player selected (or player has no team assignments),
+  // assign contact to all teams in the program so they appear on the contacts page
+  if (uniqueTeamIds.length === 0) {
+    const { data: programTeams } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('program_id', data.programId)
+      .eq('is_active', true)
+    uniqueTeamIds = (programTeams ?? []).map((t: any) => t.id)
+  }
+
+  if (uniqueTeamIds.length > 0) {
+    await supabase
+      .from('contact_teams')
+      .upsert(
+        uniqueTeamIds.map(tid => ({ contact_id: contactId, team_id: tid })),
+        { onConflict: 'contact_id,team_id' },
+      )
   }
 
   // ── Send confirmation email ──────────────────────────────────────────────────
