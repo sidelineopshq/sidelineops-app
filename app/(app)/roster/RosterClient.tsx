@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   addPlayer, updatePlayer, deactivatePlayer,
-  generateJoinToken, setPlayerPrimaryTeam, setCallUp,
+  setPlayerPrimaryTeam, setCallUp,
 } from './actions'
+import { regenerateProgramJoinToken } from '@/app/join/[programSlug]/actions'
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -314,37 +316,35 @@ function PlayerRow({ player, teams, canManage, onEdit, onRemove, onTeamChanged, 
   )
 }
 
-// ── Join Link Card ────────────────────────────────────────────
+// ── Program Signup Card ───────────────────────────────────────
 
-function JoinLinkCard({ team, initialToken, isPrimary }: {
-  team: Team
-  initialToken: string | null
-  isPrimary: boolean
+function ProgramSignupCard({
+  signupUrl,
+  qrDataUrl,
+  programId,
+  programSlug,
+  teamId,
+  canManage,
+}: {
+  signupUrl:   string | null
+  qrDataUrl:   string | null
+  programId:   string
+  programSlug: string | null
+  teamId:      string
+  canManage:   boolean
 }) {
-  const [token,      setToken]      = useState(initialToken)
-  const [copied,     setCopied]     = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
-
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-  const joinUrl = token ? `${baseUrl}/join/${token}` : null
-
-  async function handleGenerate() {
-    setGenerating(true)
-    setError(null)
-    const result = await generateJoinToken(team.id)
-    if (result?.error) setError(result.error)
-    else if (result?.token) setToken(result.token)
-    setGenerating(false)
-  }
+  const [copied,      setCopied]   = useState(false)
+  const [regenerating, setRegen]   = useState(false)
+  const [regenError,  setRegenErr] = useState<string | null>(null)
+  const router = useRouter()
 
   async function handleCopy() {
-    if (!joinUrl) return
+    if (!signupUrl) return
     try {
-      await navigator.clipboard.writeText(joinUrl)
+      await navigator.clipboard.writeText(signupUrl)
     } catch {
       const el = document.createElement('textarea')
-      el.value = joinUrl
+      el.value = signupUrl
       document.body.appendChild(el)
       el.select()
       document.execCommand('copy')
@@ -354,31 +354,76 @@ function JoinLinkCard({ team, initialToken, isPrimary }: {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function handleDownload() {
+    if (!qrDataUrl) return
+    const link = document.createElement('a')
+    link.download = `${programSlug ?? 'program'}-parent-signup-qr.png`
+    link.href = qrDataUrl
+    link.click()
+  }
+
+  async function handleRegenerate() {
+    if (!confirm('Regenerating the link will invalidate the current QR code and URL. Parents with the old link will not be able to sign up. Continue?')) return
+    setRegen(true)
+    setRegenErr(null)
+    const result = await regenerateProgramJoinToken(programId, teamId)
+    if (result.error) { setRegenErr(result.error); setRegen(false); return }
+    router.refresh()
+  }
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-white">{team.name} Parent Signup</p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isPrimary
-              ? 'Share at your parent meeting to collect all contacts at once.'
-              : 'Use for individual players added to this team after the season starts.'}
+          <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">Parent Sign-Up</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Share with parents to join the program and receive schedule updates.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs text-sky-300 font-semibold">
-          {team.name}
-        </span>
+        {canManage && (
+          <button
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="shrink-0 rounded-xl border border-white/10 hover:border-white/20 hover:bg-slate-800 disabled:opacity-50 px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          >
+            {regenerating ? 'Regenerating…' : 'Regenerate'}
+          </button>
+        )}
       </div>
 
-      {token ? (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5">
-            <p className="text-xs text-slate-500 font-mono break-all">{joinUrl}</p>
+      {regenError && <p className="px-5 pt-3 text-xs text-red-400">{regenError}</p>}
+
+      {!signupUrl || !qrDataUrl ? (
+        <div className="px-5 py-4">
+          <p className="text-xs text-slate-400 mb-3">
+            No signup link active yet.
+          </p>
+          {canManage && (
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
+            >
+              {regenerating ? 'Generating…' : 'Generate Link'}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="px-5 py-4 space-y-3">
+          <img
+            src={qrDataUrl}
+            alt="Parent signup QR code"
+            width={160}
+            height={160}
+            className="rounded-xl border border-white/10 mx-auto block"
+          />
+          <div className="rounded-xl border border-white/10 bg-slate-800 px-3 py-2">
+            <p className="text-xs text-slate-500 font-mono break-all">{signupUrl}</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleCopy}
-              className={`flex-1 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+              className={`flex-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
                 copied
                   ? 'border-green-500/30 bg-green-500/10 text-green-400'
                   : 'border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-300'
@@ -387,30 +432,14 @@ function JoinLinkCard({ team, initialToken, isPrimary }: {
               {copied ? '✓ Copied!' : 'Copy Link'}
             </button>
             <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50"
+              onClick={handleDownload}
+              className="flex-1 rounded-xl border border-white/10 hover:border-white/20 hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors"
             >
-              {generating ? 'Rotating...' : 'Rotate'}
+              Download QR
             </button>
           </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-400">
-            No join link yet. Generate one to start collecting {team.name} parent contacts.
-          </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="w-full rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 px-4 py-2.5 text-sm font-semibold transition-colors"
-          >
-            {generating ? 'Generating...' : 'Generate Join Link'}
-          </button>
-        </div>
       )}
-
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   )
 }
@@ -420,18 +449,24 @@ function JoinLinkCard({ team, initialToken, isPrimary }: {
 export default function RosterClient({
   players: initialPlayers,
   teams,
+  programId,
+  programSlug,
   programName,
   sport,
   canManageContacts,
-  joinTokensByTeam,
+  signupUrl,
+  qrDataUrl,
   totalContactCount,
 }: {
   players: Player[]
   teams: Team[]
+  programId: string
+  programSlug: string | null
   programName: string
   sport: string
   canManageContacts: boolean
-  joinTokensByTeam: Record<string, string>
+  signupUrl: string | null
+  qrDataUrl: string | null
   totalContactCount: number
 }) {
   const [players,       setPlayers]       = useState(initialPlayers)
@@ -679,48 +714,25 @@ export default function RosterClient({
             )}
           </div>
 
-          {/* ── RIGHT: Join links + instructions ── */}
+          {/* ── RIGHT: Program signup ── */}
           <div className="space-y-4">
 
-            {/* One join link card per team */}
-            {teams.map((t, i) => (
-              <JoinLinkCard
-                key={t.id}
-                team={t}
-                initialToken={joinTokensByTeam[t.id] ?? null}
-                isPrimary={i === 0}
-              />
-            ))}
+            <ProgramSignupCard
+              signupUrl={signupUrl}
+              qrDataUrl={qrDataUrl}
+              programId={programId}
+              programSlug={programSlug}
+              teamId={teams[0]?.id ?? ''}
+              canManage={canManageContacts}
+            />
 
-            {/* Instructions card */}
-            <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
-              <p className="text-sm font-bold text-white mb-3">How it works</p>
-              <ol className="space-y-2.5 text-xs text-slate-400">
-                <li className="flex gap-2">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs font-bold">1</span>
-                  <span>Add all player names to the roster above</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs font-bold">2</span>
-                  <span>Generate a join link and share it with parents via text, email, or QR code</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs font-bold">3</span>
-                  <span>Parents visit the link, select their player, and provide contact info with SMS consent</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-xs font-bold">4</span>
-                  <span>Contacts appear automatically — ready for notifications and volunteer signup</span>
-                </li>
-              </ol>
-              {teams.length > 1 && (
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  <p className="text-xs text-slate-500">
-                    <span className="text-amber-400 font-medium">Call-ups:</span> Use the <span className="text-amber-300">+ Call Up</span> button on a player row to assign them to both teams. Called-up players appear on both rosters.
-                  </p>
-                </div>
-              )}
-            </div>
+            {teams.length > 1 && (
+              <div className="rounded-2xl border border-white/10 bg-slate-900 p-4">
+                <p className="text-xs text-slate-500">
+                  <span className="text-amber-400 font-medium">Call-ups:</span> Use the <span className="text-amber-300">+ Call Up</span> button on a player row to assign them to both teams. Called-up players appear on both rosters.
+                </p>
+              </div>
+            )}
 
           </div>
         </div>

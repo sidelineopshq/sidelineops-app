@@ -3,6 +3,8 @@ import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import RosterClient from './RosterClient'
 import { formatProgramLabel } from '@/lib/utils/team-label'
+import QRCode from 'qrcode'
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 function createServiceClient() {
   return createServiceRoleClient(
@@ -34,7 +36,7 @@ export default async function RosterPage() {
 
   const { data: program } = await supabase
     .from('programs')
-    .select('name, sport, schools(name)')
+    .select('id, name, sport, slug, join_token, join_token_enabled, schools(name)')
     .eq('id', teamsData?.[0]?.program_id ?? '')
     .single()
 
@@ -80,22 +82,24 @@ export default async function RosterPage() {
     })
   }
 
-  // Fetch active join tokens for all teams
-  const { data: joinTokenRows } = await supabase
-    .from('team_join_tokens')
-    .select('team_id, token')
-    .in('team_id', teamIds)
-    .eq('is_active', true)
-
-  const joinTokensByTeam: Record<string, string> = {}
-  joinTokenRows?.forEach((r: any) => { joinTokensByTeam[r.team_id] = r.token })
-
-  // Total contacts across all teams
+  // Total contacts across all teams (legacy + program-join)
   const { count: totalContactCount } = await supabase
     .from('contacts')
     .select('id', { count: 'exact', head: true })
     .in('team_id', teamIds)
     .is('deleted_at', null)
+
+  // Program-level signup link
+  const joinToken  = (program as any)?.join_token_enabled && (program as any)?.join_token
+    ? (program as any).join_token as string
+    : null
+  const programSlug = (program as any)?.slug as string | null
+  const signupUrl   = joinToken && programSlug
+    ? `${getBaseUrl()}/join/${programSlug}?t=${joinToken}`
+    : null
+  const qrDataUrl   = signupUrl
+    ? await QRCode.toDataURL(signupUrl, { width: 160, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
+    : null
 
   const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
 
@@ -103,10 +107,13 @@ export default async function RosterPage() {
     <RosterClient
       players={players}
       teams={teams}
+      programId={(program as any)?.id ?? ''}
+      programSlug={programSlug}
       programName={formatProgramLabel((program as any)?.schools?.name ?? '', program?.sport ?? '') || program?.name || ''}
       sport={program?.sport ?? ''}
       canManageContacts={canManageContacts}
-      joinTokensByTeam={joinTokensByTeam}
+      signupUrl={signupUrl}
+      qrDataUrl={qrDataUrl}
       totalContactCount={totalContactCount ?? 0}
     />
   )

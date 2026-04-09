@@ -72,7 +72,7 @@ function ParentSignupSection({
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Parent Sign-Up</h2>
           <p className="text-slate-400 text-xs mt-1">
-            Share this link or QR code with parents to join the program roster.
+            Share this link with parents to join the program and receive schedule updates.
           </p>
         </div>
         {canManage && (
