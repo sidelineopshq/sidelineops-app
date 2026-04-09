@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import JoinProgramClient from './JoinProgramClient'
-import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 
 function svc() {
   return createClient(
@@ -51,7 +51,7 @@ export default async function JoinProgramPage({
   }
 
   const schoolName         = (program as any).schools?.name ?? ''
-  const programDisplayName = `${schoolName} ${program.sport}`.trim() || program.name
+  const programDisplayName = formatProgramLabel(schoolName, program.sport) || program.name
 
   // Fetch active teams for this program
   const { data: teams } = await supabase
@@ -63,19 +63,44 @@ export default async function JoinProgramPage({
 
   const teamIds = (teams ?? []).map(t => t.id)
 
-  // Fetch all active players across all program teams
-  const { data: players } = teamIds.length > 0
+  // Fetch all active players across all program teams via player_teams junction
+  const { data: ptRows } = teamIds.length > 0
+    ? await supabase
+        .from('player_teams')
+        .select('player_id, team_id')
+        .in('team_id', teamIds)
+    : { data: [] as any[] }
+
+  const playerIds = [...new Set((ptRows ?? []).map((r: any) => r.player_id as string))]
+
+  console.log('[JOIN] Program id:', program.id)
+  console.log('[JOIN] Team IDs:', teamIds)
+  console.log('[JOIN] Player IDs from player_teams:', playerIds.length)
+
+  const { data: playerRows, error: playersError } = playerIds.length > 0
     ? await supabase
         .from('players')
-        .select('id, first_name, last_name, jersey_number, team_id, teams(name, level)')
-        .in('team_id', teamIds)
+        .select('id, first_name, last_name, jersey_number')
+        .in('id', playerIds)
         .eq('is_active', true)
         .order('last_name',  { ascending: true })
         .order('first_name', { ascending: true })
-    : { data: [] as any[] }
+    : { data: [] as any[], error: null }
+
+  console.log('[JOIN] Players found:', playerRows?.length)
+  console.log('[JOIN] Players error:', playersError)
 
   const brandPrimary = (teams?.[0] as any)?.primary_color ?? null
   const firstTeamSlug = (teams?.[0] as any)?.slug ?? null
+
+  // Build lookup maps for team info
+  const teamMap = new Map((teams ?? []).map(t => [t.id, t]))
+  const playerTeamMap: Record<string, string> = {}
+  for (const row of ptRows ?? []) {
+    if (!playerTeamMap[(row as any).player_id]) {
+      playerTeamMap[(row as any).player_id] = (row as any).team_id
+    }
+  }
 
   return (
     <JoinProgramClient
@@ -85,14 +110,18 @@ export default async function JoinProgramPage({
       schoolName={schoolName}
       firstTeamSlug={firstTeamSlug}
       brandPrimary={brandPrimary}
-      players={(players ?? []).map((p: any) => ({
-        id:             p.id,
-        first_name:     p.first_name,
-        last_name:      p.last_name,
-        jersey_number:  p.jersey_number ?? null,
-        team_id:        p.team_id,
-        team_level:     formatTeamShortLabel((p.teams as any)?.level ?? '') || (p.teams as any)?.name || '',
-      }))}
+      players={(playerRows ?? []).map((p: any) => {
+        const tid = playerTeamMap[p.id] ?? ''
+        const t = teamMap.get(tid)
+        return {
+          id:             p.id,
+          first_name:     p.first_name,
+          last_name:      p.last_name,
+          jersey_number:  p.jersey_number ?? null,
+          team_id:        tid,
+          team_level:     formatTeamShortLabel((t as any)?.level ?? '') || (t as any)?.name || '',
+        }
+      })}
     />
   )
 }
