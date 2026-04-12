@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CopyLinkButton from '../CopyLinkButton'
+import CancelEventButton from './CancelEventButton'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
 import { getBaseUrl } from '@/lib/utils/base-url'
 
@@ -44,8 +45,9 @@ export default async function DashboardPage() {
   // New user with no team assignment — send to onboarding
   if (!teamUsersRaw?.length) redirect('/onboarding')
 
-  const teamUser = teamUsersRaw[0]
-  const teamIds  = teamUsersRaw.map(t => t.team_id)
+  const teamUser         = teamUsersRaw[0]
+  const teamIds          = teamUsersRaw.map(t => t.team_id)
+  const canManageEvents  = teamUsersRaw.some(t => t.can_manage_events)
 
   // Fetch all teams the coach belongs to — order descending by name so
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
@@ -267,6 +269,19 @@ export default async function DashboardPage() {
               >
                 Edit Event
               </a>
+              {canManageEvents && (
+                <CancelEventButton
+                  eventId={nextEvent.id}
+                  eventLabel={
+                    nextEvent.event_type === 'practice'
+                      ? 'Practice'
+                      : nextEvent.opponent
+                        ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
+                        : nextEvent.title ?? 'Event'
+                  }
+                  eventDate={formatDate(nextEvent.event_date)}
+                />
+              )}
             </>
           ) : (
             <>
@@ -290,12 +305,6 @@ export default async function DashboardPage() {
             className="mt-4 block w-full rounded-lg bg-sky-600 hover:bg-sky-500 px-4 py-2 text-sm font-semibold text-center transition-colors"
           >
             + New Event
-          </a>
-          <a
-            href="/messages"
-            className="mt-3 block w-full rounded-lg border border-white/10 hover:bg-slate-800 px-4 py-2 text-sm font-semibold text-center transition-colors"
-          >
-            Send Team Message
           </a>
           <a
             href="/schedule"
