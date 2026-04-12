@@ -50,7 +50,28 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
 - Player selection during signup upserts rows into `contact_teams` for each team the player belongs to (checks both `players.team_id` and `player_teams.team_id`)
 - Token regeneration: `regenerateProgramJoinToken()` in `app/join/[programSlug]/actions.ts` — requires coach/admin role
 
-### Notification queries
-All notification contact fetches must include **both** legacy contacts (`contacts.team_id = X`) and program-join contacts (`contact_teams.team_id = X`). Pattern used in `fire-change-notifications.ts`, `events/new/actions.ts`, `schedule/tournament-actions.ts`, and `api/cron/weekly-digest/route.ts`:
-1. Fetch `contact_teams` for the teamId(s) to get contact IDs
-2. Query contacts with `.or('team_id.eq.X,id.in.(...)')`
+### Contact association — TWO sources
+Contacts can be associated with teams via **two methods**:
+1. `contacts.team_id` — legacy direct column (may be null for program-join contacts)
+2. `contact_teams` table — junction table used by the program-level signup flow
+
+**ALL contact queries must check both** to avoid missing program-join contacts. Standard pattern:
+
+```typescript
+// Step 1: get contact IDs from junction table
+const { data: ctRows } = await supabase
+  .from('contact_teams')
+  .select('contact_id')
+  .in('team_id', teamIds)               // or .eq('team_id', teamId) for single team
+const ctContactIds = [...new Set((ctRows ?? []).map(r => r.contact_id))]
+
+// Step 2: query contacts — legacy OR junction
+const builder = supabase.from('contacts').select('...').is('deleted_at', null)
+const { data: contacts } = ctContactIds.length > 0
+  ? await builder.or(`team_id.in.(${teamIds.join(',')}),id.in.(${ctContactIds.join(',')})`)
+  : await builder.in('team_id', teamIds)
+```
+
+Files using this pattern: `contacts/page.tsx`, `events/[id]/notify/page.tsx`, `events/[id]/notify/actions.ts`, `fire-change-notifications.ts`, `events/new/actions.ts`, `schedule/tournament-actions.ts`, `api/cron/weekly-digest/route.ts`
+
+**Volunteer-reminders cron** (`api/cron/volunteer-reminders/route.ts`) does NOT query the contacts table — it sends to volunteer assignments and admin users only. No change needed there.

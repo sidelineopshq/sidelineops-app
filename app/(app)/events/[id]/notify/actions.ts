@@ -98,12 +98,22 @@ export async function sendNotification(payload: {
 
   const allTeamIds = (teamUsersAll ?? []).map(t => t.team_id)
 
-  const { data: contacts } = await service
+  // Verify contacts belong to coach's teams — check both legacy team_id and contact_teams junction
+  const { data: ctRows } = await service
+    .from('contact_teams')
+    .select('contact_id')
+    .in('team_id', allTeamIds)
+  const ctContactIds = [...new Set((ctRows ?? []).map((r: any) => r.contact_id as string))]
+
+  const contactsBuilder = service
     .from('contacts')
     .select('id, first_name, last_name, email, team_id')
     .in('id', contactIds)
-    .in('team_id', allTeamIds)     // verify contacts belong to coach's teams
     .is('deleted_at', null)
+
+  const { data: contacts } = ctContactIds.length > 0
+    ? await contactsBuilder.or(`team_id.in.(${allTeamIds.join(',')}),id.in.(${ctContactIds.join(',')})`)
+    : await contactsBuilder.in('team_id', allTeamIds)
 
   if (!contacts?.length) return { error: 'No valid contacts found.' }
 

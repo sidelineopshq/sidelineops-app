@@ -51,14 +51,23 @@ export default async function NotifyPage({
   const teams = teamsData ?? []
   const primaryTeam = teams[0]
 
-  // All contacts across all the coach's teams (not soft-deleted)
-  const { data: contacts } = await supabase
+  // All contacts across all the coach's teams — check both legacy team_id and contact_teams junction
+  const { data: ctRows } = await supabase
+    .from('contact_teams')
+    .select('contact_id')
+    .in('team_id', teamIds)
+  const ctContactIds = [...new Set((ctRows ?? []).map((r: any) => r.contact_id as string))]
+
+  const contactsBuilder = supabase
     .from('contacts')
     .select('id, first_name, last_name, email, contact_type, sms_consent, team_id')
-    .in('team_id', teamIds)
     .is('deleted_at', null)
     .order('last_name', { ascending: true })
     .order('first_name', { ascending: true })
+
+  const { data: contacts } = ctContactIds.length > 0
+    ? await contactsBuilder.or(`team_id.in.(${teamIds.join(',')}),id.in.(${ctContactIds.join(',')})`)
+    : await contactsBuilder.in('team_id', teamIds)
 
   const { data: program } = await supabase
     .from('programs')
