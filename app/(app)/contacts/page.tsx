@@ -34,11 +34,14 @@ export default async function ContactsPage() {
     .single()
 
   // Fetch contact_teams to include program-join contacts (team_id = null)
+  console.log('[CONTACTS] Fetching for team:', teamUser.team_id)
+  console.log('[CONTACTS] Program id:', (program as any)?.id)
   const { data: ctRows } = await supabase
     .from('contact_teams')
     .select('contact_id')
     .eq('team_id', teamUser.team_id)
   const ctContactIds = (ctRows ?? []).map((r: any) => r.contact_id)
+  console.log('[CONTACTS] contact_teams rows found:', ctRows?.length ?? 0)
 
   // Fetch all active contacts for this team (legacy team_id + program-join via contact_teams)
   const contactsBuilder = supabase
@@ -63,6 +66,8 @@ export default async function ContactsPage() {
   const { data: contacts } = ctContactIds.length > 0
     ? await contactsBuilder.or(`team_id.eq.${teamUser.team_id},id.in.(${ctContactIds.join(',')})`)
     : await contactsBuilder.eq('team_id', teamUser.team_id)
+  console.log('[CONTACTS] Raw results count:', contacts?.length)
+  console.log('[CONTACTS] First contact:', JSON.stringify(contacts?.[0]))
 
   // Fetch players for the "linked to" display and filter dropdown
   const { data: players } = await supabase
