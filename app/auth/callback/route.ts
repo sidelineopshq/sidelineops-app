@@ -29,13 +29,18 @@ export async function GET(request: Request) {
       },
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Password reset flow always goes to /reset-password
-      if (type === 'recovery') {
+      // Recovery sessions: always land on /reset-password regardless of next param.
+      // Supabase PKCE flow does not pass type=recovery as a query param, so check
+      // the session AMR (authentication method reference) instead.
+      const isRecovery =
+        type === 'recovery' ||
+        ((data?.session?.user as any)?.amr as any[])?.some?.((a: any) => a.method === 'otp') === true ||
+        next === '/reset-password'
+      if (isRecovery) {
         return NextResponse.redirect(`${origin}/reset-password`)
       }
-      // All other flows (signup verification, magic link, etc.) use next param
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

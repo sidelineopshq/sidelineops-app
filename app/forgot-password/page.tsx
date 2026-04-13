@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
     if (!email.trim()) return
     setLoading(true)
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin
     await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${baseUrl}/auth/callback?next=/reset-password`,
     })
