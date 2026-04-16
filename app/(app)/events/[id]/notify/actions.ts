@@ -187,9 +187,11 @@ export async function sendNotification(payload: {
       .not('groupme_bot_id', 'is', null)
 
     if (groupmeTeams?.length) {
+      // Deduplicate by bot ID — teams in the same program may share one bot
+      const uniqueBots = [...new Map(groupmeTeams.map(t => [t.groupme_bot_id!, t])).values()]
       const groupmeText = `${subject}\n\n${message}`
       const results = await Promise.all(
-        groupmeTeams.map(t => sendGroupMeMessage(t.groupme_bot_id!, groupmeText))
+        uniqueBots.map(t => sendGroupMeMessage(t.groupme_bot_id!, groupmeText))
       )
       groupmeSent = results.filter(Boolean).length
     }
