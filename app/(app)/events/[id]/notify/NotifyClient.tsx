@@ -22,10 +22,24 @@ type Contact = {
 }
 
 type Team = {
-  id:         string
-  name:       string
-  slug:       string | null
-  is_primary: boolean
+  id:               string
+  name:             string
+  slug:             string | null
+  is_primary:       boolean
+  groupme_enabled:  boolean | null
+  groupme_bot_id:   string | null
+}
+
+type TournamentGame = {
+  id:                  string
+  event_type:          string
+  title:               string | null
+  opponent:            string | null
+  is_home:             boolean | null
+  event_date:          string
+  default_start_time:  string | null
+  location_name:       string | null
+  status:              string
 }
 
 type EventData = {
@@ -43,12 +57,13 @@ type EventData = {
 }
 
 type Props = {
-  event:         EventData
-  teams:         Team[]
-  contacts:      Contact[]
-  programName:   string
-  primaryTeamId: string | null
-  appUrl:        string
+  event:           EventData
+  teams:           Team[]
+  contacts:        Contact[]
+  programName:     string
+  primaryTeamId:   string | null
+  appUrl:          string
+  tournamentGames: TournamentGame[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,6 +85,23 @@ function eventTitle(event: EventData): string {
   if (event.event_type === 'tournament') return event.title ?? 'Tournament'
   if (event.opponent) return `${event.is_home ? 'vs' : '@'} ${event.opponent}`
   return event.title ?? 'Event'
+}
+
+function gameLabel(g: TournamentGame): string {
+  if (g.opponent) return `${g.is_home ? 'vs' : '@'} ${g.opponent}`
+  return g.title ?? 'Game'
+}
+
+function buildTournamentMessageText(games: TournamentGame[]): string {
+  const lines = games.map(g => {
+    const label = gameLabel(g)
+    const date  = new Date(g.event_date + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    })
+    const time = g.default_start_time ? formatTime(g.default_start_time) : null
+    return `• ${label} — ${date}${time ? ` at ${time}` : ''}${g.location_name ? ` · ${g.location_name}` : ''}`
+  })
+  return `Games:\n${lines.join('\n')}`
 }
 
 const NOTIFICATION_TYPES: NotificationType[] = [
@@ -110,12 +142,16 @@ export default function NotifyClient({
   programName,
   primaryTeamId,
   appUrl,
+  tournamentGames,
 }: Props) {
   const title    = eventTitle(event)
   const dateStr  = formatDate(event.event_date)
   const timeStr  = formatTime(event.default_start_time)
 
   const primaryTeam = teams.find(t => t.id === primaryTeamId) ?? teams[0]
+
+  // Teams with GroupMe configured
+  const groupmeTeams = teams.filter(t => t.groupme_enabled && t.groupme_bot_id)
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [notifType, setNotifType]         = useState<NotificationType>('Game Reminder')
@@ -124,10 +160,15 @@ export default function NotifyClient({
     () => new Set(contacts.filter(defaultRecipientFilter('Game Reminder')).map(c => c.id))
   )
   const [subject, setSubject]             = useState(defaultSubject('Game Reminder', title, dateStr))
-  const [message, setMessage]             = useState('')
+  const [message, setMessage]             = useState(
+    () => tournamentGames.length > 0 ? buildTournamentMessageText(tournamentGames) : ''
+  )
+  const [groupmeSelected, setGroupmeSelected] = useState<Set<string>>(
+    () => new Set(groupmeTeams.map(t => t.id))
+  )
   const [showPreview, setShowPreview]     = useState(false)
   const [sending, setSending]             = useState(false)
-  const [result, setResult]               = useState<{ sent: number; skipped: number } | null>(null)
+  const [result, setResult]               = useState<{ sent: number; skipped: number; groupmeSent?: number } | null>(null)
   const [error, setError]                 = useState<string | null>(null)
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -206,11 +247,12 @@ export default function NotifyClient({
         subject,
         message,
         teamId:           primaryTeam?.id ?? '',
+        groupmeTeamIds:   [...groupmeSelected],
       })
       if ('error' in res) {
         setError(res.error ?? 'An error occurred.')
       } else {
-        setResult({ sent: res.sent, skipped: res.skipped })
+        setResult({ sent: res.sent, skipped: res.skipped, groupmeSent: res.groupmeSent })
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'An unexpected error occurred.')
@@ -232,6 +274,11 @@ export default function NotifyClient({
         <p className="text-slate-300 mb-1">
           <span className="font-semibold text-white">{result.sent}</span> email{result.sent !== 1 ? 's' : ''} delivered successfully.
         </p>
+        {(result.groupmeSent ?? 0) > 0 && (
+          <p className="text-slate-300 text-sm mb-1">
+            GroupMe message sent to <span className="font-semibold text-white">{result.groupmeSent}</span> group{result.groupmeSent !== 1 ? 's' : ''}.
+          </p>
+        )}
         {result.skipped > 0 && (
           <p className="text-slate-500 text-sm">
             {result.skipped} contact{result.skipped !== 1 ? 's' : ''} skipped (no email address or delivery error).
@@ -397,6 +444,62 @@ export default function NotifyClient({
 
         {/* ── Right column: compose + preview ── */}
         <div className="space-y-5">
+
+          {/* Tournament games panel */}
+          {tournamentGames.length > 0 && (
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-400 mb-3">
+                Tournament Games ({tournamentGames.length})
+              </p>
+              <div className="space-y-2">
+                {tournamentGames.map(g => {
+                  const gDate = new Date(g.event_date + 'T00:00:00').toLocaleDateString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                  })
+                  const gTime = formatTime(g.default_start_time)
+                  return (
+                    <div key={g.id} className="flex items-start gap-2 text-sm">
+                      <span className="text-amber-400/60 mt-0.5">•</span>
+                      <div>
+                        <span className="text-white font-medium">{gameLabel(g)}</span>
+                        <span className="text-slate-400 ml-2">{gDate}{gTime ? ` · ${gTime}` : ''}</span>
+                        {g.location_name && (
+                          <span className="text-slate-500 ml-2 text-xs">{g.location_name}</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* GroupMe channels */}
+          {groupmeTeams.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-400 mb-3">Also Send to GroupMe</p>
+              <div className="space-y-2">
+                {groupmeTeams.map(t => (
+                  <label key={t.id} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={groupmeSelected.has(t.id)}
+                      onChange={() => {
+                        setGroupmeSelected(prev => {
+                          const next = new Set(prev)
+                          next.has(t.id) ? next.delete(t.id) : next.add(t.id)
+                          return next
+                        })
+                      }}
+                      className="rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-900"
+                    />
+                    <span className="text-sm text-slate-200">{t.name}</span>
+                    <span className="text-xs text-slate-500">GroupMe</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Subject */}
           <div className="rounded-2xl border border-white/10 bg-slate-900 p-5">

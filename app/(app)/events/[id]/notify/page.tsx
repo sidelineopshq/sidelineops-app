@@ -40,16 +40,40 @@ export default async function NotifyPage({
 
   if (!event) notFound()
 
-  // All teams in the program — primary first
+  // All teams in the program — primary first (include GroupMe config)
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, slug, is_primary')
+    .select('id, name, slug, is_primary, groupme_enabled, groupme_bot_id')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
 
   const teams = teamsData ?? []
   const primaryTeam = teams[0]
+
+  // If this is a tournament event, fetch its child games
+  const isTournament = event.is_tournament || event.event_type === 'tournament'
+  let tournamentGames: {
+    id: string
+    event_type: string
+    title: string | null
+    opponent: string | null
+    is_home: boolean | null
+    event_date: string
+    default_start_time: string | null
+    location_name: string | null
+    status: string
+  }[] = []
+
+  if (isTournament) {
+    const { data: childEvents } = await supabase
+      .from('events')
+      .select('id, event_type, title, opponent, is_home, event_date, default_start_time, location_name, status')
+      .eq('parent_event_id', event.id)
+      .order('event_date',         { ascending: true })
+      .order('default_start_time', { ascending: true })
+    tournamentGames = (childEvents ?? []).filter((e: any) => e.status !== 'cancelled')
+  }
 
   // All contacts across all the coach's teams — check both legacy team_id and contact_teams junction
   const { data: ctRows } = await supabase
@@ -95,6 +119,7 @@ export default async function NotifyPage({
 
   return (
     <NotifyClient
+      tournamentGames={tournamentGames}
       event={{
         id:                 event.id,
         event_type:         event.event_type,

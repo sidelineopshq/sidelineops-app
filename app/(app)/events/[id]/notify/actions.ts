@@ -9,7 +9,8 @@ import {
   buildEventNotificationEmail,
   type NotificationType,
 } from '@/lib/email/eventNotification'
-import { getBaseUrl } from '@/lib/utils/base-url'
+import { getBaseUrl }            from '@/lib/utils/base-url'
+import { sendGroupMeMessage }    from '@/lib/notifications/groupme'
 
 function createServiceClient() {
   return createClient(
@@ -39,8 +40,9 @@ export async function sendNotification(payload: {
   subject:          string
   message:          string
   teamId:           string        // primary team context
+  groupmeTeamIds?:  string[]
 }) {
-  const { eventId, contactIds, notificationType, subject, message, teamId } = payload
+  const { eventId, contactIds, notificationType, subject, message, teamId, groupmeTeamIds } = payload
 
   if (!contactIds.length)   return { error: 'No contacts selected.' }
   if (!message.trim())      return { error: 'Message cannot be empty.' }
@@ -174,6 +176,25 @@ export async function sendNotification(payload: {
     results.forEach(r => ('error' in r && r.error) ? failed++ : sent++)
   }
 
+  // ── Send to GroupMe channels ──────────────────────────────────────────────
+  let groupmeSent = 0
+  if (groupmeTeamIds && groupmeTeamIds.length > 0) {
+    const { data: groupmeTeams } = await service
+      .from('teams')
+      .select('id, groupme_bot_id')
+      .in('id', groupmeTeamIds)
+      .eq('groupme_enabled', true)
+      .not('groupme_bot_id', 'is', null)
+
+    if (groupmeTeams?.length) {
+      const groupmeText = `${subject}\n\n${message}`
+      const results = await Promise.all(
+        groupmeTeams.map(t => sendGroupMeMessage(t.groupme_bot_id!, groupmeText))
+      )
+      groupmeSent = results.filter(Boolean).length
+    }
+  }
+
   // ── Log to notification_log ───────────────────────────────────────────────
   await service.from('notification_log').insert({
     team_id:           teamId,
@@ -187,5 +208,5 @@ export async function sendNotification(payload: {
     created_by:        user.id,
   })
 
-  return { success: true, sent, skipped: skipped + failed }
+  return { success: true, sent, skipped: skipped + failed, groupmeSent }
 }
