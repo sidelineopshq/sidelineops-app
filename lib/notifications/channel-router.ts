@@ -138,7 +138,7 @@ export async function sendChangeAlert({
       const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
 
       const emailBase = {
-        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as const,
+        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as 'Cancellation' | 'Schedule Change',
         event: {
           title:       event.title,
           date:        formattedDate,
@@ -237,7 +237,7 @@ export async function sendChangeAlert({
       const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
 
       const emailBase = {
-        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as const,
+        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as 'Cancellation' | 'Schedule Change',
         event: {
           title:       event.title,
           date:        formattedDate,
