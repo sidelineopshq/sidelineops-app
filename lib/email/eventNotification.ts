@@ -7,13 +7,14 @@ export type NotificationType =
   | 'Meal Notice'
 
 export interface EmailEvent {
-  title:       string
-  date:        string
-  time:        string | null
-  location:    string | null
-  teamName:    string
-  programName: string
-  teamSlug:    string | null
+  title:           string
+  date:            string
+  time:            string | null
+  location:        string | null
+  locationAddress: string | null | undefined
+  teamName:        string
+  programName:     string
+  teamSlug:        string | null
 }
 
 type Accent = { main: string; bg: string; border: string }
@@ -47,11 +48,16 @@ export function buildEventNotificationEmail({
     ? `${appUrl}/schedule/${event.teamSlug}`
     : appUrl
 
+  const mapUrl = event.locationAddress
+    ? `https://maps.apple.com/?q=${encodeURIComponent(event.locationAddress)}`
+    : null
+
+  type DetailRow = { icon: string; label: string; value: string; mapUrl?: string }
   const detailRows = [
     { icon: '📅', label: 'Date',     value: event.date },
-    event.time     ? { icon: '🕐', label: 'Time',     value: event.time }     : null,
-    event.location ? { icon: '📍', label: 'Location', value: event.location } : null,
-  ].filter(Boolean) as { icon: string; label: string; value: string }[]
+    event.time     ? { icon: '🕐', label: 'Time',     value: event.time }                                     : null,
+    event.location ? { icon: '📍', label: 'Location', value: event.location, mapUrl: mapUrl ?? undefined }    : null,
+  ].filter(Boolean) as DetailRow[]
 
   const detailsHtml = detailRows.map((row, i) => `
     <tr>
@@ -61,6 +67,7 @@ export function buildEventNotificationEmail({
           <td style="vertical-align:middle;">
             <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;">${row.label}</p>
             <p style="margin:2px 0 0;font-size:14px;font-weight:600;color:#1e293b;">${esc(row.value)}</p>
+            ${row.mapUrl ? `<a href="${row.mapUrl}" style="display:inline-block;margin-top:3px;font-size:12px;color:#0284c7;text-decoration:none;font-weight:600;">Get Directions →</a>` : ''}
           </td>
         </tr></table>
       </td>

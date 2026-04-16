@@ -315,9 +315,10 @@ export async function createEvent(formData: {
             event_date:      formData.event_date,
             opponent:        formData.opponent || null,
             is_home:         formData.is_home ?? null,
-            location_name:   formData.location_name || null,
-            is_tournament:   formData.is_tournament,
-            parent_event_id: null,
+            location_name:    formData.location_name    || null,
+            location_address: formData.location_address || null,
+            is_tournament:    formData.is_tournament,
+            parent_event_id:  null,
           },
           assignedTeams,
           contacts: teamContacts.map(c => ({

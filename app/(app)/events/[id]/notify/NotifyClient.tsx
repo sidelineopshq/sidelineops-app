@@ -227,15 +227,16 @@ export default function NotifyClient({
         title,
         date:        dateStr,
         time:        timeStr,
-        location:    event.location_name,
-        teamName:    primaryTeam?.name ?? '',
+        location:        event.location_name,
+        locationAddress: event.location_address,
+        teamName:        primaryTeam?.name ?? '',
         programName,
-        teamSlug:    primaryTeam?.slug ?? null,
+        teamSlug:        primaryTeam?.slug ?? null,
       },
       customMessage: message || '(your message will appear here)',
       appUrl,
     }),
-    [notifType, message, title, dateStr, timeStr, event.location_name, primaryTeam, programName, appUrl]
+    [notifType, message, title, dateStr, timeStr, event.location_name, event.location_address, primaryTeam, programName, appUrl]
   )
 
   // ── Handlers ───────────────────────────────────────────────────────────────

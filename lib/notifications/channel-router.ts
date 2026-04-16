@@ -81,6 +81,7 @@ export interface AlertEvent {
   event_date:          string   // YYYY-MM-DD
   default_start_time:  string | null
   location_name:       string | null
+  location_address?:   string | null
   event_type?:         string
 }
 
@@ -157,10 +158,11 @@ export async function sendChangeAlert({
           title:       event.title,
           date:        formattedDate,
           time:        formatTime(event.default_start_time),
-          location:    event.location_name,
-          teamName:    team.name,
+          location:        event.location_name,
+          locationAddress: event.location_address ?? null,
+          teamName:        team.name,
           programName,
-          teamSlug:    team.slug,
+          teamSlug:        team.slug,
         },
         customMessage,
         appUrl,
@@ -256,10 +258,11 @@ export async function sendChangeAlert({
           title:       event.title,
           date:        formattedDate,
           time:        formatTime(event.default_start_time),
-          location:    event.location_name,
-          teamName:    team.name,
+          location:        event.location_name,
+          locationAddress: event.location_address ?? null,
+          teamName:        team.name,
           programName,
-          teamSlug:    team.slug,
+          teamSlug:        team.slug,
         },
         customMessage,
         appUrl,
@@ -457,14 +460,15 @@ export interface NewEventTeam {
 }
 
 export interface NewEventInput {
-  title:           string | null
-  event_type:      string
-  event_date:      string   // YYYY-MM-DD
-  opponent:        string | null
-  is_home:         boolean | null
-  location_name:   string | null
-  is_tournament:   boolean
-  parent_event_id: string | null
+  title:            string | null
+  event_type:       string
+  event_date:       string   // YYYY-MM-DD
+  opponent:         string | null
+  is_home:          boolean | null
+  location_name:    string | null
+  location_address: string | null | undefined
+  is_tournament:    boolean
+  parent_event_id:  string | null
 }
 
 export interface AssignedTeam {
@@ -570,10 +574,11 @@ export async function sendNewEventAlert({
           title:       eventLabel,
           date:        formattedDate,
           time:        primaryTime,
-          location:    locationLine,
-          teamName:    team.name,
+          location:        locationLine,
+          locationAddress: event.location_address ?? null,
+          teamName:        team.name,
           programName,
-          teamSlug:    team.slug,
+          teamSlug:        team.slug,
         },
         customMessage,
         appUrl,

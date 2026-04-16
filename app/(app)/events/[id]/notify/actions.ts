@@ -72,7 +72,7 @@ export async function sendNotification(payload: {
     .from('events')
     .select(`
       id, event_type, title, opponent, is_home, is_tournament,
-      location_name, event_date, default_start_time, program_id
+      location_name, location_address, event_date, default_start_time, program_id
     `)
     .eq('id', eventId)
     .single()
@@ -145,10 +145,11 @@ export async function sendNotification(payload: {
       title:       eventTitle,
       date:        formatDate(event.event_date),
       time:        formatTime(event.default_start_time),
-      location:    event.location_name,
-      teamName:    team?.name ?? '',
-      programName: program?.name ?? '',
-      teamSlug:    team?.slug ?? null,
+      location:        event.location_name,
+      locationAddress: event.location_address ?? null,
+      teamName:        team?.name ?? '',
+      programName:     program?.name ?? '',
+      teamSlug:        team?.slug ?? null,
     },
     customMessage: message,
     appUrl,

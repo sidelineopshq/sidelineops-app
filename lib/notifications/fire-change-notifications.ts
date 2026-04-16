@@ -127,6 +127,7 @@ export async function fireChangeNotifications({
           event_date:         eventDate,
           default_start_time: tn.newTeamDetail.start_time,
           location_name:      tn.newEvent.location_name,
+          location_address:   tn.newEvent.location_address,
           event_type:         eventType,
         },
         changes:  diff.changes,
