@@ -509,12 +509,14 @@ export async function sendNewEventAlert({
   event,
   assignedTeams,
   contacts,
+  skipGroupMe,
 }: {
   team:          NewEventTeam
   programName:   string
   event:         NewEventInput
   assignedTeams: AssignedTeam[]
   contacts:      NewEventContact[]
+  skipGroupMe?:  boolean
 }): Promise<void> {
   // ── 1. Urgency guard ──────────────────────────────────────────────────────────
   const day = dayLabel(event.event_date)
@@ -610,7 +612,7 @@ export async function sendNewEventAlert({
   }
 
   // ── 3. GroupMe channel ────────────────────────────────────────────────────────
-  if (team.groupme_enabled && team.groupme_bot_id) {
+  if (team.groupme_enabled && team.groupme_bot_id && !skipGroupMe) {
     try {
       const timePart = assignedTeams
         .map(t => {

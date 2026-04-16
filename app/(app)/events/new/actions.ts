@@ -291,9 +291,13 @@ export async function createEvent(formData: {
       })
 
       // Fire once per team — each team gets its own contacts + channel config
+      const sentGroupMeBotIds = new Set<string>()
       for (const tr of teamRecords) {
         const ctTeamIds = new Set(ctByTeam.get(tr.id) ?? [])
         const teamContacts = (allContacts ?? []).filter(c => c.team_id === tr.id || ctTeamIds.has(c.id))
+        const botId = tr.groupme_enabled ? (tr.groupme_bot_id ?? null) : null
+        const skipGroupMe = botId !== null && sentGroupMeBotIds.has(botId)
+        if (botId) sentGroupMeBotIds.add(botId)
         await sendNewEventAlert({
           team: {
             id:               tr.id,
@@ -322,6 +326,7 @@ export async function createEvent(formData: {
             email:              c.email,
             email_unsubscribed: c.email_unsubscribed,
           })),
+          skipGroupMe,
         })
       }
       // Fire meal coordinator notification if meal is required (non-blocking)
