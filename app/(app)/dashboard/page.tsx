@@ -47,7 +47,8 @@ export default async function DashboardPage() {
 
   const teamUser         = teamUsersRaw[0]
   const teamIds          = teamUsersRaw.map(t => t.team_id)
-  const canManageEvents  = teamUsersRaw.some(t => t.can_manage_events)
+  const canManageEvents        = teamUsersRaw.some(t => t.can_manage_events)
+  const canSendNotifications   = teamUsersRaw.some(t => t.can_send_notifications)
 
   // Fetch all teams the coach belongs to — order descending by name so
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
@@ -269,6 +270,14 @@ export default async function DashboardPage() {
               >
                 Edit Event
               </a>
+              {canSendNotifications && (
+                <a
+                  href={`/events/${nextEvent.id}/notify`}
+                  className="mt-2 block w-full rounded-lg border border-white/60 bg-transparent hover:bg-white/10 px-4 py-2 text-xs font-semibold text-center transition-colors"
+                >
+                  Notify
+                </a>
+              )}
               {canManageEvents && (
                 <CancelEventButton
                   eventId={nextEvent.id}
