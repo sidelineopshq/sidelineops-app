@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   icons: {
     icon:     '/sidelineops-favicon.ico',
     shortcut: '/sidelineops-favicon.ico',
-    apple:    '/sidelineops-logo-cropped.png',
+    apple:    '/apple-touch-icon.png',
   },
 };
 
