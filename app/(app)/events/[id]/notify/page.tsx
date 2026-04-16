@@ -32,7 +32,7 @@ export default async function NotifyPage({
       id, event_type, title, opponent, is_home, is_tournament,
       location_name, location_address, event_date,
       default_start_time, default_arrival_time, status, program_id,
-      meal_required, meal_time, meal_notes, notes,
+      meal_required, meal_time, meal_notes, notes, uniform_notes,
       event_team_details!inner(team_id, start_time)
     `)
     .eq('id', id)
@@ -137,6 +137,7 @@ export default async function NotifyPage({
         meal_time:             event.meal_time     ?? null,
         meal_notes:            event.meal_notes    ?? null,
         notes:                 event.notes         ?? null,
+        uniform_notes:         event.uniform_notes ?? null,
         status:                event.status,
       }}
       teams={teams}

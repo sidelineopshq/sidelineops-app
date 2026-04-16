@@ -58,6 +58,7 @@ type EventData = {
   meal_time:            string | null
   meal_notes:           string | null
   notes:                string | null
+  uniform_notes:        string | null
   status:               string
 }
 
@@ -114,6 +115,8 @@ function buildDefaultMessage(event: EventData): string {
     if (event.meal_notes) mealLine += ` — ${event.meal_notes}`
     parts.push(mealLine)
   }
+
+  if (event.uniform_notes?.trim()) parts.push(`Uniform: ${event.uniform_notes.trim()}`)
 
   if (event.notes?.trim()) parts.push(event.notes.trim())
 
