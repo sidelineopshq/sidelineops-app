@@ -91,6 +91,7 @@ export async function cancelEvent(eventId: string) {
     await fireChangeNotifications({
       eventDate:    oldEventData.event_date,
       displayTitle: buildDisplayTitle(oldEventData),
+      eventType:    oldEventData.event_type ?? 'game',
       teamNotifications,
     })
   }
@@ -172,6 +173,7 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
     await fireChangeNotifications({
       eventDate:    oldEventData.event_date,
       displayTitle: buildDisplayTitle(oldEventData),
+      eventType:    oldEventData.event_type ?? 'game',
       teamNotifications: [{
         teamId,
         teamName:      teamData?.name ?? '',

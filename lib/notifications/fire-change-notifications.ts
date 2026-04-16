@@ -49,15 +49,18 @@ export interface TeamNotificationInput {
 export async function fireChangeNotifications({
   eventDate,
   displayTitle,
+  eventType,
   teamNotifications,
 }: {
   eventDate:         string
   displayTitle:      string
+  eventType:         string
   teamNotifications: TeamNotificationInput[]
 }): Promise<void> {
   if (!teamNotifications.length) return
 
   const supabase = createServiceClient()
+  const sentGroupMeBotIds = new Set<string>()
 
   for (const tn of teamNotifications) {
     try {
@@ -102,6 +105,11 @@ export async function fireChangeNotifications({
       const sport        = (team as any).programs?.sport ?? ''
       const programLabel = formatProgramLabel(schoolName, sport)
 
+      // ── GroupMe dedup: skip if this bot already sent for this event ──────
+      const botId = team.groupme_enabled ? (team.groupme_bot_id ?? null) : null
+      const skipGroupMe = botId !== null && sentGroupMeBotIds.has(botId)
+      if (botId) sentGroupMeBotIds.add(botId)
+
       // ── Delegate to channel router ────────────────────────────────────────
       await sendChangeAlert({
         team: {
@@ -119,6 +127,7 @@ export async function fireChangeNotifications({
           event_date:         eventDate,
           default_start_time: tn.newTeamDetail.start_time,
           location_name:      tn.newEvent.location_name,
+          event_type:         eventType,
         },
         changes:  diff.changes,
         contacts: (contacts ?? []).map(c => ({
@@ -127,6 +136,7 @@ export async function fireChangeNotifications({
           email:              c.email,
           email_unsubscribed: c.email_unsubscribed,
         })),
+        skipGroupMe,
       })
     } catch (err) {
       console.error(`[fireChangeNotifications] team ${tn.teamId}:`, err)

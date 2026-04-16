@@ -81,6 +81,16 @@ export interface AlertEvent {
   event_date:          string   // YYYY-MM-DD
   default_start_time:  string | null
   location_name:       string | null
+  event_type?:         string
+}
+
+function cancellationLabel(eventType: string | undefined): string {
+  switch ((eventType ?? '').toLowerCase()) {
+    case 'practice':   return 'Practice Cancelled'
+    case 'tournament': return 'Tournament Cancelled'
+    case 'meeting':    return 'Meeting Cancelled'
+    default:           return 'Game Cancelled'
+  }
 }
 
 /**
@@ -94,13 +104,15 @@ export async function sendChangeAlert({
   event,
   changes,
   contacts,
+  skipGroupMe,
 }: {
-  team:        AlertTeam
-  programId:   string
-  programName: string
-  event:       AlertEvent
-  changes:     ChangeRecord[]
-  contacts:    AlertContact[]
+  team:         AlertTeam
+  programId:    string
+  programName:  string
+  event:        AlertEvent
+  changes:      ChangeRecord[]
+  contacts:     AlertContact[]
+  skipGroupMe?: boolean
 }): Promise<void> {
   // ── 1. Guard: notification preference ────────────────────────────────────────
   if (!team.notify_on_change) return
@@ -114,13 +126,15 @@ export async function sendChangeAlert({
     c => (c.field === 'status' || c.field === 'team_status') && c.to === 'Cancelled'
   )
 
+  const cancelLabel = cancellationLabel(event.event_type)
+
   const subject = isCancellation
-    ? `Game Cancelled: ${event.title} — ${formattedDate}`
+    ? `${cancelLabel}: ${event.title} — ${formattedDate}`
     : `Schedule Update: ${event.title} — ${formattedDate}`
 
   const changeLines   = changes.map(c => `${c.label}: ${c.from} → ${c.to}`).join('\n')
   const customMessage = isCancellation
-    ? 'Game Cancelled'
+    ? cancelLabel
     : `The following updates have been made to this event:\n\n${changeLines}`
 
   // ── 2. Email channel ──────────────────────────────────────────────────────────
@@ -185,13 +199,13 @@ export async function sendChangeAlert({
   }
 
   // ── 3. GroupMe channel ────────────────────────────────────────────────────────
-  if (team.groupme_enabled && team.groupme_bot_id) {
+  if (team.groupme_enabled && team.groupme_bot_id && !skipGroupMe) {
     try {
       const scheduleUrl = team.slug ? `${appUrl}/schedule/${team.slug}` : appUrl
 
       const text = isCancellation
         ? [
-            `❌ Game Cancelled: ${event.title} — ${formattedDate}`,
+            `❌ ${cancelLabel}: ${event.title} — ${formattedDate}`,
             '',
             `View schedule: ${scheduleUrl}`,
           ].join('\n')

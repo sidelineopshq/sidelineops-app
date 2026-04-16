@@ -252,6 +252,7 @@ export async function updateEvent(
         opponent:   formData.opponent ?? null,
         is_home:    formData.is_home  ?? null,
       }),
+      eventType:    formData.event_type,
       teamNotifications,
     })
 
