@@ -109,10 +109,19 @@ export async function sendChangeAlert({
   const appUrl      = getBaseUrl()
   const supabase    = createServiceClient()
   const formattedDate = formatDate(event.event_date)
-  const subject       = `Schedule Update: ${event.title} — ${formattedDate}`
+
+  const isCancellation = changes.some(
+    c => (c.field === 'status' || c.field === 'team_status') && c.to === 'Cancelled'
+  )
+
+  const subject = isCancellation
+    ? `Game Cancelled: ${event.title} — ${formattedDate}`
+    : `Schedule Update: ${event.title} — ${formattedDate}`
 
   const changeLines   = changes.map(c => `${c.label}: ${c.from} → ${c.to}`).join('\n')
-  const customMessage = `The following updates have been made to this event:\n\n${changeLines}`
+  const customMessage = isCancellation
+    ? 'Game Cancelled'
+    : `The following updates have been made to this event:\n\n${changeLines}`
 
   // ── 2. Email channel ──────────────────────────────────────────────────────────
   try {
@@ -129,7 +138,7 @@ export async function sendChangeAlert({
       const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
 
       const emailBase = {
-        type:  'Schedule Change' as const,
+        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as const,
         event: {
           title:       event.title,
           date:        formattedDate,
@@ -179,15 +188,20 @@ export async function sendChangeAlert({
   if (team.groupme_enabled && team.groupme_bot_id) {
     try {
       const scheduleUrl = team.slug ? `${appUrl}/schedule/${team.slug}` : appUrl
-      const bulletLines = changes.map(c => `• ${c.label}: ${c.from} → ${c.to}`).join('\n')
 
-      const text = [
-        `📅 Schedule Update: ${event.title} — ${formattedDate}`,
-        '',
-        bulletLines,
-        '',
-        `View schedule: ${scheduleUrl}`,
-      ].join('\n')
+      const text = isCancellation
+        ? [
+            `❌ Game Cancelled: ${event.title} — ${formattedDate}`,
+            '',
+            `View schedule: ${scheduleUrl}`,
+          ].join('\n')
+        : [
+            `📅 Schedule Update: ${event.title} — ${formattedDate}`,
+            '',
+            changes.map(c => `• ${c.label}: ${c.from} → ${c.to}`).join('\n'),
+            '',
+            `View schedule: ${scheduleUrl}`,
+          ].join('\n')
 
       const ok = await sendGroupMeMessage(team.groupme_bot_id, text)
 
@@ -223,7 +237,7 @@ export async function sendChangeAlert({
       const from        = `${senderLabel} via SidelineOps <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`
 
       const emailBase = {
-        type:  'Schedule Change' as const,
+        type:  (isCancellation ? 'Cancellation' : 'Schedule Change') as const,
         event: {
           title:       event.title,
           date:        formattedDate,
