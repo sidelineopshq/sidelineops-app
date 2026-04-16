@@ -32,6 +32,7 @@ export default async function NotifyPage({
       id, event_type, title, opponent, is_home, is_tournament,
       location_name, location_address, event_date,
       default_start_time, default_arrival_time, status, program_id,
+      meal_required, meal_time, meal_notes, notes,
       event_team_details!inner(team_id, start_time)
     `)
     .eq('id', id)
@@ -121,17 +122,22 @@ export default async function NotifyPage({
     <NotifyClient
       tournamentGames={tournamentGames}
       event={{
-        id:                 event.id,
-        event_type:         event.event_type,
-        title:              event.title,
-        opponent:           event.opponent,
-        is_home:            event.is_home,
-        is_tournament:      event.is_tournament,
-        location_name:      event.location_name,
-        location_address:   event.location_address,
-        event_date:         event.event_date,
-        default_start_time: event.default_start_time,
-        status:             event.status,
+        id:                    event.id,
+        event_type:            event.event_type,
+        title:                 event.title,
+        opponent:              event.opponent,
+        is_home:               event.is_home,
+        is_tournament:         event.is_tournament,
+        location_name:         event.location_name,
+        location_address:      event.location_address,
+        event_date:            event.event_date,
+        default_start_time:    event.default_start_time,
+        default_arrival_time:  event.default_arrival_time,
+        meal_required:         event.meal_required ?? false,
+        meal_time:             event.meal_time     ?? null,
+        meal_notes:            event.meal_notes    ?? null,
+        notes:                 event.notes         ?? null,
+        status:                event.status,
       }}
       teams={teams}
       contacts={contacts ?? []}

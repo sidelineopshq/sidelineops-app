@@ -43,17 +43,22 @@ type TournamentGame = {
 }
 
 type EventData = {
-  id:                  string
-  event_type:          string
-  title:               string | null
-  opponent:            string | null
-  is_home:             boolean | null
-  is_tournament:       boolean
-  location_name:       string | null
-  location_address:    string | null
-  event_date:          string
-  default_start_time:  string | null
-  status:              string
+  id:                   string
+  event_type:           string
+  title:                string | null
+  opponent:             string | null
+  is_home:              boolean | null
+  is_tournament:        boolean
+  location_name:        string | null
+  location_address:     string | null
+  event_date:           string
+  default_start_time:   string | null
+  default_arrival_time: string | null
+  meal_required:        boolean
+  meal_time:            string | null
+  meal_notes:           string | null
+  notes:                string | null
+  status:               string
 }
 
 type Props = {
@@ -90,6 +95,29 @@ function eventTitle(event: EventData): string {
 function gameLabel(g: TournamentGame): string {
   if (g.opponent) return `${g.is_home ? 'vs' : '@'} ${g.opponent}`
   return g.title ?? 'Game'
+}
+
+function buildDefaultMessage(event: EventData): string {
+  const parts: string[] = []
+
+  if (event.default_arrival_time) {
+    const t = formatTime(event.default_arrival_time)
+    if (t) parts.push(`Arrival: ${t}`)
+  }
+
+  if (event.meal_required) {
+    let mealLine = 'Meal provided'
+    if (event.meal_time) {
+      const t = formatTime(event.meal_time)
+      if (t) mealLine = `Meal at ${t}`
+    }
+    if (event.meal_notes) mealLine += ` — ${event.meal_notes}`
+    parts.push(mealLine)
+  }
+
+  if (event.notes?.trim()) parts.push(event.notes.trim())
+
+  return parts.join('\n')
 }
 
 function buildTournamentMessageText(games: TournamentGame[]): string {
@@ -160,9 +188,13 @@ export default function NotifyClient({
     () => new Set(contacts.filter(defaultRecipientFilter('Game Reminder')).map(c => c.id))
   )
   const [subject, setSubject]             = useState(defaultSubject('Game Reminder', title, dateStr))
-  const [message, setMessage]             = useState(
-    () => tournamentGames.length > 0 ? buildTournamentMessageText(tournamentGames) : ''
-  )
+  const [message, setMessage]             = useState(() => {
+    const parts: string[] = []
+    if (tournamentGames.length > 0) parts.push(buildTournamentMessageText(tournamentGames))
+    const details = buildDefaultMessage(event)
+    if (details) parts.push(details)
+    return parts.join('\n\n')
+  })
   const [groupmeSelected, setGroupmeSelected] = useState<Set<string>>(
     () => new Set(groupmeTeams.map(t => t.id))
   )
