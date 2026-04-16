@@ -1,9 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import ContactsClient from './ContactsClient'
 import { formatProgramLabel } from '@/lib/utils/team-label'
 import QRCode from 'qrcode'
 import { getBaseUrl } from '@/lib/utils/base-url'
+
+function createServiceClient() {
+  return createServiceRoleClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export const metadata = { title: 'Contacts' }
 
@@ -70,12 +78,22 @@ export default async function ContactsPage() {
   console.log('[CONTACTS] First contact:', JSON.stringify(contacts?.[0]))
 
   // Fetch players for the "linked to" display and filter dropdown
-  const { data: players } = await supabase
+  // Use service role + player_teams junction (player_teams has no authenticated RLS policy)
+  const service = createServiceClient()
+  const { data: ptRows } = await service
+    .from('player_teams')
+    .select('player_id')
+    .eq('team_id', teamUser.team_id)
+  const ptPlayerIds = (ptRows ?? []).map((r: any) => r.player_id as string)
+
+  const playersBuilder = service
     .from('players')
     .select('id, first_name, last_name, jersey_number')
-    .eq('team_id', teamUser.team_id)
     .eq('is_active', true)
     .order('last_name', { ascending: true })
+  const { data: players } = ptPlayerIds.length > 0
+    ? await playersBuilder.or(`team_id.eq.${teamUser.team_id},id.in.(${ptPlayerIds.join(',')})`)
+    : await playersBuilder.eq('team_id', teamUser.team_id)
 
   const baseUrl = getBaseUrl()
   const joinToken = (program as any)?.join_token_enabled && (program as any)?.join_token

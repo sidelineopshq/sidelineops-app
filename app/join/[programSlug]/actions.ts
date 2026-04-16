@@ -141,11 +141,25 @@ export async function joinProgram(data: {
   // ── Send confirmation email ──────────────────────────────────────────────────
   if (data.email?.trim()) {
     try {
-      const appUrl        = getBaseUrl()
-      const unsubToken    = generateUnsubscribeToken(contactId)
+      const appUrl         = getBaseUrl()
+      const unsubToken     = generateUnsubscribeToken(contactId)
       const unsubscribeUrl = `${appUrl}/api/unsubscribe?token=${unsubToken}`
-      const scheduleUrl   = data.firstTeamSlug
-        ? `${appUrl}/schedule/${data.firstTeamSlug}`
+
+      // Use the player's primary team slug, falling back to the program's first team
+      let scheduleTeamSlug: string | null = data.firstTeamSlug
+      if (uniqueTeamIds.length > 0) {
+        const { data: primaryTeamRow } = await supabase
+          .from('teams')
+          .select('slug')
+          .in('id', uniqueTeamIds)
+          .order('is_primary', { ascending: false })
+          .order('sort_order',  { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (primaryTeamRow?.slug) scheduleTeamSlug = primaryTeamRow.slug
+      }
+      const scheduleUrl = scheduleTeamSlug
+        ? `${appUrl}/schedule/${scheduleTeamSlug}`
         : appUrl
 
       const firstName = data.firstName.trim()

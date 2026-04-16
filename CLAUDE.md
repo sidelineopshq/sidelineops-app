@@ -50,19 +50,20 @@ All outbound notifications route through `lib/notifications/channel-router.ts`.
 - Player selection during signup upserts rows into `contact_teams` for each team the player belongs to (checks both `players.team_id` and `player_teams.team_id`)
 - Token regeneration: `regenerateProgramJoinToken()` in `app/join/[programSlug]/actions.ts` — requires coach/admin role
 
-### Contact association — TWO sources
-Contacts can be associated with teams via **two methods**:
-1. `contacts.team_id` — legacy direct column (may be null for program-join contacts)
-2. `contact_teams` table — junction table used by the program-level signup flow
+### Contact association — THREE sources
+Contacts can be associated with teams via **three methods**:
+1. `contacts.team_id` — legacy direct column (null for program-join contacts)
+2. `contact_teams` junction table — used by program-level signup flow
+3. `contacts.player_id → players` — player-linked contacts inherit team membership
 
-**ALL contact queries must check both** to avoid missing program-join contacts. Standard pattern:
+**ALL contact queries filtering by team must check all three sources.** Never filter contacts using only `contacts.team_id`. Standard fetch pattern:
 
 ```typescript
-// Step 1: get contact IDs from junction table
+// Step 1: get contact IDs from junction table (fetch team_id too for client filtering)
 const { data: ctRows } = await supabase
   .from('contact_teams')
-  .select('contact_id')
-  .in('team_id', teamIds)               // or .eq('team_id', teamId) for single team
+  .select('contact_id, team_id')
+  .in('team_id', teamIds)
 const ctContactIds = [...new Set((ctRows ?? []).map(r => r.contact_id))]
 
 // Step 2: query contacts — legacy OR junction
@@ -72,6 +73,10 @@ const { data: contacts } = ctContactIds.length > 0
   : await builder.in('team_id', teamIds)
 ```
 
-Files using this pattern: `contacts/page.tsx`, `events/[id]/notify/page.tsx`, `events/[id]/notify/actions.ts`, `fire-change-notifications.ts`, `events/new/actions.ts`, `schedule/tournament-actions.ts`, `api/cron/weekly-digest/route.ts`
+For **client-side team filtering** (e.g. NotifyClient), build a `team_ids: string[]` array on each contact from both `contact.team_id` and `contact_teams` rows, then filter with `c.team_ids.includes(teamFilter)` — never `c.team_id === teamFilter`.
 
-**Volunteer-reminders cron** (`api/cron/volunteer-reminders/route.ts`) does NOT query the contacts table — it sends to volunteer assignments and admin users only. No change needed there.
+**Players** associated with a team also use a junction table (`player_teams`). Always fetch players via the two-step pattern (query `player_teams` first, then fetch players by ID) using the **service role client** — `player_teams` has no authenticated RLS policy.
+
+Files using the dual contact pattern: `contacts/page.tsx`, `events/[id]/notify/page.tsx`, `events/[id]/notify/actions.ts`, `fire-change-notifications.ts`, `events/new/actions.ts`, `schedule/tournament-actions.ts`, `api/cron/weekly-digest/route.ts`
+
+**Volunteer-reminders cron** (`api/cron/volunteer-reminders/route.ts`) does NOT query contacts — sends to volunteer assignments and admin users only.

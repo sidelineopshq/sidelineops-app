@@ -54,9 +54,16 @@ export default async function NotifyPage({
   // All contacts across all the coach's teams — check both legacy team_id and contact_teams junction
   const { data: ctRows } = await supabase
     .from('contact_teams')
-    .select('contact_id')
+    .select('contact_id, team_id')
     .in('team_id', teamIds)
   const ctContactIds = [...new Set((ctRows ?? []).map((r: any) => r.contact_id as string))]
+
+  // Build map: contact_id → [team_ids] so the client can filter by team correctly
+  const ctTeamMap = new Map<string, string[]>()
+  for (const row of ctRows ?? []) {
+    if (!ctTeamMap.has((row as any).contact_id)) ctTeamMap.set((row as any).contact_id, [])
+    ctTeamMap.get((row as any).contact_id)!.push((row as any).team_id)
+  }
 
   const contactsBuilder = supabase
     .from('contacts')
@@ -65,9 +72,20 @@ export default async function NotifyPage({
     .order('last_name', { ascending: true })
     .order('first_name', { ascending: true })
 
-  const { data: contacts } = ctContactIds.length > 0
+  const { data: rawContacts } = ctContactIds.length > 0
     ? await contactsBuilder.or(`team_id.in.(${teamIds.join(',')}),id.in.(${ctContactIds.join(',')})`)
     : await contactsBuilder.in('team_id', teamIds)
+
+  // Attach team_ids array (from both sources) for client-side team filtering
+  const contacts = (rawContacts ?? []).map((c: any) => ({
+    ...c,
+    team_ids: [
+      ...new Set([
+        ...(c.team_id ? [c.team_id] : []),
+        ...(ctTeamMap.get(c.id) ?? []),
+      ]),
+    ],
+  }))
 
   const { data: program } = await supabase
     .from('programs')

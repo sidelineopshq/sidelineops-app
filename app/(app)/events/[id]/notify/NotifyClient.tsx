@@ -17,7 +17,8 @@ type Contact = {
   email:        string | null
   contact_type: string
   sms_consent:  boolean | null
-  team_id:      string
+  team_id:      string | null
+  team_ids:     string[]       // all teams this contact belongs to (legacy + contact_teams)
 }
 
 type Team = {
@@ -133,7 +134,7 @@ export default function NotifyClient({
   const filteredContacts = useMemo(() =>
     teamFilter === 'all'
       ? contacts
-      : contacts.filter(c => c.team_id === teamFilter),
+      : contacts.filter(c => c.team_ids.includes(teamFilter)),
     [contacts, teamFilter]
   )
 
