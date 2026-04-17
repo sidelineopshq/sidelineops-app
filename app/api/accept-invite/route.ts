@@ -38,41 +38,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email mismatch' }, { status: 400 })
   }
 
-  // 1. Try to sign in with existing account
   const authClient = await createServerClient()
-  const { data: signInData, error: signInError } = await authClient.auth.signInWithPassword({
-    email,
-    password,
-  })
+
+  // 1. Try to sign in — handles the case where the invited user already has an account
+  const { data: signInData } = await authClient.auth.signInWithPassword({ email, password })
 
   let userId: string
 
   if (signInData?.user) {
-    // Existing user signed in
+    // Existing account — signed in successfully
     userId = signInData.user.id
   } else {
-    // Sign in failed — create a new account
-    const { data: signUpData, error: signUpError } = await authClient.auth.signUp({
+    // New user — create via admin API with email already confirmed.
+    // Invited users have verified their identity via the invite token so
+    // they don't need a separate email verification step.
+    const { data: createData, error: createError } = await service.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          first_name: firstName?.trim() || null,
-          last_name:  lastName?.trim()  || null,
-        },
+      email_confirm: true,
+      user_metadata: {
+        first_name: firstName?.trim() || null,
+        last_name:  lastName?.trim()  || null,
       },
     })
 
-    if (signUpError || !signUpData?.user) {
-      const msg = signUpError?.message ?? 'Failed to create account'
-      // Surface a friendlier message for wrong password on existing account
-      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
-        return NextResponse.json({ error: 'An account with this email already exists. Please check your password.' }, { status: 400 })
+    if (createError || !createData?.user) {
+      const msg = createError?.message ?? 'Failed to create account'
+      if (
+        msg.toLowerCase().includes('already registered') ||
+        msg.toLowerCase().includes('already exists') ||
+        msg.toLowerCase().includes('duplicate')
+      ) {
+        return NextResponse.json(
+          { error: 'An account with this email already exists. Please check your password.' },
+          { status: 400 },
+        )
       }
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
-    userId = signUpData.user.id
+    userId = createData.user.id
 
     // Upsert user profile
     await service
@@ -83,6 +88,20 @@ export async function POST(req: NextRequest) {
         first_name: firstName?.trim() || null,
         last_name:  lastName?.trim()  || null,
       }, { onConflict: 'id' })
+
+    // Sign in immediately — user is confirmed, no verification email required
+    const { data: postSignIn, error: postSignInError } = await authClient.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (postSignInError || !postSignIn?.user) {
+      console.error('[accept-invite] post-creation sign-in failed:', postSignInError)
+      return NextResponse.json(
+        { error: 'Account created but sign-in failed. Please try logging in at /login.' },
+        { status: 500 },
+      )
+    }
   }
 
   // 2. Determine permissions based on role
