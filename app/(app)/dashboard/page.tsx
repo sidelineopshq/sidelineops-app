@@ -89,6 +89,20 @@ export default async function DashboardPage() {
   const nextEventStart   = nextEventRow?.event_team_details?.[0]?.start_time   || nextEventRow?.default_start_time
   const nextEventArrival = nextEventRow?.event_team_details?.[0]?.arrival_time || nextEventRow?.default_arrival_time
 
+  // Fetch child games if next event is a tournament
+  type TournamentGame = { id: string; opponent: string | null; is_home: boolean | null; default_start_time: string | null; location_name: string | null }
+  let tournamentGames: TournamentGame[] = []
+  if (nextEvent?.event_type === 'tournament' || nextEvent?.is_tournament) {
+    const { data: childGames } = await supabase
+      .from('events')
+      .select('id, opponent, is_home, default_start_time, location_name, status')
+      .eq('parent_event_id', nextEvent.id)
+      .neq('status', 'cancelled')
+      .order('event_date',         { ascending: true })
+      .order('default_start_time', { ascending: true })
+    tournamentGames = (childGames ?? []) as TournamentGame[]
+  }
+
   // This week count
   const nextWeekStr = new Date(new Date().getTime() + 7 * 86400000)
     .toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
@@ -241,9 +255,11 @@ export default async function DashboardPage() {
               <h3 className="mt-3 text-xl font-semibold leading-tight">
                 {nextEvent.event_type === 'practice'
                   ? 'Practice'
-                  : nextEvent.opponent
-                    ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
-                    : nextEvent.title ?? 'Event'}
+                  : nextEvent.event_type === 'tournament'
+                    ? nextEvent.title ?? 'Tournament'
+                    : nextEvent.opponent
+                      ? `${nextEvent.is_home ? 'vs' : '@'} ${nextEvent.opponent}`
+                      : nextEvent.title ?? 'Event'}
               </h3>
               <p className="mt-2 text-slate-300">
                 {formatDate(nextEvent.event_date)}
@@ -263,6 +279,23 @@ export default async function DashboardPage() {
                 <p className="mt-2 text-xs text-amber-400 font-medium">
                   🍽 Meal included{nextEvent.meal_time ? ` · ${formatTime(nextEvent.meal_time)}` : ''}
                 </p>
+              )}
+              {tournamentGames.length > 0 && (
+                <div className="mt-3 ml-2 space-y-1.5 border-l-2 border-amber-500/30 pl-3">
+                  {tournamentGames.map(game => (
+                    <div key={game.id} className="text-sm">
+                      <span className="text-slate-200 font-medium">
+                        {game.opponent ? `${game.is_home ? 'vs' : '@'} ${game.opponent}` : 'TBD'}
+                      </span>
+                      {game.default_start_time && (
+                        <span className="text-slate-400 ml-2">{formatTime(game.default_start_time)}</span>
+                      )}
+                      {game.location_name && (
+                        <span className="text-slate-500 ml-2 text-xs">· {game.location_name}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
               <a
                 href={`/events/${nextEvent.id}/edit`}

@@ -264,7 +264,7 @@ export default async function TeamSettingsPage({
       {/* ── Team Members ──────────────────────────────────────────────────────── */}
       {tab === 'team-members' && (
         <TeamMembersTab
-          teams={teams.map(t => ({ id: t.id, name: t.name }))}
+          teams={teams.map(t => ({ id: t.id, name: formatTeamShortLabel((t as any).level ?? '') || t.name }))}
           pendingInvites={pendingInvites}
           activeMembers={activeMembers}
           canManage={canManage}
