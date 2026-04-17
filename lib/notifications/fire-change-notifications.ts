@@ -79,7 +79,7 @@ export async function fireChangeNotifications({
       const [{ data: team }, { data: ctRows }] = await Promise.all([
         supabase
           .from('teams')
-          .select('name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, program_id, programs(sport, schools(name))')
+          .select('name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, program_id, schedule_published, programs(sport, schools(name))')
           .eq('id', tn.teamId)
           .single(),
         supabase
@@ -113,12 +113,13 @@ export async function fireChangeNotifications({
       // ── Delegate to channel router ────────────────────────────────────────
       await sendChangeAlert({
         team: {
-          id:               tn.teamId,
-          name:             programLabel,
-          slug:             team.slug ?? null,
-          notify_on_change: team.notify_on_change,
-          groupme_enabled:  team.groupme_enabled,
-          groupme_bot_id:   team.groupme_bot_id,
+          id:                tn.teamId,
+          name:              programLabel,
+          slug:              team.slug ?? null,
+          notify_on_change:  team.notify_on_change,
+          groupme_enabled:   team.groupme_enabled,
+          groupme_bot_id:    team.groupme_bot_id,
+          schedule_published: (team as any).schedule_published ?? null,
         },
         programId:   team.program_id,
         programName: programLabel,

@@ -102,7 +102,7 @@ export async function addTournamentGame(formData: {
       const [{ data: team }, { data: program }, { data: ctRows }] = await Promise.all([
         supabase
           .from('teams')
-          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id')
+          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, schedule_published')
           .eq('id', formData.team_id)
           .single(),
         supabase
@@ -131,13 +131,14 @@ export async function addTournamentGame(formData: {
 
       await sendNewEventAlert({
         team: {
-          id:               team.id,
-          name:             team.name ?? '',
-          level:            team.level ?? null,
-          slug:             team.slug ?? null,
-          notify_on_change: team.notify_on_change,
-          groupme_enabled:  team.groupme_enabled,
-          groupme_bot_id:   team.groupme_bot_id,
+          id:                team.id,
+          name:              team.name ?? '',
+          level:             team.level ?? null,
+          slug:              team.slug ?? null,
+          notify_on_change:  team.notify_on_change,
+          groupme_enabled:   team.groupme_enabled,
+          groupme_bot_id:    team.groupme_bot_id,
+          schedule_published: (team as any).schedule_published ?? null,
         },
         programName: program?.name ?? '',
         event: {

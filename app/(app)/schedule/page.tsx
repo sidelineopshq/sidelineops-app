@@ -21,7 +21,7 @@ export default async function SchedulePage() {
 
   const { data: teamUsersRaw } = await supabase
     .from('team_users')
-    .select('team_id, role, can_manage_events, can_send_notifications')
+    .select('team_id, role, can_manage_events, can_send_notifications, can_manage_team_settings')
     .eq('user_id', user.id)
 
   if (!teamUsersRaw?.length) {
@@ -32,14 +32,15 @@ export default async function SchedulePage() {
     )
   }
 
-  const teamIds              = teamUsersRaw.map(t => t.team_id)
-  const canManageEvents      = teamUsersRaw.some(t => t.can_manage_events)
-  const canSendNotifications = teamUsersRaw.some(t => t.can_send_notifications)
-  const userRole             = teamUsersRaw[0]?.role ?? ''
+  const teamIds                = teamUsersRaw.map(t => t.team_id)
+  const canManageEvents        = teamUsersRaw.some(t => t.can_manage_events)
+  const canSendNotifications   = teamUsersRaw.some(t => t.can_send_notifications)
+  const canManageTeamSettings  = teamUsersRaw.some(t => t.can_manage_team_settings)
+  const userRole               = teamUsersRaw[0]?.role ?? ''
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, level, program_id, is_primary, primary_color, secondary_color, programs(sport, schools(name))')
+    .select('id, name, level, program_id, is_primary, primary_color, secondary_color, schedule_published, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -165,7 +166,27 @@ export default async function SchedulePage() {
   const brandPrimary   = (teamsData?.[0] as any)?.primary_color   ?? null
   const brandSecondary = (teamsData?.[0] as any)?.secondary_color ?? null
 
+  const anyTeamPrivate = canManageTeamSettings &&
+    (teamsData ?? []).some(t => (t as any).schedule_published === false)
+
   return (
+    <>
+    {anyTeamPrivate && (
+      <div className="mx-auto max-w-5xl px-4 pt-4">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
+          <span className="text-amber-400 mt-0.5">⚠️</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-300">Your schedule is currently private</p>
+            <p className="text-xs text-amber-400/80 mt-0.5">
+              Parents cannot see the public schedule page yet.{' '}
+              <a href="/settings/team?tab=general" className="underline hover:text-amber-300 transition-colors">
+                Update visibility in Team Settings
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
     <ScheduleClient
       events={allEvents}
       childGames={childGames}
@@ -182,5 +203,6 @@ export default async function SchedulePage() {
       brandPrimary={brandPrimary}
       brandSecondary={brandSecondary}
     />
+    </>
   )
 }

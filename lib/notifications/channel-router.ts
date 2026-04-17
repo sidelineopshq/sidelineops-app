@@ -68,12 +68,13 @@ export interface AlertContact {
 }
 
 export interface AlertTeam {
-  id:               string
-  name:             string
-  slug:             string | null
-  notify_on_change: boolean | null
-  groupme_enabled:  boolean | null
-  groupme_bot_id:   string | null
+  id:                string
+  name:              string
+  slug:              string | null
+  notify_on_change:  boolean | null
+  groupme_enabled:   boolean | null
+  groupme_bot_id:    string | null
+  schedule_published?: boolean | null
 }
 
 export interface AlertEvent {
@@ -126,6 +127,9 @@ export async function sendChangeAlert({
   const isCancellation = changes.some(
     c => (c.field === 'status' || c.field === 'team_status') && c.to === 'Cancelled'
   )
+
+  // Block non-cancellation alerts when schedule is private
+  if (!isCancellation && team.schedule_published === false) return
 
   const cancelLabel = cancellationLabel(event.event_type)
 
@@ -451,13 +455,14 @@ export async function sendMealCoordinatorNotification({
 // =============================================================================
 
 export interface NewEventTeam {
-  id:               string
-  name:             string
-  level:            string | null
-  slug:             string | null
-  notify_on_change: boolean | null
-  groupme_enabled:  boolean | null
-  groupme_bot_id:   string | null
+  id:                string
+  name:              string
+  level:             string | null
+  slug:              string | null
+  notify_on_change:  boolean | null
+  groupme_enabled:   boolean | null
+  groupme_bot_id:    string | null
+  schedule_published?: boolean | null
 }
 
 export interface NewEventInput {
@@ -526,6 +531,7 @@ export async function sendNewEventAlert({
   // ── 1. Urgency guard ──────────────────────────────────────────────────────────
   const day = dayLabel(event.event_date)
   if (!day) return
+  if (team.schedule_published === false) return
 
   const appUrl        = getBaseUrl()
   const supabase      = createServiceClient()

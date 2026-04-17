@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { saveTeamInfo, saveHomeLocation } from './actions'
+import { saveTeamInfo, saveHomeLocation, saveSchedulePublished } from './actions'
 import { LEVELS } from '@/lib/utils/team-label'
 
 type TeamInfo = {
-  id:    string
-  name:  string
-  level: string | null
-  slug:  string | null
+  id:                string
+  name:              string
+  level:             string | null
+  slug:              string | null
+  schedule_published: boolean | null
 }
 
 function TeamInfoSection({
@@ -126,6 +127,84 @@ function TeamInfoSection({
   )
 }
 
+function ScheduleVisibilitySection({
+  teams,
+  canManage,
+}: {
+  teams:     TeamInfo[]
+  canManage: boolean
+}) {
+  const [publishedMap, setPublishedMap] = useState<Record<string, boolean>>(
+    Object.fromEntries(teams.map(t => [t.id, t.schedule_published ?? false]))
+  )
+  const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [toast,  setToast]  = useState<Record<string, string>>({})
+
+  async function handleToggle(teamId: string, next: boolean) {
+    setSaving(s => ({ ...s, [teamId]: true }))
+    setPublishedMap(m => ({ ...m, [teamId]: next }))
+    const result = await saveSchedulePublished(teamId, next)
+    setSaving(s => ({ ...s, [teamId]: false }))
+    if (result?.error) {
+      setPublishedMap(m => ({ ...m, [teamId]: !next }))
+      setToast(t => ({ ...t, [teamId]: result.error }))
+    } else {
+      setToast(t => ({ ...t, [teamId]: next ? 'Schedule is now public' : 'Schedule is now private' }))
+    }
+    setTimeout(() => setToast(t => ({ ...t, [teamId]: '' })), 3000)
+  }
+
+  const showLabels = teams.length > 1
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden mt-6">
+      <div className="px-6 py-4 border-b border-white/10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">Schedule Visibility</h2>
+        <p className="text-slate-400 text-xs mt-1">
+          Control whether the public schedule page is visible to parents and fans.
+        </p>
+      </div>
+      <div className="divide-y divide-white/5">
+        {teams.map(t => (
+          <div key={t.id} className="px-6 py-4 flex items-center justify-between gap-4">
+            <div>
+              {showLabels && (
+                <p className="text-xs font-semibold text-slate-300 mb-0.5">{t.name}</p>
+              )}
+              <p className="text-sm text-slate-400">
+                {publishedMap[t.id]
+                  ? 'Public — visible at /schedule/' + (t.slug ?? '…')
+                  : 'Private — schedule page shows "Coming Soon"'}
+              </p>
+              {toast[t.id] && (
+                <p className="text-xs text-green-400 mt-1">{toast[t.id]}</p>
+              )}
+            </div>
+            <button
+              role="switch"
+              aria-checked={publishedMap[t.id]}
+              disabled={!canManage || saving[t.id]}
+              onClick={() => handleToggle(t.id, !publishedMap[t.id])}
+              className={[
+                'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none',
+                publishedMap[t.id] ? 'bg-sky-500' : 'bg-slate-600',
+                (!canManage || saving[t.id]) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+              ].join(' ')}
+            >
+              <span
+                className={[
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform',
+                  publishedMap[t.id] ? 'translate-x-5' : 'translate-x-0',
+                ].join(' ')}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function HomeLocationSection({
   programId,
   initialName,
@@ -232,12 +311,14 @@ export function GeneralTab({
   homeLocationName,
   homeLocationAddress,
   canManage,
+  canManageTeamSettings,
 }: {
-  teams:               TeamInfo[]
-  programId:           string
-  homeLocationName:    string | null
-  homeLocationAddress: string | null
-  canManage:           boolean
+  teams:                TeamInfo[]
+  programId:            string
+  homeLocationName:     string | null
+  homeLocationAddress:  string | null
+  canManage:            boolean
+  canManageTeamSettings: boolean
 }) {
   const showDividers = teams.length > 1
 
@@ -259,6 +340,11 @@ export function GeneralTab({
           ))}
         </div>
       </div>
+
+      <ScheduleVisibilitySection
+        teams={teams}
+        canManage={canManageTeamSettings}
+      />
 
       <HomeLocationSection
         programId={programId}

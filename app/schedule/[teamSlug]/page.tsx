@@ -25,11 +25,31 @@ export default async function PublicSchedulePage({
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, level, slug, program_id, logo_url, primary_color, secondary_color')
+    .select('id, name, level, slug, program_id, logo_url, primary_color, secondary_color, schedule_published')
     .eq('slug', teamSlug)
     .single()
 
   if (!team) notFound()
+
+  if ((team as any).schedule_published === false) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <div className="mb-4 text-4xl">📅</div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Schedule Coming Soon</h1>
+          <p className="text-slate-500 text-sm">
+            The schedule for this team hasn&apos;t been published yet. Check back soon!
+          </p>
+          <p className="mt-6 text-xs text-slate-400">
+            Powered by{' '}
+            <a href="https://sidelineopshq.com" className="text-slate-500 hover:text-slate-700">
+              SidelineOps
+            </a>
+          </p>
+        </div>
+      </main>
+    )
+  }
 
   const brandPrimary   = (team as any).primary_color   ?? '#1a3a5c'
   const brandSecondary = (team as any).secondary_color ?? '#c8a456'

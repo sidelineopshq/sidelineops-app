@@ -247,7 +247,7 @@ export async function createEvent(formData: {
           .single(),
         supabase
           .from('teams')
-          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, programs(sport, schools(name))')
+          .select('id, name, level, slug, notify_on_change, groupme_enabled, groupme_bot_id, schedule_published, programs(sport, schools(name))')
           .in('id', selectedTeamIds),
         supabase
           .from('contact_teams')
@@ -300,13 +300,14 @@ export async function createEvent(formData: {
         if (botId) sentGroupMeBotIds.add(botId)
         await sendNewEventAlert({
           team: {
-            id:               tr.id,
-            name:             formatTeamShortLabel(tr.level ?? ''),
-            level:            tr.level ?? null,
-            slug:             tr.slug ?? null,
-            notify_on_change: tr.notify_on_change,
-            groupme_enabled:  tr.groupme_enabled,
-            groupme_bot_id:   tr.groupme_bot_id,
+            id:                tr.id,
+            name:              formatTeamShortLabel(tr.level ?? ''),
+            level:             tr.level ?? null,
+            slug:              tr.slug ?? null,
+            notify_on_change:  tr.notify_on_change,
+            groupme_enabled:   tr.groupme_enabled,
+            groupme_bot_id:    tr.groupme_bot_id,
+            schedule_published: (tr as any).schedule_published ?? null,
           },
           programName: notifProgramLabel,
           event: {

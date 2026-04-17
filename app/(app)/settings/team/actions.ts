@@ -640,6 +640,33 @@ export async function saveHomeLocation(
   return { success: true }
 }
 
+export async function saveSchedulePublished(teamId: string, published: boolean) {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: teamUser } = await authClient
+    .from('team_users')
+    .select('can_manage_team_settings')
+    .eq('user_id', user.id)
+    .eq('team_id', teamId)
+    .single()
+
+  if (!teamUser?.can_manage_team_settings) return { error: 'Not authorized' }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from('teams')
+    .update({ schedule_published: published })
+    .eq('id', teamId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/settings/team')
+  revalidatePath('/schedule')
+  return { success: true }
+}
+
 export async function saveTeamInfo(
   teamId: string,
   name: string,

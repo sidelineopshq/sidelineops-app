@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
     .from('teams')
     .select('id, name, slug, program_id, notify_digest_enabled')
     .eq('notify_digest_enabled', true)
+    .eq('schedule_published', true)
 
   if (teamsError) {
     console.error('[weekly-digest] Failed to fetch teams:', teamsError)

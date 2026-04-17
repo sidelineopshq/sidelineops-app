@@ -41,12 +41,45 @@ export async function GET(
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, slug, program_id, logo_url, primary_color, secondary_color')
+    .select('id, name, slug, program_id, logo_url, primary_color, secondary_color, schedule_published')
     .eq('slug', teamSlug)
     .single()
 
   if (!team) {
     return new NextResponse('Schedule not found', { status: 404 })
+  }
+
+  if ((team as any).schedule_published === false) {
+    const comingSoonHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schedule Coming Soon</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .wrap { text-align: center; padding: 24px; }
+    .icon { font-size: 32px; margin-bottom: 12px; }
+    h2 { font-size: 16px; font-weight: 700; color: #1e293b; margin: 0 0 6px; }
+    p { font-size: 12px; color: #64748b; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="icon">📅</div>
+    <h2>Schedule Coming Soon</h2>
+    <p>This schedule hasn't been published yet.</p>
+  </div>
+</body>
+</html>`
+    return new NextResponse(comingSoonHtml, {
+      status: 200,
+      headers: {
+        'Content-Type':           'text/html; charset=utf-8',
+        'X-Frame-Options':        'ALLOWALL',
+        'Content-Security-Policy': 'frame-ancestors *',
+      },
+    })
   }
 
   const { data: program } = await supabase

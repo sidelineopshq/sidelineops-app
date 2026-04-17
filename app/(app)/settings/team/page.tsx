@@ -49,7 +49,7 @@ export default async function TeamSettingsPage({
 
   const { data: teamsRaw } = await supabase
     .from('teams')
-    .select('id, name, level, slug, is_primary, sort_order, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color, programs(sport, schools(name))')
+    .select('id, name, level, slug, is_primary, sort_order, program_id, notify_on_change, notify_digest_enabled, groupme_enabled, groupme_bot_id, logo_url, primary_color, secondary_color, schedule_published, programs(sport, schools(name))')
     .in('id', teamIds)
     .order('is_primary', { ascending: false })
     .order('name', { ascending: true })
@@ -220,15 +220,17 @@ export default async function TeamSettingsPage({
       {tab === 'general' && (
         <GeneralTab
           teams={teams.map(t => ({
-            id:    t.id,
-            name:  t.name,
-            level: (t as any).level ?? null,
-            slug:  t.slug ?? null,
+            id:                 t.id,
+            name:               t.name,
+            level:              (t as any).level ?? null,
+            slug:               t.slug ?? null,
+            schedule_published: (t as any).schedule_published ?? null,
           }))}
           programId={teams[0]?.program_id ?? ''}
           homeLocationName={program?.home_location_name ?? null}
           homeLocationAddress={program?.home_location_address ?? null}
           canManage={canManage}
+          canManageTeamSettings={canManageTeamSettings}
         />
       )}
 
