@@ -81,7 +81,9 @@ export default async function DashboardPage() {
     .in('event_team_details.team_id', teamIds)
     .gte('event_date', today)
     .eq('status', 'scheduled')
+    .is('parent_event_id', null)   // exclude child tournament games
     .order('event_date', { ascending: true })
+    .order('default_start_time', { ascending: true })
     .limit(1)
 
   const nextEventRow = nextEventRows?.[0] as any
