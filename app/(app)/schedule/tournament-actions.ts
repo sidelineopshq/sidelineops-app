@@ -146,9 +146,10 @@ export async function addTournamentGame(formData: {
           event_date:      formData.event_date,
           opponent:        formData.opponent || null,
           is_home:         null,
-          location_name:   formData.location_name || null,
-          is_tournament:   false,
-          parent_event_id: formData.parent_event_id,
+          location_name:    formData.location_name || null,
+          location_address: null,
+          is_tournament:    false,
+          parent_event_id:  formData.parent_event_id,
         },
         assignedTeams: [{
           name:       team.name ?? '',
