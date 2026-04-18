@@ -848,13 +848,21 @@ export default function ScheduleClient({
             </div>
 
             {canManageEvents && (
-              <button
-                onClick={() => router.push('/events/new')}
-                className="w-auto shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-                style={{ background: brandPrimary ?? '#0284c7' }}
-              >
-                + New Event
-              </button>
+              <>
+                <button
+                  onClick={() => router.push('/schedule/import')}
+                  className="w-auto shrink-0 rounded-lg border border-white/20 hover:border-white/40 px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  ↑ Import Schedule
+                </button>
+                <button
+                  onClick={() => router.push('/events/new')}
+                  className="w-auto shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                  style={{ background: brandPrimary ?? '#0284c7' }}
+                >
+                  + New Event
+                </button>
+              </>
             )}
           </div>
         </div>
