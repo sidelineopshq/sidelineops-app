@@ -5,39 +5,136 @@ import { checkForDuplicates, importSchedule, type ImportRow } from './actions'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDateDisplay(date: string) {
-  if (!date) return '—'
-  const m = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (!m) return date
-  const d = new Date(`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}T00:00:00`)
-  return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' })
+/**
+ * Parses any Excel date representation to YYYY-MM-DD.
+ * Handles: string "MM/DD/YYYY", string "YYYY-MM-DD",
+ *          Excel serial number, and Date objects.
+ */
+function parseExcelDate(value: unknown): string {
+  if (!value && value !== 0) return ''
+
+  if (typeof value === 'string') {
+    const mdyMatch = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+    if (mdyMatch) {
+      return `${mdyMatch[3]}-${mdyMatch[1].padStart(2,'0')}-${mdyMatch[2].padStart(2,'0')}`
+    }
+    const isoMatch = value.trim().match(/^\d{4}-\d{2}-\d{2}$/)
+    if (isoMatch) return value.trim()
+    return value.trim()
+  }
+
+  if (typeof value === 'number') {
+    // Excel serial: days since 1899-12-30 (accounts for the 1900 leap-year bug)
+    const excelEpoch = new Date(1899, 11, 30)
+    const date       = new Date(excelEpoch.getTime() + Math.floor(value) * 86400000)
+    const y  = date.getFullYear()
+    const mo = String(date.getMonth() + 1).padStart(2, '0')
+    const d  = String(date.getDate()).padStart(2, '0')
+    return `${y}-${mo}-${d}`
+  }
+
+  if (value instanceof Date) {
+    const y  = value.getFullYear()
+    const mo = String(value.getMonth() + 1).padStart(2, '0')
+    const d  = String(value.getDate()).padStart(2, '0')
+    return `${y}-${mo}-${d}`
+  }
+
+  return String(value).trim()
+}
+
+/**
+ * Parses any Excel time representation to HH:MM:SS (24-hour).
+ * Handles: string "4:30 PM" / "16:30", Excel decimal fraction, Date objects.
+ * Excel stores pure times as a fraction of a day (e.g. 4:30 PM = 0.6875).
+ * "12/30/1899" arises when a decimal < 1 is treated as an integer date serial.
+ */
+function parseExcelTime(value: unknown): string {
+  if (!value && value !== 0) return ''
+
+  if (typeof value === 'string') {
+    const s = value.trim()
+    // "4:30 PM" or "16:30" formats
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i)
+    if (m) {
+      let h        = parseInt(m[1], 10)
+      const min    = m[2]
+      const meridiem = m[4]?.toUpperCase()
+      if (meridiem === 'PM' && h !== 12) h += 12
+      if (meridiem === 'AM' && h === 12) h = 0
+      return `${String(h).padStart(2,'0')}:${min}:00`
+    }
+    return ''
+  }
+
+  if (typeof value === 'number') {
+    // Take only the fractional part — integer part is the date serial
+    const frac        = value % 1
+    const totalMinutes = Math.round(frac * 24 * 60)
+    const h   = Math.floor(totalMinutes / 60) % 24
+    const min = totalMinutes % 60
+    return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`
+  }
+
+  if (value instanceof Date) {
+    const h   = value.getHours()
+    const min = value.getMinutes()
+    return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`
+  }
+
+  return ''
+}
+
+/** Formats a plain text cell to string; never treats numbers as dates. */
+function cellToString(val: unknown): string {
+  if (val === null || val === undefined) return ''
+  if (val instanceof Date) return ''   // shouldn't happen for text columns with raw:true
+  return String(val).trim()
 }
 
 function isValidDate(val: string) {
-  return /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val.trim())
+  // Accepts YYYY-MM-DD (output of parseExcelDate) or MM/DD/YYYY
+  return /^\d{4}-\d{2}-\d{2}$/.test(val.trim()) ||
+         /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val.trim())
 }
 
 function isValidEventType(val: string) {
   return ['game','practice','tournament','scrimmage'].includes(val.trim().toLowerCase())
 }
 
-function cellToString(val: unknown): string {
-  if (val === null || val === undefined) return ''
-  if (val instanceof Date) {
-    const m = String(val.getMonth() + 1).padStart(2, '0')
-    const d = String(val.getDate()).padStart(2, '0')
-    const y = val.getFullYear()
-    return `${m}/${d}/${y}`
+function formatDateDisplay(date: string) {
+  if (!date) return '—'
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const d = new Date(date + 'T00:00:00')
+    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' })
   }
-  return String(val).trim()
+  // Legacy MM/DD/YYYY
+  const m = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!m) return date
+  const d = new Date(`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}T00:00:00`)
+  return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' })
+}
+
+/** Formats HH:MM:SS (24-hour) to human-readable "4:30 PM". */
+function formatTimeDisplay(time: string): string {
+  if (!time) return '—'
+  const [hours, minutes] = time.split(':')
+  const h        = parseInt(hours, 10)
+  const meridiem = h >= 12 ? 'PM' : 'AM'
+  const display  = h > 12 ? h - 12 : h === 0 ? 12 : h
+  return `${display}:${minutes} ${meridiem}`
 }
 
 async function parseSpreadsheet(file: File): Promise<ImportRow[]> {
   const XLSX = await import('xlsx')
   const buf  = await file.arrayBuffer()
-  const wb   = XLSX.read(buf, { type: 'array', cellDates: true })
-  const ws   = wb.Sheets[wb.SheetNames[0]]
-  const raw  = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' })
+  // raw: true preserves numeric values so our parsers handle them correctly.
+  // cellDates: false prevents the library from auto-converting serials to Dates,
+  // which can produce "12/30/1899" for pure time fractions.
+  const wb  = XLSX.read(buf, { type: 'array', raw: true, cellDates: false })
+  const ws  = wb.Sheets[wb.SheetNames[0]]
+  const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' })
 
   // Find header row — first row where col A is 'Date' (case-insensitive)
   let headerIdx = 0
@@ -54,27 +151,27 @@ async function parseSpreadsheet(file: File): Promise<ImportRow[]> {
   return dataRows
     .filter(row => {
       const first = cellToString(row[0])
-      // Skip hint/example rows and blank rows
-      if (!first) return false
+      // Skip hint rows ("MM/DD/YYYY") and fully-blank rows
       if (first === 'MM/DD/YYYY') return false
       if (!row.some(c => c !== '' && c !== null && c !== undefined)) return false
-      return true
+      // Must have something in col A (date) or col B (event type) to be a data row
+      return !!(row[0] || row[1])
     })
     .map(row => ({
-      date:            cellToString(row[0]),
+      date:            parseExcelDate(row[0]),
       eventType:       cellToString(row[1]),
       team:            cellToString(row[2]),
       opponent:        cellToString(row[3]),
       homeAway:        cellToString(row[4]),
       locationName:    cellToString(row[5]),
       locationAddress: cellToString(row[6]),
-      startTime:       cellToString(row[7]),
-      arrivalTime:     cellToString(row[8]),
-      endTime:         cellToString(row[9]),
+      startTime:       parseExcelTime(row[7]),
+      arrivalTime:     parseExcelTime(row[8]),
+      endTime:         parseExcelTime(row[9]),
       uniformNotes:    cellToString(row[10]),
       notes:           cellToString(row[11]),
       mealRequired:    cellToString(row[12]),
-      mealTime:        cellToString(row[13]),
+      mealTime:        parseExcelTime(row[13]),
       mealNotes:       cellToString(row[14]),
     }))
 }
@@ -203,9 +300,8 @@ export default function ImportClient({
 
         const withDuplicates = validated.map(r => {
           if (r.status === 'invalid') return r
-          const dateStr = r.date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-          const isoDate = dateStr ? `${dateStr[3]}-${dateStr[1].padStart(2,'0')}-${dateStr[2].padStart(2,'0')}` : ''
-          const key = `${isoDate}|${r.eventType.trim().toLowerCase()}`
+          // r.date is YYYY-MM-DD (from parseExcelDate), matching the DB format
+          const key = `${r.date}|${r.eventType.trim().toLowerCase()}`
           return dupSet.has(key) ? { ...r, status: 'duplicate' as RowStatus } : r
         })
 
@@ -540,7 +636,7 @@ export default function ImportClient({
                             {row.homeAway || '—'}
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap text-slate-400">
-                            {row.startTime || '—'}
+                            {row.startTime ? formatTimeDisplay(row.startTime) : '—'}
                           </td>
                           <td className="px-3 py-3 text-slate-400 max-w-[160px] truncate">
                             {row.locationName || '—'}

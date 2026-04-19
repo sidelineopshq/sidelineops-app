@@ -34,6 +34,10 @@ export type ImportRow = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseDate(val: string): string | null {
+  if (!val.trim()) return null
+  // YYYY-MM-DD (sent by client after parseExcelDate)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val.trim())) return val.trim()
+  // Legacy MM/DD/YYYY
   const m = val.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (!m) return null
   return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`
@@ -41,6 +45,9 @@ function parseDate(val: string): string | null {
 
 function parseTime(val: string): string | null {
   if (!val.trim()) return null
+  // HH:MM:SS (sent by client after parseExcelTime)
+  if (/^\d{2}:\d{2}:\d{2}$/.test(val.trim())) return val.trim()
+  // HH:MM AM/PM (manual entry fallback)
   const m = val.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
   if (!m) return null
   let h = parseInt(m[1], 10)
