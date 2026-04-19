@@ -23,7 +23,7 @@ export function generateScheduleTemplate(): Buffer {
   const validValues = [
     'MM/DD/YYYY',
     'Game, Practice, Tournament, Scrimmage',
-    'Varsity, JV, Freshman, 8th Grade, 7th Grade, All',
+    'Varsity, JV, Freshman, 8th Grade, 7th Grade, All, or comma-separated e.g. "Varsity, JV"',
     'Leave blank for practices',
     'Home, Away, Neutral',
     '',

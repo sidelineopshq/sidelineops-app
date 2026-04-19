@@ -31,8 +31,9 @@ export default async function ImportSchedulePage() {
     .order('name',       { ascending: true  })
 
   const teams = (teamsRaw ?? []).map(t => ({
-    id:   t.id,
-    name: formatTeamShortLabel((t as any).level ?? '') || t.name,
+    id:    t.id,
+    name:  formatTeamShortLabel((t as any).level ?? '') || t.name,
+    level: (t as any).level as string | null ?? null,
   }))
 
   const programId    = (teamsRaw ?? [])[0]?.program_id ?? ''
