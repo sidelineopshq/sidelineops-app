@@ -504,24 +504,26 @@ export default function ImportClient({
           mealNotes:       parent.primaryRow.mealNotes,
         })
 
-        // sub-rows (Use Case 2): each has its own single-team row
+        // sub-rows (Use Case 2): only team and times come from the sub-row;
+        // all other fields mirror the primary row so the event record is
+        // driven entirely by the primary team entry.
         for (const sub of parent.subRows) {
           rowsToSend.push({
-            date:            sub.date,
-            eventType:       sub.eventType,
+            date:            parent.primaryRow.date,
+            eventType:       parent.primaryRow.eventType,
             team:            sub.team,
-            opponent:        sub.opponent,
-            homeAway:        sub.homeAway,
-            locationName:    sub.locationName,
-            locationAddress: sub.locationAddress,
+            opponent:        parent.primaryRow.opponent,
+            homeAway:        parent.primaryRow.homeAway,
+            locationName:    parent.primaryRow.locationName,
+            locationAddress: parent.primaryRow.locationAddress,
             startTime:       sub.startTime,
             arrivalTime:     sub.arrivalTime,
             endTime:         sub.endTime,
-            uniformNotes:    sub.uniformNotes,
-            notes:           sub.notes,
-            mealRequired:    sub.mealRequired,
-            mealTime:        sub.mealTime,
-            mealNotes:       sub.mealNotes,
+            uniformNotes:    parent.primaryRow.uniformNotes,
+            notes:           parent.primaryRow.notes,
+            mealRequired:    parent.primaryRow.mealRequired,
+            mealTime:        parent.primaryRow.mealTime,
+            mealNotes:       parent.primaryRow.mealNotes,
           })
         }
       }
