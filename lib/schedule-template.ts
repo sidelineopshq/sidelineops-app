@@ -19,7 +19,7 @@ export function generateScheduleTemplate(): Buffer {
     'Meal Notes',
   ]
 
-  // Row 2: valid-values hints (gray italic in supporting tools)
+  // Row 2: valid-values hints
   const validValues = [
     'MM/DD/YYYY',
     'Game, Practice, Tournament, Scrimmage',
@@ -38,11 +38,17 @@ export function generateScheduleTemplate(): Buffer {
     '',
   ]
 
-  // Row 3: example data row
-  const exampleRow = [
-    '04/15/2026',
+  // Row 3: tip row
+  const tipRow = [
+    'Tip: List multiple teams with commas (Varsity, JV) OR use separate rows with the same date+opponent for different times per team',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+  ]
+
+  // Row 4: Use Case 1 example — comma-separated teams, shared times
+  const example1 = [
+    '04/20/2026',
     'Game',
-    'Varsity',
+    'Varsity, JV',
     'Lincoln High',
     'Home',
     'Memorial Field',
@@ -57,7 +63,45 @@ export function generateScheduleTemplate(): Buffer {
     '',
   ]
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, validValues, exampleRow])
+  // Row 5: Use Case 2 example — Varsity row (primary times)
+  const example2a = [
+    '04/21/2026',
+    'Game',
+    'Varsity',
+    'Springfield High',
+    'Away',
+    'Springfield HS',
+    '456 Oak Ave Springfield IL',
+    '5:00 PM',
+    '4:15 PM',
+    '7:30 PM',
+    'Away grays',
+    '',
+    'No',
+    '',
+    '',
+  ]
+
+  // Row 6: Use Case 2 example — JV row (different time, same opponent)
+  const example2b = [
+    '04/21/2026',
+    'Game',
+    'JV',
+    'Springfield High',
+    'Away',
+    'Springfield HS',
+    '456 Oak Ave Springfield IL',
+    '3:00 PM',
+    '2:15 PM',
+    '5:30 PM',
+    'Away grays',
+    '',
+    'No',
+    '',
+    '',
+  ]
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, validValues, tipRow, example1, example2a, example2b])
 
   // Column widths
   ws['!cols'] = [
