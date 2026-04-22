@@ -25,16 +25,16 @@
  */
 
 export interface EventSnapshot {
-  default_end_time:   string | null
   location_name:      string | null
   location_address:   string | null
   status:             string
 }
 
 export interface TeamDetailSnapshot {
-  start_time: string | null
-  end_time:   string | null
-  status:     string
+  start_time:   string | null
+  arrival_time: string | null
+  end_time:     string | null
+  status:       string
 }
 
 export interface ChangeRecord {
@@ -147,15 +147,6 @@ export function detectEventChanges({
 
   // -- event fields ----------------------------------------------------------
 
-  if (oldEvent.default_end_time !== newEvent.default_end_time) {
-    changes.push({
-      field: 'default_end_time',
-      label: 'Default End Time',
-      from:  formatTime(oldEvent.default_end_time),
-      to:    formatTime(newEvent.default_end_time),
-    })
-  }
-
   if (oldEvent.location_name !== newEvent.location_name) {
     changes.push({
       field: 'location_name',
@@ -193,6 +184,15 @@ export function detectEventChanges({
       label: `${teamName} Start Time`,
       from:  formatTime(oldTeamDetail.start_time),
       to:    formatTime(newTeamDetail.start_time),
+    })
+  }
+
+  if (oldTeamDetail.arrival_time !== newTeamDetail.arrival_time) {
+    changes.push({
+      field: 'team_arrival_time',
+      label: `${teamName} Arrival Time`,
+      from:  formatTime(oldTeamDetail.arrival_time),
+      to:    formatTime(newTeamDetail.arrival_time),
     })
   }
 

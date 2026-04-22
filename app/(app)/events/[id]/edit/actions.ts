@@ -92,7 +92,7 @@ export async function updateEvent(
       .single(),
     supabase
       .from('event_team_details')
-      .select('team_id, start_time, end_time, status')
+      .select('team_id, start_time, arrival_time, end_time, status')
       .eq('event_id', eventId)
       .in('team_id', teamAssignments.map(a => a.team_id)),
     supabase
@@ -210,14 +210,12 @@ export async function updateEvent(
 
   if (oldEventData && !isCompleted && sendNotification) {
     const oldEventSnap = {
-      default_end_time: oldEventData.default_end_time,
       location_name:    oldEventData.location_name,
       location_address: oldEventData.location_address,
       status:           oldEventData.status,
     }
     const newEventSnap = {
-      default_end_time: first.end_time      || null,
-      location_name:    formData.location_name   || null,
+      location_name:    formData.location_name    || null,
       location_address: formData.location_address || null,
       status:           formData.status,
     }
@@ -233,8 +231,8 @@ export async function updateEvent(
           teamName:      name,
           oldEvent:      oldEventSnap,
           newEvent:      newEventSnap,
-          oldTeamDetail: { start_time: old.start_time, end_time: old.end_time, status: old.status },
-          newTeamDetail: { start_time: a.start_time || null, end_time: a.end_time || null, status: a.status },
+          oldTeamDetail: { start_time: old.start_time, arrival_time: old.arrival_time ?? null, end_time: old.end_time, status: old.status },
+          newTeamDetail: { start_time: a.start_time || null, arrival_time: a.arrival_time || null, end_time: a.end_time || null, status: a.status },
         } satisfies TeamNotificationInput
       })
       .filter(Boolean) as TeamNotificationInput[]

@@ -41,7 +41,7 @@ export async function cancelEvent(eventId: string) {
       .single(),
     supabase
       .from('event_team_details')
-      .select('team_id, start_time, end_time, status, teams(name)')
+      .select('team_id, start_time, arrival_time, end_time, status, teams(name)')
       .eq('event_id', eventId),
   ])
 
@@ -68,7 +68,6 @@ export async function cancelEvent(eventId: string) {
   // ── Fire change notifications (awaited — must complete before returning) ──
   if (oldEventData && linkedTeams?.length) {
     const oldEventSnap = {
-      default_end_time: oldEventData.default_end_time,
       location_name:    oldEventData.location_name,
       location_address: oldEventData.location_address,
       status:           oldEventData.status,
@@ -83,8 +82,8 @@ export async function cancelEvent(eventId: string) {
         oldEvent:      oldEventSnap,
         newEvent:      newEventSnap,
         // Team detail status is unchanged — only the event-level status changed
-        oldTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
-        newTeamDetail: { start_time: td.start_time, end_time: td.end_time, status: td.status },
+        oldTeamDetail: { start_time: td.start_time, arrival_time: (td as any).arrival_time ?? null, end_time: td.end_time, status: td.status },
+        newTeamDetail: { start_time: td.start_time, arrival_time: (td as any).arrival_time ?? null, end_time: td.end_time, status: td.status },
       }
     })
 
@@ -129,7 +128,7 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
       .single(),
     supabase
       .from('event_team_details')
-      .select('start_time, end_time, status')
+      .select('start_time, arrival_time, end_time, status')
       .eq('event_id', eventId)
       .eq('team_id', teamId)
       .single(),
@@ -164,7 +163,6 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
   // ── Fire change notifications (awaited — must complete before returning) ──
   if (oldEventData && oldDetailData) {
     const eventSnap = {
-      default_end_time: oldEventData.default_end_time,
       location_name:    oldEventData.location_name,
       location_address: oldEventData.location_address,
       status:           oldEventData.status,
@@ -180,8 +178,8 @@ export async function cancelEventForTeam(eventId: string, teamId: string) {
         // Event-level fields are unchanged — only the team detail status changes
         oldEvent:      eventSnap,
         newEvent:      eventSnap,
-        oldTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: oldDetailData.status },
-        newTeamDetail: { start_time: oldDetailData.start_time, end_time: oldDetailData.end_time, status: 'cancelled' },
+        oldTeamDetail: { start_time: oldDetailData.start_time, arrival_time: (oldDetailData as any).arrival_time ?? null, end_time: oldDetailData.end_time, status: oldDetailData.status },
+        newTeamDetail: { start_time: oldDetailData.start_time, arrival_time: (oldDetailData as any).arrival_time ?? null, end_time: oldDetailData.end_time, status: 'cancelled' },
       }],
     })
   }
