@@ -206,21 +206,9 @@ export async function updateEvent(
   }
 
   // ── Fire change notifications (awaited — must complete before redirect) ───
-  if (oldEventData) {
-    // Never notify for completed events (new status or pre-existing)
-    if (
-      formData.status === 'completed' ||
-      oldEventData.status === 'completed'
-    ) {
-      redirect('/schedule')
-    }
+  const isCompleted = formData.status === 'completed' || oldEventData?.status === 'completed'
 
-    // Coach opted out of notifications for this save
-    if (!sendNotification) {
-      console.log('[UPDATE] Notifications suppressed by coach choice')
-      redirect('/schedule')
-    }
-
+  if (oldEventData && !isCompleted && sendNotification) {
     const oldEventSnap = {
       default_end_time: oldEventData.default_end_time,
       location_name:    oldEventData.location_name,
@@ -336,6 +324,8 @@ export async function updateEvent(
         })
       }
     }
+  } else if (!sendNotification) {
+    console.log('[UPDATE] Notifications suppressed by coach choice')
   }
 
   redirect('/schedule')
