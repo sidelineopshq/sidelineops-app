@@ -127,6 +127,15 @@ export default function EditEventForm({
   const [error, setError]                   = useState<string | null>(null)
   const [volunteerSlots, setVolunteerSlots] = useState<VolunteerSlot[]>(existingSlots)
 
+  // Notification checkbox — auto-checked when event is within 48 hours (Central time)
+  const autoNotify = (() => {
+    const now        = new Date()
+    const centralNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
+    const eventDateObj = new Date(event.event_date + 'T00:00:00')
+    return (eventDateObj.getTime() - centralNow.getTime()) / (1000 * 60 * 60) <= 48
+  })()
+  const [sendNotification, setSendNotification] = useState(autoNotify)
+
   // Build initial team assignments from existing data
   const [teamAssignments, setTeamAssignments] = useState<TeamAssignment[]>(() =>
     teams.map(team => {
@@ -226,7 +235,8 @@ export default function EditEventForm({
         end_time:     a.end_time     || undefined,
         status:       a.status,
       })),
-      isGameLike ? volunteerSlots : undefined
+      isGameLike ? volunteerSlots : undefined,
+      sendNotification,
     )
 
     if (result?.error) {
@@ -712,6 +722,28 @@ export default function EditEventForm({
                 {isPublic ? '✓ Visible to parents and fans' : '✗ Hidden from public schedule'}
               </p>
             </Card>
+
+            {/* Notification control */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900 p-4">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sendNotification}
+                  onChange={e => setSendNotification(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-slate-700 accent-sky-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-slate-200">Send change notifications</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Notify contacts and GroupMe about these changes</p>
+                  {sendNotification && autoNotify && (
+                    <p className="text-xs text-amber-400 mt-1.5">⚡ Auto-enabled — event is within 48 hours</p>
+                  )}
+                  {!sendNotification && !autoNotify && (
+                    <p className="text-xs text-slate-600 mt-1.5">Event is more than 48 hours away</p>
+                  )}
+                </div>
+              </label>
+            </div>
 
             {error && (
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">

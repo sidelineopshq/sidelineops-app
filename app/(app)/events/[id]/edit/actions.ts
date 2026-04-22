@@ -52,7 +52,8 @@ export async function updateEvent(
     start_time?:       string
     end_time?:         string
     notes?:            string
-  }[]
+  }[],
+  sendNotification: boolean = true,
 ) {
   const authClient = await createServerClient()
   const { data: { user } } = await authClient.auth.getUser()
@@ -211,6 +212,12 @@ export async function updateEvent(
       formData.status === 'completed' ||
       oldEventData.status === 'completed'
     ) {
+      redirect('/schedule')
+    }
+
+    // Coach opted out of notifications for this save
+    if (!sendNotification) {
+      console.log('[UPDATE] Notifications suppressed by coach choice')
       redirect('/schedule')
     }
 
