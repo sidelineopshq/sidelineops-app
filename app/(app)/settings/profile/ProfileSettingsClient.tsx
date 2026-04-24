@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { updateProfile, updatePassword } from './actions'
+import { validatePassword } from '@/lib/utils/password-validation'
+import { PasswordStrength } from '@/components/password-strength'
 
 const inputClass =
   'w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none text-sm'
@@ -65,12 +67,13 @@ export default function ProfileSettingsClient({
   const [passwordMsg, setPasswordMsg]         = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   async function handleUpdatePassword() {
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ text: "Passwords don't match.", type: 'error' })
+    const pwValidation = validatePassword(newPassword)
+    if (!pwValidation.isValid) {
+      setPasswordMsg({ text: 'Password requirements not met: ' + pwValidation.errors.join(', ') + '.', type: 'error' })
       return
     }
-    if (newPassword.length < 8) {
-      setPasswordMsg({ text: 'Password must be at least 8 characters.', type: 'error' })
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ text: "Passwords don't match.", type: 'error' })
       return
     }
     setPasswordSaving(true)
@@ -176,9 +179,10 @@ export default function ProfileSettingsClient({
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
+              placeholder="New password"
               className={inputClass}
             />
+            <PasswordStrength password={newPassword} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1.5">

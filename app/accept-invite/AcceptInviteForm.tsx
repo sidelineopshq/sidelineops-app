@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { validatePassword } from '@/lib/utils/password-validation'
+import { PasswordStrength } from '@/components/password-strength'
 
 function joinTeamNames(names: string[]): string {
   if (names.length === 0) return 'your team'
@@ -28,11 +30,12 @@ export default function AcceptInviteForm({
 }) {
   const router = useRouter()
 
-  const [password, setPassword]     = useState('')
-  const [firstName, setFirstName]   = useState('')
-  const [lastName, setLastName]     = useState('')
-  const [loading, setLoading]       = useState(false)
-  const [error, setError]           = useState<string | null>(null)
+  const [password, setPassword]         = useState('')
+  const [confirmPassword, setConfirm]   = useState('')
+  const [firstName, setFirstName]       = useState('')
+  const [lastName, setLastName]         = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
   const teamList  = joinTeamNames(teamNames)
   const roleLabelMap: Record<string, string> = {
@@ -51,8 +54,13 @@ export default function AcceptInviteForm({
       setError('Please enter a password.')
       return
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    const pwValidation = validatePassword(password)
+    if (!pwValidation.isValid) {
+      setError('Password requirements not met: ' + pwValidation.errors.join(', ') + '.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
       return
     }
 
@@ -160,13 +168,29 @@ export default function AcceptInviteForm({
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder="Create a password"
               className={inputClass}
               autoComplete="new-password"
             />
+            <PasswordStrength password={password} />
             <p className="mt-1.5 text-xs text-slate-500">
               If you already have a SidelineOps account, enter your existing password to sign in.
             </p>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className={labelClass}>
+              Confirm Password <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirm(e.target.value)}
+              placeholder="Re-enter password"
+              className={inputClass}
+              autoComplete="new-password"
+            />
           </div>
 
           {/* Error */}

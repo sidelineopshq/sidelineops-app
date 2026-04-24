@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { validatePassword } from '@/lib/utils/password-validation'
+import { PasswordStrength } from '@/components/password-strength'
 
 export default function ResetPasswordPage() {
   const router   = useRouter()
@@ -17,8 +19,9 @@ export default function ResetPasswordPage() {
   async function handleReset() {
     setError(null)
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    const pwValidation = validatePassword(password)
+    if (!pwValidation.isValid) {
+      setError('Password requirements not met: ' + pwValidation.errors.join(', ') + '.')
       return
     }
     if (password !== confirm) {
@@ -53,14 +56,17 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <input
-              type="password"
-              placeholder="New password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className={inputClass}
-              autoComplete="new-password"
-            />
+            <div>
+              <input
+                type="password"
+                placeholder="New password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="new-password"
+              />
+              <PasswordStrength password={password} />
+            </div>
             <input
               type="password"
               placeholder="Confirm new password"

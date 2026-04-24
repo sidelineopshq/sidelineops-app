@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createAccount } from './actions'
+import { validatePassword } from '@/lib/utils/password-validation'
+import { PasswordStrength } from '@/components/password-strength'
 
 const inputClass =
   'w-full px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:outline-none focus:border-sky-500 placeholder-gray-500 text-sm'
@@ -26,8 +28,9 @@ export default function SignupForm({ code }: { code: string }) {
       setError('All fields are required.')
       return
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    const pwValidation = validatePassword(password)
+    if (!pwValidation.isValid) {
+      setError('Password requirements not met: ' + pwValidation.errors.join(', ') + '.')
       return
     }
     if (password !== confirmPassword) {
@@ -121,13 +124,16 @@ export default function SignupForm({ code }: { code: string }) {
           onChange={e => setEmail(e.target.value)}
           className={inputClass}
         />
-        <input
-          type="password"
-          placeholder="Password (min 8 characters)"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className={inputClass}
-        />
+        <div>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className={inputClass}
+          />
+          <PasswordStrength password={password} />
+        </div>
         <input
           type="password"
           placeholder="Confirm Password"

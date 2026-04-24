@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getBaseUrl } from '@/lib/utils/base-url'
+import { validatePassword } from '@/lib/utils/password-validation'
 
 function serviceClient() {
   return createClient(
@@ -25,7 +26,13 @@ export async function createAccount({
 }): Promise<{ error?: string; success?: true }> {
   const supabase = serviceClient()
 
-  // a. Re-validate access code (race-condition protection)
+  // a. Server-side password validation (belt-and-suspenders)
+  const pwValidation = validatePassword(password)
+  if (!pwValidation.isValid) {
+    return { error: 'Password does not meet requirements: ' + pwValidation.errors.join(', ') + '.' }
+  }
+
+  // b. Re-validate access code (race-condition protection)
   const { data: accessCode } = await supabase
     .from('access_codes')
     .select('id, use_count, max_uses, expires_at, is_active')
@@ -41,7 +48,7 @@ export async function createAccount({
     return { error: 'This access code is no longer valid.' }
   }
 
-  // b. Sign up via auth
+  // c. Sign up via auth
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
@@ -69,13 +76,13 @@ export async function createAccount({
     return { error: 'Account creation failed. Please try again.' }
   }
 
-  // c. Increment use_count
+  // d. Increment use_count
   await supabase
     .from('access_codes')
     .update({ use_count: (accessCode.use_count ?? 0) + 1 })
     .eq('id', accessCode.id)
 
-  // d. Upsert into public.users — always write first_name/last_name so the
+  // e. Upsert into public.users — always write first_name/last_name so the
   //    Active Members table shows the correct name even if a DB trigger created
   //    the row first without that data.
   await supabase
