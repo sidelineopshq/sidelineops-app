@@ -49,6 +49,9 @@ export default async function DashboardPage() {
   const teamIds          = teamUsersRaw.map(t => t.team_id)
   const canManageEvents        = teamUsersRaw.some(t => t.can_manage_events)
   const canSendNotifications   = teamUsersRaw.some(t => t.can_send_notifications)
+  const canSeeQuickActions     = teamUsersRaw.some(
+    t => t.role === 'admin' || t.role === 'coach' || t.can_manage_events
+  )
 
   // Fetch all teams the coach belongs to — order descending by name so
   // "Varsity" (V) sorts before "JV" (J) in the Public Schedule card.
@@ -340,7 +343,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
+        {canSeeQuickActions && <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-lg">
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-400">
             Quick Actions
           </p>
@@ -356,7 +359,7 @@ export default async function DashboardPage() {
           >
             View Schedule
           </a>
-        </div>
+        </div>}
 
         {/* Volunteers */}
         {canSeeVolunteers && (
