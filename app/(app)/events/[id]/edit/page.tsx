@@ -3,6 +3,7 @@ import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect, notFound } from 'next/navigation'
 import EditEventForm from './EditEventForm'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
+import { getTeamPlayerCounts } from '@/lib/utils/get-team-player-count'
 
 function serviceClient() {
   return createSvcClient(
@@ -92,6 +93,12 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
     notes:      s.notes      ?? '',
   }))
 
+  // Fetch player counts for meal coordinator view
+  const assignedTeamIds = (allTeamDetails ?? []).map(d => d.team_id)
+  const teamPlayerCounts = isMealCoordinator && assignedTeamIds.length > 0
+    ? await getTeamPlayerCounts(assignedTeamIds, svc)
+    : {}
+
   return (
     <EditEventForm
       event={event}
@@ -100,6 +107,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       volunteerRoles={volunteerRoles}
       existingSlots={existingSlots}
       isMealCoordinator={isMealCoordinator}
+      teamPlayerCounts={teamPlayerCounts}
     />
   )
 }

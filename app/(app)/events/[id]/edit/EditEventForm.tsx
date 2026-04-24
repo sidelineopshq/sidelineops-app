@@ -8,6 +8,7 @@ import {
   type VolunteerRole,
   type VolunteerSlot,
 } from '../../VolunteerSlotsSection'
+import type { TeamPlayerCount } from '@/lib/utils/get-team-player-count'
 
 const EVENT_TYPES = [
   { value: 'game',       label: 'Game' },
@@ -97,6 +98,7 @@ export default function EditEventForm({
   volunteerRoles,
   existingSlots,
   isMealCoordinator = false,
+  teamPlayerCounts = {},
 }: {
   event:              any
   teams:              Team[]
@@ -104,6 +106,7 @@ export default function EditEventForm({
   volunteerRoles:     VolunteerRole[]
   existingSlots:      VolunteerSlot[]
   isMealCoordinator?: boolean
+  teamPlayerCounts?:  Record<string, TeamPlayerCount>
 }) {
   const router = useRouter()
 
@@ -346,6 +349,47 @@ export default function EditEventForm({
               </div>
             )}
           </div>
+
+          {/* Teams & Player Counts */}
+          {Object.keys(teamPlayerCounts).length > 0 && (
+            <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900 px-5 py-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                Teams &amp; Player Counts
+              </p>
+              <div className="space-y-2">
+                {allTeamDetails.map(d => {
+                  const team = teams.find(t => t.id === d.team_id)
+                  const pc   = teamPlayerCounts[d.team_id]
+                  if (!pc) return null
+                  const hasCallUps = pc.called_up_in > 0 || pc.called_up_out > 0
+                  return (
+                    <div key={d.team_id} className="flex items-center justify-between">
+                      <span className="text-sm text-slate-300">{team?.name ?? d.team_id}</span>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold text-white">{pc.total}</span>
+                        {hasCallUps && (
+                          <span className="text-xs text-slate-500">
+                            ({pc.base_count} base
+                            {pc.called_up_in  > 0 && ` +${pc.called_up_in} up`}
+                            {pc.called_up_out > 0 && ` -${pc.called_up_out} out`}
+                            )
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+                {allTeamDetails.length > 1 && (
+                  <div className="flex items-center justify-between border-t border-white/10 pt-2 mt-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</span>
+                    <span className="font-bold text-white">
+                      {allTeamDetails.reduce((sum, d) => sum + (teamPlayerCounts[d.team_id]?.total ?? 0), 0)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Meal fields */}
           <Card>

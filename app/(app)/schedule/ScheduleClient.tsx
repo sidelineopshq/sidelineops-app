@@ -310,7 +310,8 @@ function TournamentGames({ games, canManageEvents, teamId, onDelete }: {
 // ── Event Row (List View) ─────────────────────────────────────
 
 function EventRow({ event, childGames, canManageEvents, canSendNotifications,
-  teamId, teams, volunteerSummary, userRole, brandPrimary, onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
+  teamId, teams, volunteerSummary, userRole, brandPrimary, playerCountMap,
+  onCancelRequest, onTournamentGameAdded, onTournamentGameDeleted }: {
   event: any
   childGames: any[]
   canManageEvents: boolean
@@ -320,6 +321,7 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
   volunteerSummary?: { filled: number; total: number }
   userRole?: string
   brandPrimary?: string | null
+  playerCountMap?: Record<string, { total: number; base_count: number; called_up_in: number; called_up_out: number }>
   onCancelRequest: (event: any) => void
   onTournamentGameAdded: (game: any) => void
   onTournamentGameDeleted: (gameId: string) => void
@@ -378,6 +380,22 @@ function EventRow({ event, childGames, canManageEvents, canSendNotifications,
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
               🍽 Meal
             </span>
+          )}
+          {event.meal_required && userRole === 'meal_coordinator' && playerCountMap && (
+            (() => {
+              const teamDetails: any[] = event.team_details ?? []
+              const counts = teamDetails
+                .map((d: any) => ({ team: teams.find(t => t.id === d.team_id), pc: playerCountMap[d.team_id] }))
+                .filter(x => x.pc)
+              if (counts.length === 0) return null
+              const grandTotal = counts.reduce((s, x) => s + x.pc!.total, 0)
+              return (
+                <span className="rounded-full border border-amber-500/20 bg-amber-500/5 px-3 py-1 text-xs text-amber-300 font-medium">
+                  {counts.map(x => `${x.team?.name ?? '?'}: ${x.pc!.total}`).join(' · ')}
+                  {counts.length > 1 && ` · Total: ${grandTotal}`}
+                </span>
+              )
+            })()
           )}
           {volunteerSummary && (
             <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -688,6 +706,7 @@ export default function ScheduleClient({
   userRole = '',
   brandPrimary = null,
   brandSecondary = null,
+  playerCountMap = {},
 }: {
   events?: any[]
   childGames?: any[]
@@ -700,6 +719,7 @@ export default function ScheduleClient({
   userRole?: string
   brandPrimary?: string | null
   brandSecondary?: string | null
+  playerCountMap?: Record<string, { total: number; base_count: number; called_up_in: number; called_up_out: number }>
 }) {
   const router = useRouter()
   const [eventList, setEventList]         = useState(events)
@@ -925,6 +945,7 @@ export default function ScheduleClient({
                     volunteerSummary={volunteerSummaryMap[event.id]}
                     userRole={userRole}
                     brandPrimary={brandPrimary}
+                    playerCountMap={playerCountMap}
                     onCancelRequest={setCancelTarget}
                     onTournamentGameAdded={handleTournamentGameAdded}
                     onTournamentGameDeleted={handleTournamentGameDeleted}

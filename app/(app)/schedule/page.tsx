@@ -3,6 +3,7 @@ import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import ScheduleClient from './ScheduleClient'
 import { formatTeamShortLabel, formatProgramLabel } from '@/lib/utils/team-label'
+import { getTeamPlayerCounts } from '@/lib/utils/get-team-player-count'
 
 export const metadata = { title: 'Schedule' }
 
@@ -157,6 +158,26 @@ export default async function SchedulePage() {
     }
   }
 
+  // Fetch player counts for meal coordinator role (meal_required events only)
+  const isMealCoordRole = !canManageEvents && (teamUsersRaw ?? []).some(
+    (t: any) => t.role === 'meal_coordinator' || t.can_manage_meals,
+  )
+  let playerCountMap: Record<string, { total: number; base_count: number; called_up_in: number; called_up_out: number }> = {}
+
+  if (isMealCoordRole) {
+    const mealTeamIds = [
+      ...new Set(
+        allEvents
+          .filter((e: any) => e.meal_required)
+          .flatMap((e: any) => (e.team_details ?? []).map((d: any) => d.team_id as string)),
+      ),
+    ]
+    if (mealTeamIds.length > 0) {
+      const svc = serviceClient()
+      playerCountMap = await getTeamPlayerCounts(mealTeamIds, svc)
+    }
+  }
+
   const teams = (teamsData ?? []).map(t => ({
     id:   t.id,
     name: formatTeamShortLabel((t as any).level ?? ''),
@@ -202,6 +223,7 @@ export default async function SchedulePage() {
       userRole={userRole}
       brandPrimary={brandPrimary}
       brandSecondary={brandSecondary}
+      playerCountMap={playerCountMap}
     />
     </>
   )
