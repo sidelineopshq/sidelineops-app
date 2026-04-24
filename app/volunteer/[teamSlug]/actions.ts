@@ -32,13 +32,22 @@ function esc(s: string): string {
 // ── Phone lookup ──────────────────────────────────────────────────────────────
 
 export async function lookupContactByPhone(
-  programId:       string,
-  normalizedPhone: string,
+  programId:  string,
+  phoneInput: string,
 ): Promise<
   | { found: false }
   | { found: true; contactId: string; firstName: string; fullName: string; email: string }
 > {
-  if (normalizedPhone.length !== 10) return { found: false }
+  console.log('[PHONE LOOKUP] Raw input:', phoneInput)
+
+  // Strip all non-digits, take last 10 (handles +1 country code)
+  const normalizedPhone = phoneInput.replace(/\D/g, '').slice(-10)
+  console.log('[PHONE LOOKUP] Normalized:', normalizedPhone)
+
+  if (normalizedPhone.length !== 10) {
+    console.log('[PHONE LOOKUP] Rejected — not 10 digits after normalization')
+    return { found: false }
+  }
 
   const service = svc()
 
@@ -48,16 +57,32 @@ export async function lookupContactByPhone(
     .eq('program_id', programId)
 
   const teamIds = (teams ?? []).map(t => t.id)
+  console.log('[PHONE LOOKUP] Program team IDs:', teamIds)
   if (teamIds.length === 0) return { found: false }
 
-  const { data: contact } = await service
+  // Step 1: get contact IDs linked via contact_teams junction table
+  const { data: ctRows } = await service
+    .from('contact_teams')
+    .select('contact_id')
+    .in('team_id', teamIds)
+  const ctContactIds = (ctRows ?? []).map(r => r.contact_id)
+  console.log('[PHONE LOOKUP] Junction-table contact IDs:', ctContactIds.length)
+
+  // Step 2: query contacts — match by phone using both legacy team_id and junction table
+  console.log('[PHONE LOOKUP] Querying for phone:', normalizedPhone)
+  const builder = service
     .from('contacts')
     .select('id, first_name, last_name, email')
     .eq('phone', normalizedPhone)
-    .in('team_id', teamIds)
     .is('deleted_at', null)
     .limit(1)
-    .maybeSingle()
+
+  const { data: contact, error } = ctContactIds.length > 0
+    ? await builder.or(`team_id.in.(${teamIds.join(',')}),id.in.(${ctContactIds.join(',')})`).maybeSingle()
+    : await builder.in('team_id', teamIds).maybeSingle()
+
+  console.log('[PHONE LOOKUP] Result:', JSON.stringify(contact))
+  console.log('[PHONE LOOKUP] Error:', JSON.stringify(error))
 
   if (!contact) return { found: false }
 

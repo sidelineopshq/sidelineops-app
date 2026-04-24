@@ -164,7 +164,8 @@ export default function VolunteerSignupClient({
 
   function handlePhoneContinue() {
     setPhoneError(null)
-    const normalized = phone.replace(/\D/g, '')
+    // Strip non-digits, take last 10 (handles +1 country code)
+    const normalized = phone.replace(/\D/g, '').slice(-10)
     if (normalized.length !== 10) {
       setPhoneError('Please enter a complete 10-digit phone number.')
       return
