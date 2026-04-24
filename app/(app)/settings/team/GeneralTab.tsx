@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { saveTeamInfo, saveHomeLocation, saveSchedulePublished } from './actions'
-import { LEVELS } from '@/lib/utils/team-label'
+import { LEVELS, formatTeamShortLabel } from '@/lib/utils/team-label'
 
 type TeamInfo = {
   id:                string
@@ -168,10 +168,13 @@ function ScheduleVisibilitySection({
         {teams.map(t => (
           <div key={t.id} className="px-6 py-4 flex items-center justify-between gap-4">
             <div>
+              <p className="text-sm font-semibold text-slate-200">
+                {formatTeamShortLabel(t.level ?? '') || t.name}
+              </p>
               {showLabels && (
-                <p className="text-xs font-semibold text-slate-300 mb-0.5">{t.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{t.name}</p>
               )}
-              <p className="text-sm text-slate-400">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {publishedMap[t.id]
                   ? 'Public — visible at /schedule/' + (t.slug ?? '…')
                   : 'Private — schedule page shows "Coming Soon"'}
