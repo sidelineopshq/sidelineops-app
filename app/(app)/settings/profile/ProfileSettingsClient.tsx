@@ -212,6 +212,10 @@ export default function ProfileSettingsClient({
       </div>
 
       {/* ── Section 3: Account Info (read-only) ─────────────────── */}
+      {/* TODO: Add light/dark mode toggle here
+          that saves to user preferences and
+          overrides prefers-color-scheme
+          (post-beta enhancement) */}
       <div className="rounded-2xl border border-white/10 bg-slate-900 overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-400">

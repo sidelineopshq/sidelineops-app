@@ -65,8 +65,12 @@ export default async function AppLayout({
 
   return (
     <div
-      className="min-h-screen bg-slate-950 text-white"
-      style={{ '--color-primary': brandPrimary, '--color-secondary': brandSecondary } as React.CSSProperties}
+      className="min-h-screen text-white"
+      style={{
+        background: 'var(--bg-primary)',
+        '--color-primary': brandPrimary,
+        '--color-secondary': brandSecondary,
+      } as React.CSSProperties}
     >
       <AppNav
         displayName={displayName}

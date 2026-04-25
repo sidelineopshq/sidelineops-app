@@ -106,8 +106,8 @@ export default function AppNav({
 
   return (
     <div
-      className="bg-slate-900/90 backdrop-blur sticky top-0 z-40"
-      style={{ borderBottom: `2px solid ${brandPrimary}` }}
+      className="backdrop-blur sticky top-0 z-40"
+      style={{ background: 'var(--nav-bg)', borderBottom: `2px solid ${brandPrimary}` }}
     >
 
       {/* ── Main nav bar ── */}
