@@ -1,10 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ForgotPasswordPage() {
-  const supabase = createClient()
+  const supabase    = createClient()
+  const searchParams = useSearchParams()
+  const linkExpired  = searchParams.get('error') === 'link_expired'
+
   const [email,   setEmail]   = useState('')
   const [sent,    setSent]    = useState(false)
   const [loading, setLoading] = useState(false)
@@ -30,6 +34,13 @@ export default function ForgotPasswordPage() {
         <p className="text-gray-400 text-sm mb-6">
           Enter your email and we&apos;ll send you a reset link.
         </p>
+
+        {linkExpired && !sent && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            That reset link has expired or was opened in a different browser.
+            Enter your email below to request a new one.
+          </div>
+        )}
 
         {sent ? (
           <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-4 text-sm text-green-400">
