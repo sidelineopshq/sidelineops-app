@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const supabase    = createClient()
   const searchParams = useSearchParams()
   const linkExpired  = searchParams.get('error') === 'link_expired'
@@ -74,5 +74,13 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotPasswordForm />
+    </Suspense>
   )
 }
