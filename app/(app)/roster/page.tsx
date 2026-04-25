@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import RosterClient from './RosterClient'
-import { formatProgramLabel } from '@/lib/utils/team-label'
+import { formatProgramLabel, formatTeamShortLabel } from '@/lib/utils/team-label'
 import QRCode from 'qrcode'
 import { getBaseUrl } from '@/lib/utils/base-url'
 
@@ -31,8 +31,10 @@ export default async function RosterPage() {
 
   const { data: teamsData } = await supabase
     .from('teams')
-    .select('id, name, program_id')
+    .select('id, name, level, program_id')
     .in('id', teamIds)
+    .order('is_primary', { ascending: false })
+    .order('name', { ascending: true })
 
   const { data: program } = await supabase
     .from('programs')
@@ -101,7 +103,10 @@ export default async function RosterPage() {
     ? await QRCode.toDataURL(signupUrl, { width: 160, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
     : null
 
-  const teams = (teamsData ?? []).map(t => ({ id: t.id, name: t.name }))
+  const teams = (teamsData ?? []).map(t => ({
+    id:   t.id,
+    name: formatTeamShortLabel((t as any).level ?? '') || t.name,
+  }))
 
   return (
     <RosterClient
