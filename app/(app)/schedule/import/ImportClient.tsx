@@ -3,10 +3,12 @@
 import { useState, useRef, useCallback, useTransition } from 'react'
 import {
   checkForDuplicates,
+  lookupImportSchools,
   importSchedule,
   type ImportRow,
   type DuplicateRecord,
   type ImportResult,
+  type SchoolMatch,
 } from './actions'
 
 // ── Excel parsing helpers ─────────────────────────────────────────────────────
@@ -181,11 +183,16 @@ type ParsedRow = ImportRow & {
   dupAssignmentCount?: number
   dupIsHome?:      boolean | null
   volunteerPreservation?: VolunteerPreservation
+  // Filled after school directory lookup:
+  autoFilledLocation?: boolean
+  autoFilledSchoolId?: string
+  autoFilledLocationName?: string
+  autoFilledLocationAddress?: string
 }
 
 // A display item in the preview — either a parent event or a sub-row
 type PreviewItem =
-  | { kind: 'parent'; key: string; primaryRow: ParsedRow; subRows: ParsedRow[]; checked: boolean; status: RowStatus; volunteerPreservation?: VolunteerPreservation; dupSlotCount?: number; dupAssignmentCount?: number }
+  | { kind: 'parent'; key: string; primaryRow: ParsedRow; subRows: ParsedRow[]; checked: boolean; status: RowStatus; volunteerPreservation?: VolunteerPreservation; dupSlotCount?: number; dupAssignmentCount?: number; autoFilledLocation?: boolean }
   | { kind: 'sub';    key: string; row: ParsedRow; teamName: string }
 
 // ── Status badges ─────────────────────────────────────────────────────────────
@@ -238,6 +245,17 @@ function DuplicateBadge({ vp, slotCount, assignmentCount }: {
   return (
     <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
       Duplicate
+    </span>
+  )
+}
+
+function AutoFilledBadge() {
+  return (
+    <span
+      title="Location filled from Alabama school directory"
+      className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300"
+    >
+      📍 Auto-filled
     </span>
   )
 }
@@ -352,11 +370,31 @@ export default function ImportClient({
           return { date: lead.date, eventType: lead.eventType, opponent: lead.opponent }
         })
 
-        const { duplicates } = await checkForDuplicates(
-          dupCheckItems.filter(i => isValidDate(i.date) && isValidEventType(i.eventType)),
-          programId,
-        )
-        const dupMap = new Map(duplicates.map((d: DuplicateRecord) => [d.key, d]))
+        const validDupItems = dupCheckItems.filter(i => isValidDate(i.date) && isValidEventType(i.eventType))
+
+        // Build list of away games with blank location for school directory lookup
+        const awayBlankLocation = groupKeys
+          .map(k => {
+            const entries = groupMap.get(k)!
+            const lead    = entries[0].parsedRow
+            const isAway  = lead.homeAway.trim().toLowerCase() !== 'home'
+            const isGame  = ['game', 'scrimmage'].includes(lead.eventType.trim().toLowerCase())
+            const noLoc   = !lead.locationName && !lead.locationAddress
+            return isAway && isGame && noLoc && lead.opponent.trim()
+              ? { key: k, opponent: lead.opponent.trim() }
+              : null
+          })
+          .filter((x): x is { key: string; opponent: string } => x !== null)
+
+        // Run both checks in parallel
+        const [{ duplicates }, schoolMatches] = await Promise.all([
+          checkForDuplicates(validDupItems, programId),
+          awayBlankLocation.length > 0
+            ? lookupImportSchools(awayBlankLocation)
+            : Promise.resolve({} as Record<string, SchoolMatch | null>),
+        ])
+
+        const dupMap    = new Map(duplicates.map((d: DuplicateRecord) => [d.key, d]))
 
         // Attach dup info to parsed rows
         for (const pr of parsed) {
@@ -376,6 +414,14 @@ export default function ImportClient({
                   ? 'preserved'
                   : dup.assignmentCount > 0 ? 'lost' : 'no-volunteers')
               : 'no-volunteers'
+          }
+          // Attach school directory auto-fill info
+          const match = schoolMatches[k]
+          if (match) {
+            pr.autoFilledLocation        = true
+            pr.autoFilledSchoolId        = match.id
+            pr.autoFilledLocationName    = match.locationName
+            pr.autoFilledLocationAddress = match.locationAddress
           }
         }
 
@@ -412,6 +458,7 @@ export default function ImportClient({
             volunteerPreservation: leadRow.volunteerPreservation,
             dupSlotCount:          leadRow.dupSlotCount,
             dupAssignmentCount:    leadRow.dupAssignmentCount,
+            autoFilledLocation:    leadRow.autoFilledLocation,
           })
 
           // Sub-rows (Use Case 2: separate rows per team that got merged)
@@ -502,6 +549,10 @@ export default function ImportClient({
           mealRequired:    parent.primaryRow.mealRequired,
           mealTime:        parent.primaryRow.mealTime,
           mealNotes:       parent.primaryRow.mealNotes,
+          // School directory enrichment
+          opponent_school_directory_id: parent.primaryRow.autoFilledSchoolId,
+          auto_filled_location_name:    parent.primaryRow.autoFilledLocationName,
+          auto_filled_location_address: parent.primaryRow.autoFilledLocationAddress,
         })
 
         // sub-rows (Use Case 2): only team and times come from the sub-row;
@@ -827,20 +878,23 @@ export default function ImportClient({
                               </td>
                               <td className="px-3 py-3 text-slate-400 max-w-[140px] truncate">{row.locationName || '—'}</td>
                               <td className="px-3 py-3 whitespace-nowrap">
-                                {item.status === 'new'     && <NewBadge />}
-                                {item.status === 'invalid' && (
-                                  <>
-                                    <InvalidBadge />
-                                    {row.invalidReason && <p className="text-xs text-red-400 mt-0.5">{row.invalidReason}</p>}
-                                  </>
-                                )}
-                                {item.status === 'duplicate' && (
-                                  <DuplicateBadge
-                                    vp={item.volunteerPreservation}
-                                    slotCount={item.dupSlotCount}
-                                    assignmentCount={item.dupAssignmentCount}
-                                  />
-                                )}
+                                <div className="space-y-1">
+                                  {item.status === 'new'     && <NewBadge />}
+                                  {item.status === 'invalid' && (
+                                    <>
+                                      <InvalidBadge />
+                                      {row.invalidReason && <p className="text-xs text-red-400 mt-0.5">{row.invalidReason}</p>}
+                                    </>
+                                  )}
+                                  {item.status === 'duplicate' && (
+                                    <DuplicateBadge
+                                      vp={item.volunteerPreservation}
+                                      slotCount={item.dupSlotCount}
+                                      assignmentCount={item.dupAssignmentCount}
+                                    />
+                                  )}
+                                  {item.autoFilledLocation && <AutoFilledBadge />}
+                                </div>
                               </td>
                             </tr>
                           )

@@ -29,6 +29,10 @@ export type ImportRow = {
   mealRequired:    string   // Yes, No
   mealTime:        string
   mealNotes:       string
+  // School directory enrichment (optional — added by client during preview)
+  opponent_school_directory_id?: string
+  auto_filled_location_name?:    string
+  auto_filled_location_address?: string
 }
 
 // A resolved row after team lookup — one row per team
@@ -101,6 +105,70 @@ function mapIsHome(val: string): boolean | null {
 
 function groupKey(date: string, eventType: string, opponent: string): string {
   return `${date}|${eventType}|${(opponent ?? '').trim().toLowerCase()}`
+}
+
+// ── lookupImportSchools ───────────────────────────────────────────────────────
+// Called client-side during import preview to auto-fill location for away games.
+// Returns a map of groupKey → school match (or null if no match found).
+
+export type SchoolMatch = {
+  id:              string
+  locationName:    string
+  locationAddress: string
+}
+
+export async function lookupImportSchools(
+  items: { key: string; opponent: string }[],
+): Promise<Record<string, SchoolMatch | null>> {
+  const authClient = await createServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return {}
+
+  const service = createServiceClient()
+  const result:  Record<string, SchoolMatch | null> = {}
+
+  for (const item of items) {
+    const opp = item.opponent.trim()
+    if (!opp) { result[item.key] = null; continue }
+
+    const { data, error } = await service
+      .from('school_directory')
+      .select('id, name, full_address, address, city, state, zip, normalized_name')
+      .or(`name.ilike.%${opp}%,normalized_name.ilike.%${opp}%`)
+      .order('name')
+      .limit(5)
+
+    if (error || !data?.length) {
+      // Fallback: name-only search (in case normalized_name doesn't exist)
+      const fb = await service
+        .from('school_directory')
+        .select('id, name, full_address, address, city, state, zip')
+        .ilike('name', `%${opp}%`)
+        .order('name')
+        .limit(5)
+      if (!fb.data?.length) { result[item.key] = null; continue }
+    }
+
+    const rows: any[] = data?.length ? data : []
+    if (!rows.length) { result[item.key] = null; continue }
+
+    // Prefer prefix match
+    const oLower  = opp.toLowerCase()
+    rows.sort((a: any, b: any) => {
+      const aL = a.name.toLowerCase()
+      const bL = b.name.toLowerCase()
+      const s  = (n: string) => n.startsWith(oLower) ? 0 : n.includes(oLower) ? 1 : 2
+      return s(aL) !== s(bL) ? s(aL) - s(bL) : aL.localeCompare(bL)
+    })
+
+    const school = rows[0]
+    const addr   = school.full_address
+      || [school.address, school.city, school.state, school.zip].filter(Boolean).join(', ')
+
+    result[item.key] = { id: school.id, locationName: school.name, locationAddress: addr }
+  }
+
+  return result
 }
 
 // ── checkForDuplicates ────────────────────────────────────────────────────────
@@ -312,6 +380,11 @@ export async function importSchedule(
       const mealTime     = parseTime(primaryRow.mealTime)
       const mealRequired = primaryRow.mealRequired.trim().toLowerCase() === 'yes'
 
+      // Use auto-filled location from school directory if row has no location
+      const resolvedLocationName    = primaryRow.locationName    || primaryRow.auto_filled_location_name    || null
+      const resolvedLocationAddress = primaryRow.locationAddress || primaryRow.auto_filled_location_address || null
+      const resolvedSchoolDirId     = primaryRow.opponent_school_directory_id || null
+
       // Duplicate check (by date + type + opponent)
       const { data: existing } = await service
         .from('events')
@@ -353,18 +426,19 @@ export async function importSchedule(
 
         if (shouldPreserve) {
           await service.from('events').update({
-            opponent:             opponentVal,
-            is_home:              isHome,
-            location_name:        primaryRow.locationName    || null,
-            location_address:     primaryRow.locationAddress || null,
-            default_start_time:   startTime                  || null,
-            default_arrival_time: arrivalTime                || null,
-            default_end_time:     endTime                    || null,
-            uniform_notes:        primaryRow.uniformNotes    || null,
-            notes:                primaryRow.notes           || null,
-            meal_required:        mealRequired,
-            meal_time:            mealTime                   || null,
-            meal_notes:           primaryRow.mealNotes       || null,
+            opponent:                       opponentVal,
+            is_home:                        isHome,
+            opponent_school_directory_id:   resolvedSchoolDirId,
+            location_name:                  resolvedLocationName,
+            location_address:               resolvedLocationAddress,
+            default_start_time:             startTime   || null,
+            default_arrival_time:           arrivalTime || null,
+            default_end_time:               endTime     || null,
+            uniform_notes:                  primaryRow.uniformNotes || null,
+            notes:                          primaryRow.notes        || null,
+            meal_required:                  mealRequired,
+            meal_time:                      mealTime    || null,
+            meal_notes:                     primaryRow.mealNotes    || null,
           }).eq('id', ex.id)
 
           eventId = ex.id
@@ -392,25 +466,26 @@ export async function importSchedule(
           const { data: newEvent, error: insertErr } = await service
             .from('events')
             .insert({
-              program_id:           programId,
-              event_type:           eventType,
-              event_date:           eventDate,
-              opponent:             opponentVal,
-              is_home:              isHome,
-              location_name:        primaryRow.locationName    || null,
-              location_address:     primaryRow.locationAddress || null,
-              default_start_time:   startTime                  || null,
-              default_arrival_time: arrivalTime                || null,
-              default_end_time:     endTime                    || null,
-              uniform_notes:        primaryRow.uniformNotes    || null,
-              notes:                primaryRow.notes           || null,
-              meal_required:        mealRequired,
-              meal_time:            mealTime                   || null,
-              meal_notes:           primaryRow.mealNotes       || null,
-              status:               'scheduled',
-              is_public:            true,
-              is_tournament:        eventType === 'tournament',
-              created_by_user_id:   user.id,
+              program_id:                     programId,
+              event_type:                     eventType,
+              event_date:                     eventDate,
+              opponent:                       opponentVal,
+              is_home:                        isHome,
+              opponent_school_directory_id:   resolvedSchoolDirId,
+              location_name:                  resolvedLocationName,
+              location_address:               resolvedLocationAddress,
+              default_start_time:             startTime   || null,
+              default_arrival_time:           arrivalTime || null,
+              default_end_time:               endTime     || null,
+              uniform_notes:                  primaryRow.uniformNotes || null,
+              notes:                          primaryRow.notes        || null,
+              meal_required:                  mealRequired,
+              meal_time:                      mealTime    || null,
+              meal_notes:                     primaryRow.mealNotes    || null,
+              status:                         'scheduled',
+              is_public:                      true,
+              is_tournament:                  eventType === 'tournament',
+              created_by_user_id:             user.id,
             })
             .select('id')
             .single()
@@ -429,25 +504,26 @@ export async function importSchedule(
         const { data: newEvent, error: insertErr } = await service
           .from('events')
           .insert({
-            program_id:           programId,
-            event_type:           eventType,
-            event_date:           eventDate,
-            opponent:             opponentVal,
-            is_home:              isHome,
-            location_name:        primaryRow.locationName    || null,
-            location_address:     primaryRow.locationAddress || null,
-            default_start_time:   startTime                  || null,
-            default_arrival_time: arrivalTime                || null,
-            default_end_time:     endTime                    || null,
-            uniform_notes:        primaryRow.uniformNotes    || null,
-            notes:                primaryRow.notes           || null,
-            meal_required:        mealRequired,
-            meal_time:            mealTime                   || null,
-            meal_notes:           primaryRow.mealNotes       || null,
-            status:               'scheduled',
-            is_public:            true,
-            is_tournament:        eventType === 'tournament',
-            created_by_user_id:   user.id,
+            program_id:                     programId,
+            event_type:                     eventType,
+            event_date:                     eventDate,
+            opponent:                       opponentVal,
+            is_home:                        isHome,
+            opponent_school_directory_id:   resolvedSchoolDirId,
+            location_name:                  resolvedLocationName,
+            location_address:               resolvedLocationAddress,
+            default_start_time:             startTime   || null,
+            default_arrival_time:           arrivalTime || null,
+            default_end_time:               endTime     || null,
+            uniform_notes:                  primaryRow.uniformNotes || null,
+            notes:                          primaryRow.notes        || null,
+            meal_required:                  mealRequired,
+            meal_time:                      mealTime    || null,
+            meal_notes:                     primaryRow.mealNotes    || null,
+            status:                         'scheduled',
+            is_public:                      true,
+            is_tournament:                  eventType === 'tournament',
+            created_by_user_id:             user.id,
           })
           .select('id')
           .single()

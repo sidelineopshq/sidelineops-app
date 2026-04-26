@@ -8,6 +8,9 @@ import {
   type VolunteerRole,
   type VolunteerSlot,
 } from '../VolunteerSlotsSection'
+import SchoolDirectoryAutocomplete, {
+  type SchoolDirectoryEntry,
+} from '@/components/SchoolDirectoryAutocomplete'
 
 type TemplateSlot = {
   id:                string
@@ -105,10 +108,12 @@ export default function NewEventForm({
 
   const [eventType, setEventType]             = useState('game')
   const [eventDate, setEventDate]             = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }))
-  const [opponent, setOpponent]               = useState('')
-  const [isHome, setIsHome]                   = useState(true)
-  const [locationName, setLocationName]       = useState('')
-  const [locationAddress, setLocationAddress] = useState('')
+  const [opponent, setOpponent]                               = useState('')
+  const [opponentSchoolDirectoryId, setOpponentSchoolDirectoryId] = useState<string | null>(null)
+  const [locationAutoFilled, setLocationAutoFilled]           = useState(false)
+  const [isHome, setIsHome]                                   = useState(true)
+  const [locationName, setLocationName]                       = useState('')
+  const [locationAddress, setLocationAddress]                 = useState('')
   const [status, setStatus]                   = useState('scheduled')
   const [notes, setNotes]                     = useState('')
   const [uniformNotes, setUniformNotes]       = useState('')
@@ -144,18 +149,38 @@ export default function NewEventForm({
 
   function handleSetIsHome(val: boolean) {
     setIsHome(val)
-    if (val && templateSlots.length > 0) {
-      // Only show prompt if not already interacted with
-      if (templateState === 'idle') {
+    if (val) {
+      // Switching to Home — clear directory reference (no autocomplete for home games)
+      setOpponentSchoolDirectoryId(null)
+      setLocationAutoFilled(false)
+      if (templateSlots.length > 0 && templateState === 'idle') {
         setTemplateState('prompt')
       }
-    } else if (!val) {
-      // Toggled OFF — clear any applied template state
+    } else {
+      // Switching to Away — clear volunteer template state
       setTemplateState('idle')
       setVolunteerSlots([])
       setTplChecked([])
       setTplEdits([])
     }
+  }
+
+  function handleSchoolSelect(school: SchoolDirectoryEntry) {
+    setOpponent(school.name)
+    setOpponentSchoolDirectoryId(school.id)
+    // Auto-populate location only if currently empty
+    if (!locationName && !locationAddress) {
+      const addr = school.full_address
+        || [school.address, school.city, school.state, school.zip].filter(Boolean).join(', ')
+      setLocationName(school.name)
+      setLocationAddress(addr)
+      setLocationAutoFilled(true)
+    }
+  }
+
+  function handleSchoolClear() {
+    setOpponentSchoolDirectoryId(null)
+    setLocationAutoFilled(false)
   }
 
   function handleApplyTemplate() {
@@ -218,23 +243,24 @@ export default function NewEventForm({
     }))
 
     const result = await createEvent({
-      event_type:           eventType,
-      event_date:           eventDate,
-      opponent:             isGameLike ? opponent : undefined,
-      is_home:              isGameLike ? isHome : undefined,
-      location_name:        locationName || undefined,
-      location_address:     locationAddress || undefined,
+      event_type:                     eventType,
+      event_date:                     eventDate,
+      opponent:                       isGameLike ? opponent : undefined,
+      is_home:                        isGameLike ? isHome : undefined,
+      opponent_school_directory_id:   isGameLike && !isHome ? opponentSchoolDirectoryId : null,
+      location_name:                  locationName || undefined,
+      location_address:               locationAddress || undefined,
       status,
-      notes:                notes || undefined,
-      uniform_notes:        uniformNotes || undefined,
-      is_tournament:        isTournament,
-      title:                isTournament ? tournamentTitle : undefined,
-      meal_required:        mealRequired,
-      meal_notes:           mealRequired ? mealNotes : undefined,
-      meal_time:            mealRequired && mealTime ? mealTime : undefined,
-      is_public:            isPublic,
+      notes:                          notes || undefined,
+      uniform_notes:                  uniformNotes || undefined,
+      is_tournament:                  isTournament,
+      title:                          isTournament ? tournamentTitle : undefined,
+      meal_required:                  mealRequired,
+      meal_notes:                     mealRequired ? mealNotes : undefined,
+      meal_time:                      mealRequired && mealTime ? mealTime : undefined,
+      is_public:                      isPublic,
       team_assignments,
-      volunteer_slots:      (isGameLike && isHome) ? volunteerSlots : [],
+      volunteer_slots:                (isGameLike && isHome) ? volunteerSlots : [],
     })
 
     if (result?.error) {
@@ -319,13 +345,24 @@ export default function NewEventForm({
                   <label className={labelClass}>
                     Opponent <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={opponent}
-                    onChange={e => setOpponent(e.target.value)}
-                    placeholder="e.g. Riverside High School"
-                    className={inputClass}
-                  />
+                  {isHome ? (
+                    <input
+                      type="text"
+                      value={opponent}
+                      onChange={e => setOpponent(e.target.value)}
+                      placeholder="e.g. Riverside High School"
+                      className={inputClass}
+                    />
+                  ) : (
+                    <SchoolDirectoryAutocomplete
+                      value={opponent}
+                      onChange={setOpponent}
+                      onSelect={handleSchoolSelect}
+                      onClear={handleSchoolClear}
+                      placeholder="e.g. Sparkman High School"
+                      className={inputClass}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>Home or Away</label>
@@ -456,7 +493,7 @@ export default function NewEventForm({
                 <input
                   type="text"
                   value={locationName}
-                  onChange={e => setLocationName(e.target.value)}
+                  onChange={e => { setLocationName(e.target.value); setLocationAutoFilled(false) }}
                   placeholder="e.g. Memorial Field"
                   className={inputClass}
                 />
@@ -468,12 +505,17 @@ export default function NewEventForm({
                 <input
                   type="text"
                   value={locationAddress}
-                  onChange={e => setLocationAddress(e.target.value)}
+                  onChange={e => { setLocationAddress(e.target.value); setLocationAutoFilled(false) }}
                   placeholder="e.g. 11306 County Line Rd"
                   className={inputClass}
                 />
               </div>
             </div>
+            {locationAutoFilled && (
+              <p className="text-xs text-slate-400 italic -mt-4">
+                Location auto-filled from school directory · Edit if needed
+              </p>
+            )}
 
             {/* Notes */}
             <div>

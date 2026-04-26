@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import EditEventForm from './EditEventForm'
 import { formatTeamShortLabel } from '@/lib/utils/team-label'
 import { getTeamPlayerCounts } from '@/lib/utils/get-team-player-count'
+import type { SchoolDirectoryEntry } from '@/components/SchoolDirectoryAutocomplete'
 
 function serviceClient() {
   return createSvcClient(
@@ -41,12 +42,23 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       location_name, location_address, event_date,
       default_start_time, default_arrival_time, default_end_time,
       status, notes, uniform_notes, meal_required, meal_notes, meal_time,
-      is_public, program_id
+      is_public, program_id, opponent_school_directory_id
     `)
     .eq('id', id)
     .single()
 
   if (!event) notFound()
+
+  // Pre-fetch the linked school directory entry (if any) for the autocomplete indicator
+  let opponentSchool: SchoolDirectoryEntry | null = null
+  if ((event as any).opponent_school_directory_id) {
+    const { data: schoolData } = await supabase
+      .from('school_directory')
+      .select('id, name, type, address, city, state, zip, full_address, district, county, normalized_name, latitude, longitude')
+      .eq('id', (event as any).opponent_school_directory_id)
+      .single()
+    opponentSchool = (schoolData as SchoolDirectoryEntry | null)
+  }
 
   // Fetch all teams this coach manages — primary first
   const { data: teamsData } = await supabase
@@ -108,6 +120,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       existingSlots={existingSlots}
       isMealCoordinator={isMealCoordinator}
       teamPlayerCounts={teamPlayerCounts}
+      opponentSchool={opponentSchool}
     />
   )
 }

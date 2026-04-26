@@ -18,6 +18,7 @@ export async function createEvent(formData: {
   event_date: string
   opponent?: string
   is_home?: boolean
+  opponent_school_directory_id?: string | null
   location_name?: string
   location_address?: string
   status: string
@@ -112,9 +113,10 @@ export async function createEvent(formData: {
       program_id:           teamData.program_id,
       event_type:           formData.event_type,
       title,
-      opponent:             formData.opponent || null,
-      is_home:              formData.is_home ?? null,
-      location_name:        formData.location_name || null,
+      opponent:                       formData.opponent || null,
+      is_home:                        formData.is_home ?? null,
+      opponent_school_directory_id:   formData.opponent_school_directory_id ?? null,
+      location_name:                  formData.location_name || null,
       location_address:     formData.location_address || null,
       event_date:           formData.event_date,
       default_start_time:   firstAssignment.start_time   || null,

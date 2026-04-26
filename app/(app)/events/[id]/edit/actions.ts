@@ -26,6 +26,7 @@ export async function updateEvent(
     event_date: string
     opponent?: string
     is_home?: boolean
+    opponent_school_directory_id?: string | null
     location_name?: string
     location_address?: string
     status: string
@@ -109,10 +110,11 @@ export async function updateEvent(
     .update({
       event_type:           formData.event_type,
       title,
-      opponent:             formData.opponent || null,
-      is_home:              formData.is_home ?? null,
-      location_name:        formData.location_name || null,
-      location_address:     formData.location_address || null,
+      opponent:                       formData.opponent || null,
+      is_home:                        formData.is_home ?? null,
+      opponent_school_directory_id:   formData.opponent_school_directory_id ?? null,
+      location_name:                  formData.location_name || null,
+      location_address:               formData.location_address || null,
       event_date:           formData.event_date,
       default_start_time:   first.start_time   || null,
       default_arrival_time: first.arrival_time || null,
